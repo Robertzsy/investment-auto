@@ -55,6 +55,7 @@ tr:hover{background:rgba(88,166,255,0.05)}
   <div class="nav">
     <a href="/">💬 对话</a>
     <a href="/dashboard" class="active">📊 仪表盘</a>
+    <a href="/macro">📰 宏观日报</a>
     <a href="/settings">⚙️ 设置</a>
   </div>
 </div>
@@ -98,6 +99,12 @@ tr:hover{background:rgba(88,166,255,0.05)}
     </div>
   </div>
 
+  <!-- 宏观日报区域 -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-header"><h3>📰 宏观日报</h3><a href="/macro" style="color:var(--accent);font-size:0.85rem;text-decoration:none">查看全部 →</a></div>
+    <div id="macroSummary"><div class="loading">加载中...</div></div>
+  </div>
+
   <!-- 持仓明细 -->
   <div class="card">
     <div class="card-header"><h3>📋 持仓明细</h3><button class="refresh-btn" onclick="loadDashboard()">刷新</button></div>
@@ -139,9 +146,34 @@ async function loadDashboard() {
     renderHoldings(data);
     renderTrades(data);
     renderOptimizer(data);
+    loadMacroSummary();
   } catch(e) {
     console.error(e);
     document.getElementById('holdingsTable').innerHTML = '<div class="empty">加载失败: ' + e.message + '</div>';
+  }
+}
+
+async function loadMacroSummary() {
+  try {
+    const res = await fetch('/api/macro/dates');
+    const data = await res.json();
+    const container = document.getElementById('macroSummary');
+    if (!data.dates || data.dates.length === 0) {
+      container.innerHTML = '<div class="empty">暂无宏观数据</div>';
+      return;
+    }
+    // Show latest 3 dates
+    let html = '<div style="display:flex;flex-direction:column;gap:8px">';
+    data.dates.slice(0, 3).forEach(date => {
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--bg);border-radius:6px">
+        <span>${date}</span>
+        <a href="/macro" style="color:var(--accent);font-size:0.8rem;text-decoration:none">查看 →</a>
+      </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e) {
+    document.getElementById('macroSummary').innerHTML = '<div class="empty">加载失败</div>';
   }
 }
 

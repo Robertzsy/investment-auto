@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Investment-Auto 设置</title>
 <style>
-:root{--bg:#0f1117;--surface:#1a1d27;--border:#2a2d3a;--text:#e1e4e8;--text-dim:#8b949e;--accent:#58a6ff;--accent-hover:#79c0ff;--success:#3fb950;--danger:#f85149;--radius:10px;--font:'Inter',system-ui,sans-serif}
+:root{--bg:#0f1117;--surface:#1a1d27;--border:#2a2d3a;--text:#e1e4e8;--text-dim:#8b949e;--accent:#58a6ff;--accent-hover:#79c0ff;--success:#3fb950;--danger:#f85149;--warning:#d29922;--radius:10px;--font:'Inter',system-ui,sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh}
 .header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between}
@@ -21,6 +21,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .form-group label{display:block;font-size:0.85rem;color:var(--text-dim);margin-bottom:6px}
 .form-group input,.form-group select,.form-group textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 12px;font-size:0.9rem;outline:none}
 .form-group input:focus,.form-group select:focus{border-color:var(--accent)}
+.form-group input[type=password]{font-family:monospace}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .checkbox-group{display:flex;flex-wrap:wrap;gap:10px}
 .checkbox-item{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 14px;cursor:pointer;transition:all .15s}
@@ -42,6 +43,23 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .toast{position:fixed;top:20px;right:20px;background:var(--success);color:#fff;padding:12px 20px;border-radius:8px;font-size:0.9rem;opacity:0;transition:opacity .3s;z-index:1000}
 .toast.show{opacity:1}
 .toast.error{background:var(--danger)}
+/* API Key 卡片 */
+.api-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px}
+.api-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.api-card-header h3{font-size:0.95rem;color:var(--text)}
+.api-card-header .status{font-size:0.75rem;padding:2px 8px;border-radius:10px}
+.api-card-header .status.configured{background:var(--success);color:#fff}
+.api-card-header .status.not-configured{background:var(--border);color:var(--text-dim)}
+.api-card .form-group{margin-bottom:8px}
+.api-card .form-group:last-child{margin-bottom:0}
+.help-text{font-size:0.75rem;color:var(--text-dim);margin-top:4px}
+/* 模型选择简化 */
+.model-select-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.model-option{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:all .15s;text-align:center}
+.model-option:hover{border-color:var(--accent)}
+.model-option.selected{border-color:var(--accent);background:rgba(88,166,255,0.1)}
+.model-option .name{font-weight:600;margin-bottom:4px}
+.model-option .desc{font-size:0.75rem;color:var(--text-dim)}
 </style>
 </head>
 <body>
@@ -50,11 +68,32 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   <div class="nav">
     <a href="/">💬 对话</a>
     <a href="/dashboard">📊 仪表盘</a>
+    <a href="/macro">📰 宏观日报</a>
     <a href="/settings" class="active">⚙️ 设置</a>
   </div>
 </div>
 
 <div class="container">
+  <!-- API Keys -->
+  <div class="section">
+    <h2>🔑 API Keys</h2>
+    <div id="apiKeysContainer"></div>
+  </div>
+
+  <!-- 模型选择 -->
+  <div class="section">
+    <h2>🤖 AI 模型</h2>
+    <div class="form-group">
+      <label>主模型（点击选择）</label>
+      <div class="model-select-group" id="modelSelectGroup"></div>
+    </div>
+    <div class="form-group">
+      <label>回退顺序（用逗号分隔，如: openai,glm,kimi）</label>
+      <input type="text" id="llmFallback" placeholder="openai,glm,kimi">
+      <div class="help-text">当主模型失败时，按此顺序尝试其他模型</div>
+    </div>
+  </div>
+
   <!-- 市场开关 -->
   <div class="section">
     <h2>🌐 市场开关</h2>
@@ -72,39 +111,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   <!-- 调度设置 -->
   <div class="section">
     <h2>⏰ 调度设置</h2>
-    <div class="form-group">
-      <label>时区</label>
-      <input type="text" id="timezone" value="Asia/Shanghai">
-    </div>
-    <div class="form-group">
-      <label>仅工作日运行</label>
-      <select id="weekdaysOnly">
-        <option value="true">是</option>
-        <option value="false">否</option>
-      </select>
-    </div>
-    <div id="intradaySettings"></div>
-  </div>
-
-  <!-- LLM 设置 -->
-  <div class="section">
-    <h2>🤖 AI 模型</h2>
     <div class="form-row">
       <div class="form-group">
-        <label>主模型提供方</label>
-        <select id="llmProvider">
-          <option value="deepseek">DeepSeek</option>
-          <option value="openai">OpenAI</option>
-          <option value="glm">GLM</option>
-          <option value="kimi">Kimi</option>
-        </select>
+        <label>时区</label>
+        <input type="text" id="timezone" value="Asia/Shanghai">
       </div>
       <div class="form-group">
-        <label>回退顺序（逗号分隔）</label>
-        <input type="text" id="llmFallback" placeholder="openai,glm,kimi">
+        <label>仅工作日运行</label>
+        <select id="weekdaysOnly">
+          <option value="true">是</option>
+          <option value="false">否</option>
+        </select>
       </div>
     </div>
-    <div id="modelSettings"></div>
+    <div id="intradaySettings"></div>
   </div>
 
   <!-- 优化器设置 -->
@@ -166,11 +186,23 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
 <script>
 let config = {};
+let envVars = {};
+
+const PROVIDERS = {
+  deepseek: { name: 'DeepSeek', desc: '深度求索 V4', defaultModel: 'deepseek-v4-pro', defaultBase: 'https://api.deepseek.com' },
+  openai: { name: 'OpenAI', desc: 'GPT-5.6 系列', defaultModel: 'gpt-5.6-sol', defaultBase: 'https://ai-apigateway.must.edu.mo/openhub/v1' },
+  glm: { name: 'GLM', desc: '智谱 5.2', defaultModel: 'glm-5.2', defaultBase: 'https://open.bigmodel.cn/api/paas/v4' },
+  kimi: { name: 'Kimi', desc: '月之暗面 K3', defaultModel: 'kimi-k3', defaultBase: 'https://api.moonshot.cn/v1' }
+};
 
 async function loadConfig() {
   try {
-    const res = await fetch('/api/config');
-    config = await res.json();
+    const [configRes, envRes] = await Promise.all([
+      fetch('/api/config'),
+      fetch('/api/env')
+    ]);
+    config = await configRes.json();
+    envVars = await envRes.json();
     renderConfig();
     showToast('配置已加载', 'success');
   } catch(e) {
@@ -179,6 +211,9 @@ async function loadConfig() {
 }
 
 function renderConfig() {
+  renderApiKeys();
+  renderModelSelect();
+  
   // 市场开关
   const markets = config.markets?.enable || [];
   document.querySelectorAll('#marketCheckboxes input').forEach(cb => {
@@ -191,9 +226,7 @@ function renderConfig() {
   renderIntraday();
 
   // LLM
-  document.getElementById('llmProvider').value = config.llm?.provider || 'deepseek';
   document.getElementById('llmFallback').value = (config.llm?.provider_fallback || []).join(',');
-  renderModels();
 
   // 优化器
   document.getElementById('optimizerEnabled').value = String(config.optimizer?.enabled ?? true);
@@ -204,6 +237,61 @@ function renderConfig() {
   // 交易
   document.getElementById('tradingMode').value = config.trading?.mode || 'paper';
   document.getElementById('maxDailyTrades').value = config.trading?.max_daily_trades || 6;
+}
+
+function renderApiKeys() {
+  const container = document.getElementById('apiKeysContainer');
+  container.innerHTML = '';
+  
+  for (const [key, info] of Object.entries(PROVIDERS)) {
+    const envKey = key.toUpperCase() + '_API_KEY';
+    const hasKey = envVars[envKey] && envVars[envKey].length > 0;
+    const currentModel = config.llm?.models?.[key]?.model || info.defaultModel;
+    const currentBase = config.llm?.models?.[key]?.api_base || info.defaultBase;
+    
+    const div = document.createElement('div');
+    div.className = 'api-card';
+    div.innerHTML = `
+      <div class="api-card-header">
+        <h3>${info.name}</h3>
+        <span class="status ${hasKey ? 'configured' : 'not-configured'}">${hasKey ? '已配置' : '未配置'}</span>
+      </div>
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="password" id="apikey_${key}" value="${envVars[envKey] || ''}" placeholder="输入 ${info.name} API Key">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>模型</label>
+          <input type="text" id="model_${key}" value="${currentModel}" placeholder="${info.defaultModel}">
+        </div>
+        <div class="form-group">
+          <label>API 地址</label>
+          <input type="text" id="base_${key}" value="${currentBase}" placeholder="${info.defaultBase}">
+        </div>
+      </div>
+      <div class="help-text">${info.desc} · 默认模型: ${info.defaultModel}</div>
+    `;
+    container.appendChild(div);
+  }
+}
+
+function renderModelSelect() {
+  const container = document.getElementById('modelSelectGroup');
+  const currentProvider = config.llm?.provider || 'deepseek';
+  container.innerHTML = '';
+  
+  for (const [key, info] of Object.entries(PROVIDERS)) {
+    const div = document.createElement('div');
+    div.className = 'model-option' + (key === currentProvider ? ' selected' : '');
+    div.dataset.provider = key;
+    div.innerHTML = `<div class="name">${info.name}</div><div class="desc">${info.desc}</div>`;
+    div.onclick = () => {
+      document.querySelectorAll('.model-option').forEach(el => el.classList.remove('selected'));
+      div.classList.add('selected');
+    };
+    container.appendChild(div);
+  }
 }
 
 function renderIntraday() {
@@ -225,21 +313,6 @@ function renderIntraday() {
   }
 }
 
-function renderModels() {
-  const container = document.getElementById('modelSettings');
-  const models = config.llm?.models || {};
-  container.innerHTML = '';
-  for (const [provider, cfg] of Object.entries(models)) {
-    const div = document.createElement('div');
-    div.className = 'form-row';
-    div.innerHTML = `
-      <div class="form-group"><label>${provider} 模型</label><input type="text" value="${cfg.model || ''}" data-provider="${provider}" data-field="model"></div>
-      <div class="form-group"><label>${provider} API Base</label><input type="text" value="${cfg.api_base || ''}" data-provider="${provider}" data-field="api_base"></div>
-    `;
-    container.appendChild(div);
-  }
-}
-
 function addTime(market) {
   if (!config.schedule.intraday_rounds[market]) config.schedule.intraday_rounds[market] = [];
   config.schedule.intraday_rounds[market].push('10:00');
@@ -252,7 +325,40 @@ function removeTime(market, index) {
 }
 
 async function saveConfig() {
-  // 收集市场开关
+  // 收集 API Keys
+  const newEnv = {};
+  for (const key of Object.keys(PROVIDERS)) {
+    const envKey = key.toUpperCase() + '_API_KEY';
+    const value = document.getElementById(`apikey_${key}`).value;
+    if (value) newEnv[envKey] = value;
+  }
+  
+  // 保存到 .env
+  try {
+    await fetch('/api/env', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(newEnv)
+    });
+  } catch(e) {
+    showToast('⚠️ API Keys 保存失败: ' + e.message, 'error');
+  }
+
+  // 收集模型配置
+  const selectedProvider = document.querySelector('.model-option.selected')?.dataset.provider || 'deepseek';
+  config.llm = config.llm || {};
+  config.llm.provider = selectedProvider;
+  config.llm.provider_fallback = document.getElementById('llmFallback').value.split(',').map(s=>s.trim()).filter(Boolean);
+  
+  // 更新各 provider 的 model 和 base
+  config.llm.models = config.llm.models || {};
+  for (const key of Object.keys(PROVIDERS)) {
+    config.llm.models[key] = config.llm.models[key] || {};
+    config.llm.models[key].model = document.getElementById(`model_${key}`).value;
+    config.llm.models[key].api_base = document.getElementById(`base_${key}`).value;
+  }
+
+  // 市场开关
   const markets = [];
   document.querySelectorAll('#marketCheckboxes input:checked').forEach(cb => markets.push(cb.value));
   config.markets = config.markets || {};
@@ -262,23 +368,12 @@ async function saveConfig() {
   config.schedule = config.schedule || {};
   config.schedule.timezone = document.getElementById('timezone').value;
   config.schedule.weekdays_only = document.getElementById('weekdaysOnly').value === 'true';
-  // 收集盘中时间
   document.querySelectorAll('.time-item input').forEach(input => {
     const market = input.dataset.market;
     const index = parseInt(input.dataset.index);
     if (config.schedule.intraday_rounds[market]) {
       config.schedule.intraday_rounds[market][index] = input.value;
     }
-  });
-
-  // LLM
-  config.llm = config.llm || {};
-  config.llm.provider = document.getElementById('llmProvider').value;
-  config.llm.provider_fallback = document.getElementById('llmFallback').value.split(',').map(s=>s.trim()).filter(Boolean);
-  document.querySelectorAll('#modelSettings input').forEach(input => {
-    const provider = input.dataset.provider;
-    const field = input.dataset.field;
-    if (config.llm.models[provider]) config.llm.models[provider][field] = input.value;
   });
 
   // 优化器

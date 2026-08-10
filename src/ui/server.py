@@ -31,11 +31,17 @@ class ChatHandler(SimpleHTTPRequestHandler):
         # API routes
         if path == "/api/config":
             return self._handle_get_config()
+        if path == "/api/env":
+            return self._handle_get_env()
         if path == "/api/dashboard":
             market = query.get("market", ["all"])[0]
             return self._handle_dashboard(market)
         if path == "/api/optimizer":
             return self._handle_optimizer()
+        if path == "/api/macro":
+            return self._handle_macro(query)
+        if path == "/api/macro/dates":
+            return self._handle_macro_dates()
 
         # Static files
         if path == "/" or path == "":
@@ -44,6 +50,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             self.path = "/settings.html"
         elif path == "/dashboard":
             self.path = "/dashboard.html"
+        elif path == "/macro":
+            self.path = "/macro.html"
         return super().do_GET()
 
     def do_POST(self):
@@ -53,6 +61,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_chat()
         if path == "/api/config":
             return self._handle_save_config()
+        if path == "/api/env":
+            return self._handle_save_env()
 
         self.send_response(404)
         self.end_headers()
@@ -115,6 +125,144 @@ class ChatHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             logger.exception("dashboard error")
             self._json_response(500, {"error": str(e)})
+
+    def _handle_get_env(self):
+        """Read .env file and return as dict (mask sensitive values for display)."""
+        try:
+            env_path = PROJECT_ROOT / ".env"
+            env_vars = {}
+            if env_path.exists():
+                for line in env_path.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        env_vars[k.strip()] = v.strip()
+            self._json_response(200, env_vars)
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_save_env(self):
+        """Save environment variables to .env file."""
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            return self._json_response(400, {"error": "invalid json"})
+
+        try:
+            env_path = PROJECT_ROOT / ".env"
+            # Read existing
+            existing = {}
+            if env_path.exists():
+                for line in env_path.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        existing[k.strip()] = v.strip()
+            # Merge
+            existing.update(data)
+            # Write back
+            lines = [f"{k}={v}" for k, v in existing.items()]
+            env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            self._json_response(200, {"ok": True})
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_macro(self):
+        """Get macro environment data."""
+        try:
+            from src.config import cfg
+            macro_dir = PROJECT_ROOT / "runtime" / "macro"
+            if not macro_dir.exists():
+                return self._json_response(200, {"available": False, "message": "宏观数据目录不存在"})
+            
+            # Find latest macro report
+            files = sorted(macro_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if not files:
+                return self._json_response(200, {"available": False, "message": "暂无宏观数据"})
+            
+            latest = json.loads(files[0].read_text(encoding="utf-8"))
+            self._json_response(200, {"available": True, "file": files[0].name, "data": latest})
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_macro(self, query: dict):
+        """Get macro environment report for a specific date."""
+        try:
+            date = query.get("date", [None])[0]
+            if not date:
+                return self._json_response(400, {"error": "missing date parameter"})
+            
+            # Try to find macro report in workspace data directory
+            workspace = Path.home() / ".openclaw" / "workspace"
+            macro_file = workspace / "data" / "macro" / "daily" / f"{date}.md"
+            
+            if not macro_file.exists():
+                # Try JSON format
+                macro_json = workspace / "data" / "macro" / "news" / f"{date}.json"
+                if macro_json.exists():
+                    data = json.loads(macro_json.read_text(encoding="utf-8"))
+                    return self._json_response(200, {"available": True, "date": date, "content": self._macro_json_to_markdown(data)})
+                return self._json_response(200, {"available": False, "message": f"{date} 无宏观数据"})
+            
+            content = macro_file.read_text(encoding="utf-8")
+            self._json_response(200, {"available": True, "date": date, "content": content})
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_macro_dates(self):
+        """Get list of available macro report dates."""
+        try:
+            workspace = Path.home() / ".openclaw" / "workspace"
+            macro_dir = workspace / "data" / "macro" / "daily"
+            dates = []
+            if macro_dir.exists():
+                for f in sorted(macro_dir.glob("*.md"), reverse=True):
+                    dates.append(f.stem)
+            # Also check JSON news files
+            news_dir = workspace / "data" / "macro" / "news"
+            if news_dir.exists():
+                for f in sorted(news_dir.glob("*.json"), reverse=True):
+                    if f.stem not in dates:
+                        dates.append(f.stem)
+            dates = sorted(dates, reverse=True)
+            self._json_response(200, {"dates": dates, "latest": dates[0] if dates else None})
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _macro_json_to_markdown(self, data: dict) -> str:
+        """Convert macro JSON to markdown format."""
+        lines = [f"# 宏观环境日报 {data.get('date', '')}\n"]
+        
+        # Market data
+        if "market_data" in data:
+            md = data["market_data"]
+            lines.append("## 市场概览\n")
+            if "indices" in md:
+                lines.append("| 指数 | 最新 | 涨跌% |")
+                lines.append("|------|------|-------|")
+                for idx in md["indices"]:
+                    lines.append(f"| {idx.get('name','')} | {idx.get('price','')} | {idx.get('change_pct','')}% |")
+                lines.append("")
+        
+        # Categories
+        if "categories" in data:
+            lines.append("## 政策与行业动态\n")
+            for cat in data["categories"]:
+                lines.append(f"### {cat.get('name','')}")
+                for item in cat.get("items", []):
+                    lines.append(f"- {item}")
+                lines.append("")
+        
+        # Sectors
+        if "sectors" in data:
+            lines.append("## 板块分析\n")
+            for sec in data["sectors"]:
+                lines.append(f"- **{sec.get('name','')}**: {sec.get('summary','')}")
+            lines.append("")
+        
+        return "\n".join(lines)
 
     def _handle_optimizer(self):
         try:

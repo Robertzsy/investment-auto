@@ -35,6 +35,19 @@ SYSTEM_PROMPT = """你是 Investment-Auto 的 AI 操作助手，拥有对项目�
 
 项目路径：/app（Docker）或 Python sys.path[0] 所在目录
 
+**重要：工具调用格式**
+当需要执行操作时，使用以下 JSON 格式（不要用 DSML 或其他格式）：
+
+```tool
+{"tool": "read_file", "params": {"path_str": "config/config.yaml"}}
+```
+
+可用工具：
+- read_file: 读取文件，参数 {"path_str": "文件路径"}
+- write_file: 写入文件，参数 {"path_str": "文件路径", "content": "内容"}
+- run_shell: 执行命令，参数 {"cmd": "命令", "timeout": 60}
+- list_dir: 列出目录，参数 {"path_str": "目录路径"}
+
 回复要求：
 - 使用中文 Markdown 格式，可以用表格、代码块、列表等
 - 执行操作时，先在回复中说明将要做什么，然后调用工具执行
@@ -112,9 +125,9 @@ def _safe_project_path(path_str: str) -> Optional[Path]:
 
 TOOLS = {
     "run_shell": {"fn": run_shell, "desc": "执行 shell 命令", "params": {"cmd": "string", "cwd": "optional string", "timeout": "int"}},
-    "read_file": {"fn": read_file, "desc": "读取项目文件", "params": {"path_str": "string"}},
-    "write_file": {"fn": write_file, "desc": "写入项目文件", "params": {"path_str": "string", "content": "string"}},
-    "list_dir": {"fn": list_dir, "desc": "列出目录文件", "params": {"path_str": "string default='.'"}},
+    "read_file": {"fn": read_file, "desc": "读取项目文件", "params": {"path_str": "string", "filePath": "alias for path_str"}},
+    "write_file": {"fn": write_file, "desc": "写入项目文件", "params": {"path_str": "string", "content": "string", "filePath": "alias for path_str"}},
+    "list_dir": {"fn": list_dir, "desc": "列出目录文件", "params": {"path_str": "string default='.'", "dirPath": "alias for path_str"}},
 }
 
 # ── chat handler ────────────────────────────────
@@ -162,29 +175,75 @@ def _build_user_message(user_text: str) -> str:
     )
 
 def _parse_tool_call(text: str) -> Optional[Dict[str, Any]]:
-    """Try to extract a JSON tool-call block from LLM output."""
+    """Try to extract a tool-call from LLM output.
+    Supports multiple formats:
+    1. ```tool\n{"tool": "...", "params": {...}}\n```
+    2. DSML format: <｜｜DSML｜｜tool_calls>...<｜｜DSML｜｜invoke name="read_file">...
+    3. OpenAI function calling format
+    """
     import re
-    # Look for:
-    # ```tool
-    # {"tool": "...", "params": {...}}
-    # ```
+    
+    # Format 1: ```tool JSON block
     m = re.search(r'```tool\s*\n(.*?)\n\s*```', text, re.DOTALL)
-    if not m:
-        return None
-    try:
-        data = json.loads(m.group(1))
-        if data.get("tool") in TOOLS:
-            return data
-    except json.JSONDecodeError:
-        return None
+    if m:
+        try:
+            data = json.loads(m.group(1))
+            if data.get("tool") in TOOLS:
+                return data
+        except json.JSONDecodeError:
+            pass
+    
+    # Format 2: DSML format (DeepSeek)
+    # <｜｜DSML｜｜invoke name="read_file">
+    # <｜｜DSML｜｜parameter name="filePath" string="true">/path/to/file</｜｜DSML｜｜parameter>
+    # </｜｜DSML｜｜invoke>
+    dsml_match = re.search(r'<｜｜DSML｜｜invoke\s+name="(\w+)"[^>]*>(.*?)</｜｜DSML｜｜invoke>', text, re.DOTALL)
+    if dsml_match:
+        tool_name = dsml_match.group(1)
+        params_text = dsml_match.group(2)
+        if tool_name in TOOLS:
+            # Extract parameters
+            params = {}
+            param_matches = re.findall(r'<｜｜DSML｜｜parameter\s+name="(\w+)"[^>]*>([^<]*)</｜｜DSML｜｜parameter>', params_text)
+            for pname, pvalue in param_matches:
+                params[pname] = pvalue
+            return {"tool": tool_name, "params": params}
+    
+    # Format 3: Simple JSON in text
+    # {"tool": "read_file", "params": {"path_str": "..."}}
+    json_match = re.search(r'\{[^{}]*"tool"\s*:\s*"(\w+)"[^{}]*"params"\s*:\s*\{([^{}]*)\}[^{}]*\}', text)
+    if json_match:
+        try:
+            tool_name = json_match.group(1)
+            if tool_name in TOOLS:
+                # Try to parse the full JSON
+                full_match = re.search(r'\{[^{}]*"tool"[^{}]*\}', text)
+                if full_match:
+                    data = json.loads(full_match.group(0))
+                    if data.get("tool") in TOOLS:
+                        return data
+        except json.JSONDecodeError:
+            pass
+    
     return None
 
 def _execute_tool(tool_call: Dict[str, Any]) -> Dict[str, Any]:
     tool_name = tool_call["tool"]
     params = tool_call.get("params", {})
     fn = TOOLS[tool_name]["fn"]
+    
+    # Normalize parameter names (handle aliases)
+    normalized = {}
+    for k, v in params.items():
+        if k in ("filePath", "filepath"):
+            normalized["path_str"] = v
+        elif k in ("dirPath", "dirpath"):
+            normalized["path_str"] = v
+        else:
+            normalized[k] = v
+    
     try:
-        result = fn(**params)
+        result = fn(**normalized)
         return result
     except Exception as e:
         return {"error": str(e), "traceback": traceback.format_exc()}
