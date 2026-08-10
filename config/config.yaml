@@ -44,8 +44,8 @@ llm:
   provider_fallback: [openai, glm, kimi]
   models:
     openai:
-      model: gpt-5.6-sol
-      api_base: https://api.openai.com/v1
+      model: gpt-5.5
+      api_base: https://ai-apigateway.must.edu.mo/openhub/v1
       variants: [gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna]
       api_key_env: OPENAI_API_KEY
     deepseek:
