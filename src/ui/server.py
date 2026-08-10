@@ -42,6 +42,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_macro(query)
         if path == "/api/macro/dates":
             return self._handle_macro_dates()
+        if path == "/api/history":
+            return self._handle_get_history()
 
         # Static files
         if path == "/" or path == "":
@@ -59,6 +61,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/chat":
             return self._handle_chat()
+        if path == "/api/history/clear":
+            return self._handle_clear_history()
         if path == "/api/config":
             return self._handle_save_config()
         if path == "/api/env":
@@ -80,16 +84,54 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
         message = data.get("message", "").strip()
         thinking = data.get("thinking", False)
+        stream = data.get("stream", True)
         if not message:
             return self._json_response(400, {"error": "empty message"})
 
         logger.info(f"Chat: {message[:100]}...")
         try:
+            if stream:
+                return self._handle_chat_stream(message, thinking)
             from .chat_server import handle_chat
             reply = handle_chat(message, thinking)
             self._json_response(200, {"reply": reply})
         except Exception as e:
             logger.exception("chat error")
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_chat_stream(self, message: str, thinking: bool):
+        from .chat_server import handle_chat_stream
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        try:
+            for event in handle_chat_stream(message, thinking):
+                payload = json.dumps(event, ensure_ascii=False)
+                self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                self.wfile.flush()
+        except BrokenPipeError:
+            logger.warning("SSE client disconnected")
+        except Exception as e:
+            payload = json.dumps({"type": "error", "content": str(e)}, ensure_ascii=False)
+            self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+            self.wfile.flush()
+
+    def _handle_get_history(self):
+        try:
+            from .chat_server import load_history, load_memory
+            self._json_response(200, {"history": load_history(limit=100), "memory": load_memory()})
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_clear_history(self):
+        try:
+            from .chat_server import clear_history
+            clear_history()
+            self._json_response(200, {"ok": True})
+        except Exception as e:
             self._json_response(500, {"error": str(e)})
 
     def _handle_get_config(self):

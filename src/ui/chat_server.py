@@ -1,9 +1,11 @@
 """
-AI Chat Web Server for investment-auto.
+AI Chat backend for investment-auto.
 
-Serves the chat UI at / and a backend JSON API at /api/chat.
-The AI has full permission to read/modify project files, run optimizer,
-manage scheduler, and execute safe shell commands.
+Features:
+- Persistent conversation history and memory
+- Tool execution loop with JSON/DSML/raw JSON parsing
+- Streaming-friendly generator for SSE endpoint
+- Full project permissions, restricted to project root paths for file IO
 """
 
 from __future__ import annotations
@@ -11,85 +13,75 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
-import sys
 import traceback
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 from src.config import cfg
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+RUNTIME_DIR = PROJECT_ROOT / "runtime"
+HISTORY_FILE = RUNTIME_DIR / "chat_history.json"
+MEMORY_FILE = RUNTIME_DIR / "chat_memory.md"
 
 logger = logging.getLogger("investment-auto.chat")
 
-# ── system prompt (full access) ───────────────────────
 SYSTEM_PROMPT = """你是 Investment-Auto 的 AI 操作助手，拥有对项目的完全读写和执行权限。
 
 你的能力：
-1. **读写文件**：可以读取、修改 config/config.yaml、config/market/*.yaml 等配置文件
-2. **执行命令**：可以在项目目录下执行 Python 脚本（如 optimizer）、Node.js 脚本（stock-fetcher）、系统命令
-3. **管理调度**：可以启停调度器，查看运行日志
-4. **分析数据**：可以调用 stock-fetcher 获取行情，调用 optimizer 生成优化报告
-5. **修改配置**：可以调整风控参数、市场开关、轮次时间、模型选择等
+1. 读写文件：读取/修改 config/config.yaml、config/market/*.yaml 等配置
+2. 执行命令：在项目目录下运行 Python、Node.js、测试、优化器等命令
+3. 管理调度：查看/启动/停止调度器、检查日志
+4. 分析数据：调用 stock-fetcher 获取行情，调用 optimizer 生成优化报告
+5. 修改配置：调整风控、市场开关、轮次时间、模型选择等
 
-项目路径：/app（Docker）或 Python sys.path[0] 所在目录
-
-**重要：工具调用格式**
-当需要执行操作时，使用以下 JSON 格式（不要用 DSML 或其他格式）：
+重要：如果需要执行操作，必须使用以下 JSON 工具调用格式，不要只把 JSON 当作普通文本回复：
 
 ```tool
 {"tool": "read_file", "params": {"path_str": "config/config.yaml"}}
 ```
 
 可用工具：
-- read_file: 读取文件，参数 {"path_str": "文件路径"}
-- write_file: 写入文件，参数 {"path_str": "文件路径", "content": "内容"}
-- run_shell: 执行命令，参数 {"cmd": "命令", "timeout": 60}
-- list_dir: 列出目录，参数 {"path_str": "目录路径"}
+- read_file: {"path_str": "文件路径"}
+- write_file: {"path_str": "文件路径", "content": "内容"}
+- run_shell: {"cmd": "命令", "timeout": 60}
+- list_dir: {"path_str": "目录路径"}
 
-回复要求：
-- 使用中文 Markdown 格式，可以用表格、代码块、列表等
-- 执行操作时，先在回复中说明将要做什么，然后调用工具执行
-- 执行结果用代码块展示或表格总结
-- 如果操作有风险（如修改风控参数），提醒用户确认
+工具调用规则：
+- 要读文件/跑命令/改配置时，先用工具，不要假装已经做了
+- 工具返回后，根据结果继续回答
+- 如果一次需要多个操作，分多轮工具调用
+- 最终回复必须是中文 Markdown，不要再包含工具调用 JSON
 
-项目文件结构：
-- config/config.yaml: 主配置
-- config/market/cn.yaml, hk.yaml, us.yaml, etf.yaml: 市场风控
-- src/optimizer/engine.py: 组合优化引擎
-- scripts/stock-fetcher.js: 跨市场行情采集
-- runtime/data/portfolio.json: 模拟账户
-- runtime/reports/: 投资报告"""
+安全边界：文件读写限制在项目根目录内。"""
 
-# ── tool definitions ───────────────────────────────
+# ── tools ─────────────────────────────────────────────
 def run_shell(cmd: str, cwd: Optional[str] = None, timeout: int = 60) -> Dict[str, Any]:
-    """Execute a shell command in the project directory. Returns stdout, stderr, returncode."""
     workdir = cwd or str(PROJECT_ROOT)
     try:
-        p = subprocess.run(
-            cmd, shell=True, cwd=workdir,
-            capture_output=True, text=True, timeout=timeout
-        )
-        return {"stdout": p.stdout[:10000], "stderr": p.stderr[:4000], "returncode": p.returncode}
+        p = subprocess.run(cmd, shell=True, cwd=workdir, capture_output=True, text=True, timeout=int(timeout))
+        return {"stdout": p.stdout[:20000], "stderr": p.stderr[:8000], "returncode": p.returncode}
     except subprocess.TimeoutExpired:
         return {"error": f"命令超时 ({timeout}s)"}
     except Exception as e:
         return {"error": str(e)}
 
+
 def read_file(path_str: str) -> Dict[str, Any]:
-    """Read a file under the project directory."""
     p = _safe_project_path(path_str)
-    if not p:
+    if not p or not p.exists():
         return {"error": f"路径不安全或不存在: {path_str}"}
     try:
         content = p.read_text(encoding="utf-8")
-        return {"path": str(p.relative_to(PROJECT_ROOT)), "content": content[:20000], "truncated": len(content) > 20000}
+        return {"path": str(p.relative_to(PROJECT_ROOT)), "content": content[:30000], "truncated": len(content) > 30000}
     except Exception as e:
         return {"error": str(e)}
 
+
 def write_file(path_str: str, content: str) -> Dict[str, Any]:
-    """Write content to a file under the project directory. Creates parent dirs if needed."""
     p = _safe_project_path(path_str)
     if not p:
         return {"error": f"路径不安全: {path_str}"}
@@ -100,23 +92,25 @@ def write_file(path_str: str, content: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": str(e)}
 
+
 def list_dir(path_str: str = ".") -> Dict[str, Any]:
-    """List files in a project directory."""
     p = _safe_project_path(path_str)
     if not p or not p.exists():
         return {"error": f"路径不存在: {path_str}"}
     try:
         items = []
         for entry in sorted(p.iterdir()):
-            items.append({"name": entry.name, "type": "dir" if entry.is_dir() else "file",
-                          "size": entry.stat().st_size if entry.is_file() else None})
+            items.append({"name": entry.name, "type": "dir" if entry.is_dir() else "file", "size": entry.stat().st_size if entry.is_file() else None})
         return {"path": str(p.relative_to(PROJECT_ROOT)), "items": items}
     except Exception as e:
         return {"error": str(e)}
 
+
 def _safe_project_path(path_str: str) -> Optional[Path]:
-    """Resolve path to absolute, reject anything outside project root."""
-    p = (PROJECT_ROOT / path_str).resolve()
+    p = Path(path_str)
+    if not p.is_absolute():
+        p = PROJECT_ROOT / p
+    p = p.resolve()
     try:
         p.relative_to(PROJECT_ROOT)
         return p
@@ -124,126 +118,216 @@ def _safe_project_path(path_str: str) -> Optional[Path]:
         return None
 
 TOOLS = {
-    "run_shell": {"fn": run_shell, "desc": "执行 shell 命令", "params": {"cmd": "string", "cwd": "optional string", "timeout": "int"}},
-    "read_file": {"fn": read_file, "desc": "读取项目文件", "params": {"path_str": "string", "filePath": "alias for path_str"}},
-    "write_file": {"fn": write_file, "desc": "写入项目文件", "params": {"path_str": "string", "content": "string", "filePath": "alias for path_str"}},
-    "list_dir": {"fn": list_dir, "desc": "列出目录文件", "params": {"path_str": "string default='.'", "dirPath": "alias for path_str"}},
+    "run_shell": {"fn": run_shell},
+    "read_file": {"fn": read_file},
+    "write_file": {"fn": write_file},
+    "list_dir": {"fn": list_dir},
 }
 
-# ── chat handler ────────────────────────────────
+# ── history/memory ───────────────────────────────────
+def load_history(limit: int = 30) -> List[Dict[str, Any]]:
+    if not HISTORY_FILE.exists():
+        return []
+    try:
+        data = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+        return data[-limit:]
+    except Exception:
+        return []
+
+
+def save_history(history: List[Dict[str, Any]]) -> None:
+    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+    HISTORY_FILE.write_text(json.dumps(history[-200:], ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def append_history(role: str, content: str) -> None:
+    h = load_history(limit=200)
+    h.append({"role": role, "content": content, "time": datetime.now().isoformat(timespec="seconds")})
+    save_history(h)
+
+
+def clear_history() -> None:
+    save_history([])
+
+
+def load_memory() -> str:
+    if not MEMORY_FILE.exists():
+        return ""
+    return MEMORY_FILE.read_text(encoding="utf-8")[:8000]
+
+
+def append_memory(note: str) -> None:
+    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+    with MEMORY_FILE.open("a", encoding="utf-8") as f:
+        f.write(f"\n- {datetime.now().isoformat(timespec='seconds')}: {note}\n")
+
+# ── public handlers ─────────────────────────────────
 def handle_chat(message: str, thinking: bool = False) -> str:
-    """Main entry: send user message to LLM, return reply."""
+    parts = []
+    for ev in handle_chat_stream(message, thinking):
+        if ev.get("type") == "token":
+            parts.append(ev.get("content", ""))
+        elif ev.get("type") == "final":
+            # final already emitted as tokens; ignore
+            pass
+    return "".join(parts)
+
+
+def handle_chat_stream(message: str, thinking: bool = False) -> Generator[Dict[str, Any], None, None]:
+    """Yield events: token/status/tool/final/error."""
     from src.llm.registry import resolve_llm
 
-    llm = resolve_llm(role="chat")  # can be overridden in config
+    append_history("user", message)
+    history = load_history(limit=20)
+    memory = load_memory()
 
-    messages: List[Dict[str, str]] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": _build_user_message(message)},
-    ]
+    messages: List[Dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if memory:
+        messages.append({"role": "system", "content": f"以下是长期记忆/历史偏好：\n{memory}"})
+    # Add recent history except the freshly appended user duplicated later
+    for item in history[:-1]:
+        if item.get("role") in ("user", "assistant"):
+            messages.append({"role": item["role"], "content": item.get("content", "")})
+    messages.append({"role": "user", "content": _build_user_message(message)})
 
-    # simple tool-calling loop (max 5 rounds)
-    for _round in range(5):
+    llm = resolve_llm(role="chat")
+    final_answer = ""
+
+    for round_idx in range(8):
+        yield {"type": "status", "content": "思考中..." if round_idx == 0 else "继续处理工具结果..."}
         kwargs: Dict[str, Any] = {}
         if thinking:
             kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
-        # For glm / kimi which may use "enable_thinking"
-        resp = llm.chat(messages, temperature=0.3, max_tokens=4096, **kwargs)
-        messages.append({"role": "assistant", "content": resp})
+        try:
+            resp = llm.chat(messages, temperature=0.25, max_tokens=4096, **kwargs)
+        except Exception as e:
+            yield {"type": "error", "content": str(e)}
+            return
 
-        # check if LLM wants to call a tool
         tool_call = _parse_tool_call(resp)
         if not tool_call:
-            # no tool call → final reply
-            return resp
+            final_answer = _strip_tool_blocks(resp)
+            # stream by chunks for UI responsiveness
+            for chunk in _chunk_text(final_answer, 18):
+                yield {"type": "token", "content": chunk}
+            append_history("assistant", final_answer)
+            # primitive memory extraction
+            if "记住" in message or "remember" in message.lower():
+                append_memory(message)
+            yield {"type": "final", "content": final_answer}
+            return
 
-        # execute tool
+        # Do not surface raw tool JSON as assistant answer; show tool status instead.
+        yield {"type": "tool", "name": tool_call.get("tool"), "params": tool_call.get("params", {})}
+        messages.append({"role": "assistant", "content": resp})
         tool_result = _execute_tool(tool_call)
-        messages.append({
-            "role": "user",
-            "content": f"[工具执行结果]\n{json.dumps(tool_result, ensure_ascii=False, indent=2)}"
-        })
+        messages.append({"role": "user", "content": f"[工具执行结果]\n{json.dumps(tool_result, ensure_ascii=False, indent=2)}\n\n请基于工具结果继续。如果需要更多工具，再调用工具；否则给出最终回答，不要重复工具JSON。"})
 
-    return resp  # fallback return last response
+    final_answer = "工具调用轮次过多，已停止。请拆分任务或查看日志。"
+    for chunk in _chunk_text(final_answer, 18):
+        yield {"type": "token", "content": chunk}
+    append_history("assistant", final_answer)
+    yield {"type": "final", "content": final_answer}
+
 
 def _build_user_message(user_text: str) -> str:
-    return (
-        f"{user_text}\n\n"
-        f"你可以使用以下工具来完成任务：read_file, write_file, run_shell, list_dir。\n"
-        f"如果不需要执行操作，直接回复我即可。\n"
-        f"项目路径: {PROJECT_ROOT}"
-    )
+    return f"{user_text}\n\n项目根目录: {PROJECT_ROOT}\n如需操作，请使用工具。"
 
+# ── parsing ──────────────────────────────────────────
 def _parse_tool_call(text: str) -> Optional[Dict[str, Any]]:
-    """Try to extract a tool-call from LLM output.
-    Supports multiple formats:
-    1. ```tool\n{"tool": "...", "params": {...}}\n```
-    2. DSML format: <｜｜DSML｜｜tool_calls>...<｜｜DSML｜｜invoke name="read_file">...
-    3. OpenAI function calling format
-    """
-    import re
-    
-    # Format 1: ```tool JSON block
-    m = re.search(r'```tool\s*\n(.*?)\n\s*```', text, re.DOTALL)
+    # 1. fenced tool block
+    m = re.search(r"```tool\s*\n(.*?)\n\s*```", text, re.DOTALL)
     if m:
-        try:
-            data = json.loads(m.group(1))
-            if data.get("tool") in TOOLS:
-                return data
-        except json.JSONDecodeError:
-            pass
-    
-    # Format 2: DSML format (DeepSeek)
-    # <｜｜DSML｜｜invoke name="read_file">
-    # <｜｜DSML｜｜parameter name="filePath" string="true">/path/to/file</｜｜DSML｜｜parameter>
-    # </｜｜DSML｜｜invoke>
-    dsml_match = re.search(r'<｜｜DSML｜｜invoke\s+name="(\w+)"[^>]*>(.*?)</｜｜DSML｜｜invoke>', text, re.DOTALL)
-    if dsml_match:
-        tool_name = dsml_match.group(1)
-        params_text = dsml_match.group(2)
-        if tool_name in TOOLS:
-            # Extract parameters
-            params = {}
-            param_matches = re.findall(r'<｜｜DSML｜｜parameter\s+name="(\w+)"[^>]*>([^<]*)</｜｜DSML｜｜parameter>', params_text)
-            for pname, pvalue in param_matches:
-                params[pname] = pvalue
-            return {"tool": tool_name, "params": params}
-    
-    # Format 3: Simple JSON in text
-    # {"tool": "read_file", "params": {"path_str": "..."}}
-    json_match = re.search(r'\{[^{}]*"tool"\s*:\s*"(\w+)"[^{}]*"params"\s*:\s*\{([^{}]*)\}[^{}]*\}', text)
-    if json_match:
-        try:
-            tool_name = json_match.group(1)
-            if tool_name in TOOLS:
-                # Try to parse the full JSON
-                full_match = re.search(r'\{[^{}]*"tool"[^{}]*\}', text)
-                if full_match:
-                    data = json.loads(full_match.group(0))
-                    if data.get("tool") in TOOLS:
-                        return data
-        except json.JSONDecodeError:
-            pass
-    
+        tc = _loads_tool_json(m.group(1).strip())
+        if tc:
+            return tc
+
+    # 2. DeepSeek DSML
+    dsml = re.search(r'<｜｜DSML｜｜invoke\s+name="(\w+)"[^>]*>(.*?)</｜｜DSML｜｜invoke>', text, re.DOTALL)
+    if dsml:
+        name, body = dsml.group(1), dsml.group(2)
+        if name in TOOLS:
+            params: Dict[str, Any] = {}
+            for pname, pvalue in re.findall(r'<｜｜DSML｜｜parameter\s+name="(\w+)"[^>]*>(.*?)</｜｜DSML｜｜parameter>', body, re.DOTALL):
+                params[pname] = pvalue.strip()
+            return {"tool": name, "params": _normalize_params(params)}
+
+    # 3. raw JSON object in assistant output
+    for obj in _extract_json_objects(text):
+        tc = _loads_tool_json(obj)
+        if tc:
+            return tc
     return None
 
-def _execute_tool(tool_call: Dict[str, Any]) -> Dict[str, Any]:
-    tool_name = tool_call["tool"]
-    params = tool_call.get("params", {})
-    fn = TOOLS[tool_name]["fn"]
-    
-    # Normalize parameter names (handle aliases)
-    normalized = {}
-    for k, v in params.items():
-        if k in ("filePath", "filepath"):
-            normalized["path_str"] = v
-        elif k in ("dirPath", "dirpath"):
-            normalized["path_str"] = v
-        else:
-            normalized[k] = v
-    
+
+def _loads_tool_json(text: str) -> Optional[Dict[str, Any]]:
     try:
-        result = fn(**normalized)
-        return result
+        data = json.loads(text)
+    except Exception:
+        return None
+    if isinstance(data, dict) and data.get("tool") in TOOLS:
+        return {"tool": data["tool"], "params": _normalize_params(data.get("params", {}))}
+    return None
+
+
+def _extract_json_objects(text: str) -> List[str]:
+    objs: List[str] = []
+    stack = 0
+    start = None
+    in_str = False
+    esc = False
+    for i, ch in enumerate(text):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            if stack == 0:
+                start = i
+            stack += 1
+        elif ch == "}":
+            if stack:
+                stack -= 1
+                if stack == 0 and start is not None:
+                    objs.append(text[start:i+1])
+                    start = None
+    return objs
+
+
+def _normalize_params(params: Dict[str, Any]) -> Dict[str, Any]:
+    out = {}
+    for k, v in (params or {}).items():
+        if k in ("filePath", "filepath", "path", "dirPath", "dirpath"):
+            out["path_str"] = v
+        elif k in ("command",):
+            out["cmd"] = v
+        else:
+            out[k] = v
+    return out
+
+
+def _strip_tool_blocks(text: str) -> str:
+    text = re.sub(r"```tool\s*\n.*?\n\s*```", "", text, flags=re.DOTALL).strip()
+    text = re.sub(r"<｜｜DSML｜｜tool_calls>.*?</｜｜DSML｜｜tool_calls>", "", text, flags=re.DOTALL).strip()
+    return text
+
+
+def _chunk_text(text: str, size: int = 20) -> Generator[str, None, None]:
+    for i in range(0, len(text), size):
+        yield text[i:i+size]
+
+
+def _execute_tool(tool_call: Dict[str, Any]) -> Dict[str, Any]:
+    name = tool_call.get("tool")
+    params = _normalize_params(tool_call.get("params", {}))
+    fn = TOOLS[name]["fn"]
+    try:
+        return fn(**params)
     except Exception as e:
         return {"error": str(e), "traceback": traceback.format_exc()}

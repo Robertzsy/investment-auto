@@ -65,6 +65,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
       <a href="/dashboard" style="color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s">📊 仪表盘</a>
       <a href="/macro" style="color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s">📰 宏观日报</a>
       <a href="/settings" style="color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s">⚙️ 设置</a>
+      <button onclick="clearHistory()" style="background:var(--border);color:var(--text);border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:0.8rem">清空历史</button>
     </div>
     <div class="toggle-wrap">
       <span>思考</span>
@@ -117,38 +118,75 @@ function handleKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 }
 
+let isGenerating = false;
+
 async function sendMessage() {
+  if (isGenerating) return;
   const input = document.getElementById('userInput');
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
-  const btn = document.getElementById('sendBtn');
-  btn.disabled = true;
+  setInputLocked(true);
 
-  appendMessage('user', text);
-  const loading = appendMessage('assistant', '<div class="dot-bounce"><span></span><span></span><span></span></div>', true);
-  const box = document.getElementById('chatBox');
+  appendMessage('user', marked.parseInline(text));
+  const assistantMsg = appendMessage('assistant', '<div class="dot-bounce"><span></span><span></span><span></span></div>', true);
+  const body = assistantMsg.querySelector('.body');
+  let raw = '';
 
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: text, thinking: thinking_enabled})
+      body: JSON.stringify({message: text, thinking: thinking_enabled, stream: true})
     });
-    box.removeChild(loading);
-    if (!res.ok) {
-      const err = await res.json();
-      appendMessage('assistant', `❌ 错误: ${err.error || '请求失败'}`);
-    } else {
-      const data = await res.json();
-      appendMessage('assistant', marked.parse(data.reply));
+    if (!res.ok || !res.body) {
+      const errText = await res.text();
+      body.innerHTML = `❌ 错误: ${errText || res.status}`;
+      return;
     }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    body.innerHTML = '';
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream:true});
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() || '';
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue;
+        const evt = JSON.parse(part.slice(6));
+        if (evt.type === 'token') {
+          raw += evt.content || '';
+          body.innerHTML = marked.parse(raw);
+          assistantMsg.scrollIntoView({behavior:'smooth', block:'end'});
+        } else if (evt.type === 'tool') {
+          body.innerHTML += `<div style="color:var(--text-dim);font-size:.8rem;margin:6px 0">🔧 调用工具: <code>${evt.name}</code></div>`;
+        } else if (evt.type === 'status') {
+          if (!raw) body.innerHTML = `<span style="color:var(--text-dim)">${evt.content}</span>`;
+        } else if (evt.type === 'error') {
+          body.innerHTML = `❌ 错误: ${evt.content}`;
+        }
+      }
+    }
+    if (!raw && body.innerHTML.trim()==='') body.innerHTML = '（无输出）';
   } catch (e) {
-    box.removeChild(loading);
-    appendMessage('assistant', `❌ 网络错误: ${e.message}`);
+    body.innerHTML = `❌ 网络错误: ${e.message}`;
   } finally {
-    btn.disabled = false;
+    setInputLocked(false);
+    loadHistory(false);
   }
+}
+
+function setInputLocked(locked) {
+  isGenerating = locked;
+  const input = document.getElementById('userInput');
+  const btn = document.getElementById('sendBtn');
+  input.disabled = locked;
+  btn.disabled = locked;
+  btn.textContent = locked ? '生成中...' : '发送';
+  document.querySelectorAll('.suggestion').forEach(s => s.style.pointerEvents = locked ? 'none' : 'auto');
 }
 
 function appendMessage(role, html, isTemp) {
@@ -160,12 +198,38 @@ function appendMessage(role, html, isTemp) {
   ts.textContent = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
   div.appendChild(ts);
   const body = document.createElement('div');
+  body.className = 'body';
   body.innerHTML = html;
   div.appendChild(body);
   box.appendChild(div);
   if (!isTemp) box.scrollTop = box.scrollHeight;
   return div;
 }
+async function loadHistory(render=true) {
+  try {
+    const res = await fetch('/api/history');
+    const data = await res.json();
+    if (!render) return;
+    const box = document.getElementById('chatBox');
+    // keep welcome message, append history after it
+    const welcome = box.firstElementChild;
+    box.innerHTML = '';
+    box.appendChild(welcome);
+    (data.history || []).forEach(m => {
+      if (m.role === 'user' || m.role === 'assistant') {
+        appendMessage(m.role, marked.parse(m.content || ''));
+      }
+    });
+  } catch(e) { console.warn('history load failed', e); }
+}
+
+async function clearHistory() {
+  if (!confirm('确定清空历史对话吗？')) return;
+  await fetch('/api/history/clear', {method:'POST'});
+  location.reload();
+}
+
+loadHistory();
 </script>
 </body>
 </html>
