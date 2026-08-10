@@ -50,9 +50,12 @@ SYSTEM_PROMPT = """你是 Investment-Auto 的 AI 操作助手，拥有对项目�
 - write_file: {"path_str": "文件路径", "content": "内容"}
 - run_shell: {"cmd": "命令", "timeout": 60}
 - list_dir: {"path_str": "目录路径"}
+- stock_search: {"query": "股票名称或代码"}
+- stock_snapshot: {"code": "股票代码，如 600519 / sh600519 / hk00700 / AAPL"}
 
 工具调用规则：
 - 要读文件/跑命令/改配置时，先用工具，不要假装已经做了
+- 分析股票时优先使用 stock_search / stock_snapshot，不要用 run_shell 试探 node/python 版本
 - 工具返回后，根据结果继续回答
 - 如果一次需要多个操作，分多轮工具调用
 - 最终回复必须是中文 Markdown，不要再包含工具调用 JSON
@@ -123,7 +126,33 @@ TOOLS = {
     "read_file": {"fn": read_file},
     "write_file": {"fn": write_file},
     "list_dir": {"fn": list_dir},
+    "stock_search": {"fn": lambda query: _stock_fetcher("search", query)},
+    "stock_snapshot": {"fn": lambda code: _stock_fetcher("snapshot", code)},
 }
+
+
+def _stock_fetcher(command: str, value: str) -> Dict[str, Any]:
+    """Call bundled stock-fetcher.js and return parsed JSON."""
+    script = PROJECT_ROOT / "scripts" / "stock-fetcher.js"
+    try:
+        p = subprocess.run(
+            ["node", str(script), command, str(value)],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=45,
+        )
+        text = (p.stdout or "").strip()
+        try:
+            data = json.loads(text) if text else {}
+        except Exception:
+            data = {"stdout": text[:8000]}
+        if p.returncode != 0:
+            data["stderr"] = p.stderr[:4000]
+            data["returncode"] = p.returncode
+        return data
+    except Exception as e:
+        return {"error": str(e)}
 
 # ── history/memory ───────────────────────────────────
 def load_history(limit: int = 30) -> List[Dict[str, Any]]:
@@ -207,6 +236,31 @@ def handle_chat_stream(message: str, thinking: bool = False, provider: Optional[
     messages.append({"role": "user", "content": _build_user_message(message)})
 
     llm = resolve_llm(provider=provider, model=model) if provider else resolve_llm(role="chat")
+
+    stock_context = _build_stock_analysis_context(message)
+    if stock_context:
+        yield {"type": "tool", "name": "stock_snapshot", "params": {"query": stock_context.get("query")}}
+        final_messages = [
+            {"role": "system", "content": "你是专业但谨慎的中文投资分析助手。只能基于用户给出的行情快照分析，不要再调用任何工具；输出要包含：行情概况、技术面、风险点、操作参考。必须提示不构成投资建议。"},
+            {"role": "user", "content": f"用户问题：{message}\n\n股票数据快照：\n{json.dumps(stock_context, ensure_ascii=False, indent=2)[:18000]}"},
+        ]
+        try:
+            resp = llm.chat(final_messages, temperature=0.25, max_tokens=1800)
+        except Exception as e:
+            yield {"type": "error", "content": str(e)}
+            return
+        final_answer = _strip_tool_blocks(resp).strip()
+        for chunk in _chunk_text(final_answer, 18):
+            if is_cancelled():
+                yield {"type": "cancelled", "content": "已停止生成"}
+                append_history("assistant", "（用户已停止生成）")
+                clear_cancel()
+                return
+            yield {"type": "token", "content": chunk}
+        append_history("assistant", final_answer)
+        yield {"type": "final", "content": final_answer}
+        return
+
     final_answer = ""
 
     last_tool_result = None
@@ -263,6 +317,44 @@ def handle_chat_stream(message: str, thinking: bool = False, provider: Optional[
 
 def _build_user_message(user_text: str) -> str:
     return f"{user_text}\n\n项目根目录: {PROJECT_ROOT}\n如需操作，请使用工具。"
+
+
+def _looks_like_stock_analysis(user_text: str) -> bool:
+    text = user_text.strip()
+    if re.search(r"(分析|看看|看一下|技术面|走势|股票|个股|K线|k线|茅台|腾讯|阿里|宁德|平安|招商|五粮液)", text):
+        return True
+    return bool(re.search(r"\b(sh|sz|bj)?\d{6}\b|\bhk\d{5}\b|\bus[A-Za-z.]{1,10}\b", text, re.I))
+
+
+def _extract_stock_query(user_text: str) -> str:
+    code = re.search(r"\b(?:sh|sz|bj)?\d{6}\b|\bhk\d{5}\b|\bus[A-Za-z.]{1,10}\b|\b[A-Z]{1,5}\b", user_text, re.I)
+    if code:
+        return code.group(0)
+    cleaned = re.sub(r"(请|帮我|麻烦|分析一下|分析下|分析|看一下|看看|一下|股票|个股|技术面|基本面|走势|的|怎么样|如何|今天|现在)", "", user_text)
+    cleaned = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "", cleaned).strip()
+    return cleaned or user_text.strip()
+
+
+def _build_stock_analysis_context(user_text: str) -> Optional[Dict[str, Any]]:
+    if not _looks_like_stock_analysis(user_text):
+        return None
+    query = _extract_stock_query(user_text)
+    if not query:
+        return None
+    search_result: Any = None
+    code = query
+    if not re.search(r"\d{5,6}|^[A-Za-z.]{1,10}$", query):
+        search_result = _stock_fetcher("search", query)
+        if isinstance(search_result, list) and search_result:
+            first = search_result[0]
+            code = first.get("symbol") or first.get("code") or query
+        elif isinstance(search_result, dict) and search_result.get("stocks"):
+            first = search_result["stocks"][0]
+            code = first.get("symbol") or first.get("code") or query
+    snapshot = _stock_fetcher("snapshot", code)
+    if isinstance(snapshot, dict) and snapshot.get("error"):
+        return None
+    return {"query": query, "resolved_code": code, "search": search_result, "snapshot": snapshot}
 
 # ── parsing ──────────────────────────────────────────
 def _parse_tool_call(text: str) -> Optional[Dict[str, Any]]:

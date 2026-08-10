@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
@@ -110,20 +110,28 @@ class ChatHandler(SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-cache")
-        self.send_header("Connection", "keep-alive")
+        self.send_header("Connection", "close")
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("X-Accel-Buffering", "no")
         self.end_headers()
         try:
             for event in handle_chat_stream(message, thinking, provider=provider, model=model):
                 payload = json.dumps(event, ensure_ascii=False)
                 self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
                 self.wfile.flush()
+                if event.get("type") in {"final", "cancelled", "error"}:
+                    break
         except BrokenPipeError:
             logger.warning("SSE client disconnected")
         except Exception as e:
-            payload = json.dumps({"type": "error", "content": str(e)}, ensure_ascii=False)
-            self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
-            self.wfile.flush()
+            try:
+                payload = json.dumps({"type": "error", "content": str(e)}, ensure_ascii=False)
+                self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                self.wfile.flush()
+            except BrokenPipeError:
+                logger.warning("SSE client disconnected while sending error")
+        finally:
+            self.close_connection = True
 
     def _handle_models(self):
         try:
@@ -485,7 +493,7 @@ def start_server(host: str = "localhost", port: int = 8080):
     # Try localhost first, fallback to 0.0.0.0
     for h in [host, "0.0.0.0"]:
         try:
-            server = HTTPServer((h, port), ChatHandler)
+            server = ThreadingHTTPServer((h, port), ChatHandler)
             actual_host = h
             break
         except OSError as e:

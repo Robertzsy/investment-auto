@@ -171,6 +171,8 @@ function handleKey(e) {
 }
 
 let isGenerating = false;
+let currentController = null;
+let currentReader = null;
 
 async function sendMessage() {
   if (isGenerating) return;
@@ -186,8 +188,10 @@ async function sendMessage() {
   let raw = '';
 
   try {
+    currentController = new AbortController();
     const res = await fetch('/api/chat', {
       method: 'POST',
+      signal: currentController.signal,
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         message: text,
@@ -202,11 +206,13 @@ async function sendMessage() {
       body.innerHTML = `❌ 错误: ${errText || res.status}`;
       return;
     }
-    const reader = res.body.getReader();
+    currentReader = res.body.getReader();
+    const reader = currentReader;
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
     body.innerHTML = '';
-    while (true) {
+    let shouldStopRead = false;
+    while (!shouldStopRead) {
       const {value, done} = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, {stream:true});
@@ -214,7 +220,9 @@ async function sendMessage() {
       buffer = parts.pop() || '';
       for (const part of parts) {
         if (!part.startsWith('data: ')) continue;
-        const evt = JSON.parse(part.slice(6));
+        let evt;
+        try { evt = JSON.parse(part.slice(6)); }
+        catch(e) { console.warn('bad sse event', part, e); continue; }
         if (evt.type === 'token') {
           raw += evt.content || '';
           body.innerHTML = marked.parse(raw);
@@ -224,17 +232,31 @@ async function sendMessage() {
         } else if (evt.type === 'status') {
           if (!raw) body.innerHTML = `<span style="color:var(--text-dim)">${evt.content}</span>`;
         } else if (evt.type === 'cancelled') {
-          raw += '\n\n> 已停止生成。';
+          raw += raw ? '\n\n> 已停止生成。' : '> 已停止生成。';
           body.innerHTML = marked.parse(raw);
+          shouldStopRead = true;
+          break;
         } else if (evt.type === 'error') {
           body.innerHTML = `❌ 错误: ${evt.content}`;
+          shouldStopRead = true;
+          break;
+        } else if (evt.type === 'final') {
+          shouldStopRead = true;
+          break;
         }
       }
     }
     if (!raw && body.innerHTML.trim()==='') body.innerHTML = '（无输出）';
   } catch (e) {
-    body.innerHTML = `❌ 网络错误: ${e.message}`;
+    if (e.name === 'AbortError') {
+      raw += raw ? '\n\n> 已停止生成。' : '> 已停止生成。';
+      body.innerHTML = marked.parse(raw);
+    } else {
+      body.innerHTML = `❌ 网络错误: ${e.message}`;
+    }
   } finally {
+    currentReader = null;
+    currentController = null;
     setInputLocked(false);
     loadHistory(false);
   }
@@ -255,8 +277,13 @@ function setInputLocked(locked) {
 }
 
 async function stopGeneration() {
-  try { await fetch('/api/chat/cancel', {method:'POST'}); }
+  const body = document.querySelector('.msg.assistant:last-child .body');
+  try { if (currentController) currentController.abort(); } catch(e) { console.warn(e); }
+  try { if (currentReader) currentReader.cancel().catch(()=>{}); } catch(e) { console.warn(e); }
+  try { fetch('/api/chat/cancel', {method:'POST', keepalive:true}).catch(()=>{}); }
   catch(e) { console.warn(e); }
+  if (body && isGenerating) body.innerHTML += `<div style="color:var(--text-dim);font-size:.85rem;margin-top:8px">⏹️ 已请求停止生成</div>`;
+  setInputLocked(false);
 }
 
 function appendMessage(role, html, isTemp) {
