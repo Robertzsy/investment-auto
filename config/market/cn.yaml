@@ -1,0 +1,30 @@
+market: cn
+name: A股
+currency: CNY
+trading:
+  settlement: T+1
+  session: [{start: "09:30", end: "11:30"}, {start: "13:00", end: "15:00"}]
+  lot_size: 100
+  min_shares: 100
+  price_limit_pct: 10
+  commission_rate: 0.00025
+  stamp_tax: 0.001
+  stamp_tax_side: sell
+  slippage: 0.001
+  price_decimals: 2
+risk:
+  single_stock_max_pct: 12
+  single_sector_max_pct: 30
+  min_cash_reserve_pct: 3
+  hard_stop_pct: -8
+  trailing_stop_pct: -5
+  take_profit_1_pct: 12
+  take_profit_1_sell_ratio: 0.4
+  take_profit_2_pct: 20
+  take_profit_2_sell_ratio: 0.5
+  max_drawdown_pct: -20
+  min_position_count: 6
+  max_position_count: 12
+  target_total_exposure: 75
+optimizer:
+  risky_sleeve_max_weight: 0.16

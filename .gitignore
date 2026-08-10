@@ -1,0 +1,34 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+config/secrets/
+config.local.yaml
+
+# runtime data (never commit user trading data)
+runtime/data/
+runtime/logs/
+runtime/reports/
+runtime/optimizer/
+data/
+*.db
+*.sqlite
+portfolio.json
+watchlist.json
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# os/editor
+.DS_Store
+.vscode/
+.idea/

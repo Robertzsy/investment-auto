@@ -1,0 +1,11 @@
+services:
+  investment-auto:
+    build: .
+    container_name: investment-auto
+    env_file: .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config
+      - ./runtime:/app/runtime
+    restart: unless-stopped

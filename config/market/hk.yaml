@@ -1,0 +1,32 @@
+market: hk
+name: 港股
+currency: HKD
+trading:
+  settlement: T+0
+  session: [{start: "09:30", end: "12:00"}, {start: "13:00", end: "16:00"}]
+  lot_size: per_stock
+  min_shares: per_stock
+  price_limit_pct: null
+  commission_rate: 0.00025
+  stamp_tax: 0.001
+  stamp_tax_side: both
+  slippage: 0.0015
+  price_decimals: 2
+risk:
+  single_stock_max_pct: 10
+  single_sector_max_pct: 30
+  min_cash_reserve_pct: 3
+  hard_stop_pct: -10
+  trailing_stop_pct: -6
+  take_profit_1_pct: 15
+  take_profit_1_sell_ratio: 0.4
+  take_profit_2_pct: 25
+  take_profit_2_sell_ratio: 0.5
+  max_drawdown_pct: -25
+  min_position_count: 5
+  max_position_count: 10
+  target_total_exposure: 70
+optimizer:
+  risky_sleeve_max_weight: 0.143
+notes:
+  - HK board lot size is per-stock and must be rounded before live trading.

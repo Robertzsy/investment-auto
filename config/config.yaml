@@ -1,0 +1,92 @@
+app:
+  name: investment-auto
+  timezone: Asia/Shanghai
+  data_dir: runtime/data
+  report_dir: runtime/reports
+  optimizer_dir: runtime/optimizer
+  log_dir: runtime/logs
+
+markets:
+  # Choose any subset: cn, hk, us, etf
+  enable: [cn, hk, us, etf]
+
+accounts:
+  initial_capital: 500000
+  currency_map:
+    cn: CNY
+    hk: HKD
+    us: USD
+    etf: CNY
+  fx_rates:
+    USD_CNY: 7.20
+    HKD_CNY: 0.92
+
+schedule:
+  timezone: Asia/Shanghai
+  weekdays_only: true
+  # Intraday construction/rebalance rounds are configurable.
+  # Increase/decrease this list to change daily intraday build frequency.
+  intraday_rounds:
+    cn: ["09:30", "10:30", "13:00"]
+    hk: ["09:45", "13:20"]
+    us: ["21:35", "23:30", "01:00"]
+    etf: ["10:00", "10:50", "13:40"]
+  close_rounds:
+    cn: "15:10"
+    hk: "16:10"
+    us: "04:10"
+    etf: "15:40"
+  # For US early-morning Beijing-time jobs use Tue-Sat to map US Mon-Fri.
+  us_early_morning_days: "2-6"
+
+llm:
+  provider: deepseek
+  provider_fallback: [openai, glm, kimi]
+  models:
+    openai:
+      model: gpt-5.6-sol
+      api_base: https://api.openai.com/v1
+      variants: [gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna]
+      api_key_env: OPENAI_API_KEY
+    deepseek:
+      model: deepseek-v4-pro
+      api_base: https://api.deepseek.com
+      variants: [deepseek-v4-pro, deepseek-v4-flash]
+      api_key_env: DEEPSEEK_API_KEY
+    glm:
+      model: glm-5.2
+      api_base: https://open.bigmodel.cn/api/paas/v4
+      variants: [glm-5.2]
+      api_key_env: GLM_API_KEY
+    kimi:
+      model: kimi-k3
+      api_base: https://api.moonshot.cn/v1
+      variants: [kimi-k3]
+      api_key_env: KIMI_API_KEY
+  role_model_override:
+    analyst: deepseek-v4-flash
+    researcher: deepseek-v4-flash
+    quant_analyst: deepseek-v4-pro
+    judge: deepseek-v4-pro
+    trader: deepseek-v4-pro
+    risk_chairman: deepseek-v4-pro
+
+optimizer:
+  enabled: true
+  lookback_days: 120
+  risk_free_rate: 0.02
+  cost_aware: true
+  stress_thresholds:
+    var95: -0.03
+    max_drawdown: -0.20
+
+trading:
+  mode: paper
+  max_daily_trades: 6
+  force_build_positions: true
+  entry_method: "first 50%, add on -2% pullback, avoid chasing +3% intraday spikes"
+
+notify:
+  enabled: false
+  channels: [webhook]
+  webhook_url_env: NOTIFY_WEBHOOK_URL

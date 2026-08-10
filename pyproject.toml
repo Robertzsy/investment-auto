@@ -1,0 +1,23 @@
+[project]
+name = "investment-auto"
+version = "0.1.0"
+description = "Multi-market paper-trading investment automation with multi-agent research and portfolio optimization"
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Investment Auto Contributors"}]
+dependencies = [
+  "requests>=2.32.0",
+  "PyYAML>=6.0.2",
+  "APScheduler>=3.10.4",
+  "openai>=1.40.0",
+  "python-dotenv>=1.0.1",
+  "pandas>=2.2.0",
+  "numpy>=1.26.0",
+]
+
+[project.scripts]
+investment-auto = "src.main:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
