@@ -1,5 +1,5 @@
 """
-HTTP server for the AI chat panel.
+HTTP server for the AI chat panel + settings + dashboard.
 Uses Python stdlib only – zero extra dependencies.
 """
 
@@ -10,7 +10,7 @@ import logging
 import sys
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 UI_DIR = Path(__file__).resolve().parent
@@ -19,41 +19,61 @@ logger = logging.getLogger("investment-auto.http")
 
 
 class ChatHandler(SimpleHTTPRequestHandler):
-    """Serves static files from src/ui/ and handles /api/chat POST."""
+    """Serves static files from src/ui/ and handles API routes."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, directory=str(UI_DIR), **kwargs)
 
     def do_GET(self):
         path = urlparse(self.path).path
-        # Default to index.html
+        query = parse_qs(urlparse(self.path).query)
+
+        # API routes
+        if path == "/api/config":
+            return self._handle_get_config()
+        if path == "/api/dashboard":
+            market = query.get("market", ["all"])[0]
+            return self._handle_dashboard(market)
+        if path == "/api/optimizer":
+            return self._handle_optimizer()
+
+        # Static files
         if path == "/" or path == "":
             self.path = "/index.html"
+        elif path == "/settings":
+            self.path = "/settings.html"
+        elif path == "/dashboard":
+            self.path = "/dashboard.html"
         return super().do_GET()
 
     def do_POST(self):
-        if self.path != "/api/chat":
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b'{"error":"not found"}')
-            return
+        path = urlparse(self.path).path
 
+        if path == "/api/chat":
+            return self._handle_chat()
+        if path == "/api/config":
+            return self._handle_save_config()
+
+        self.send_response(404)
+        self.end_headers()
+        self.wfile.write(b'{"error":"not found"}')
+
+    # ── API handlers ───────────────────────────────
+
+    def _handle_chat(self):
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length)
         try:
             data = json.loads(body)
         except json.JSONDecodeError:
-            self._json_response(400, {"error": "invalid json"})
-            return
+            return self._json_response(400, {"error": "invalid json"})
 
         message = data.get("message", "").strip()
         thinking = data.get("thinking", False)
-
         if not message:
-            self._json_response(400, {"error": "empty message"})
-            return
+            return self._json_response(400, {"error": "empty message"})
 
-        logger.info(f"Chat request: {message[:100]}...")
+        logger.info(f"Chat: {message[:100]}...")
         try:
             from .chat_server import handle_chat
             reply = handle_chat(message, thinking)
@@ -61,6 +81,176 @@ class ChatHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             logger.exception("chat error")
             self._json_response(500, {"error": str(e)})
+
+    def _handle_get_config(self):
+        try:
+            from src.config import cfg
+            self._json_response(200, cfg.raw)
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_save_config(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            return self._json_response(400, {"error": "invalid json"})
+
+        try:
+            import yaml
+            config_path = PROJECT_ROOT / "config" / "config.yaml"
+            config_path.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False), encoding="utf-8")
+            # Reload config
+            from src.config import cfg
+            cfg.reload()
+            self._json_response(200, {"ok": True})
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_dashboard(self, market: str):
+        try:
+            data = self._build_dashboard_data(market)
+            self._json_response(200, data)
+        except Exception as e:
+            logger.exception("dashboard error")
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_optimizer(self):
+        try:
+            from src.config import cfg
+            opt_dir = PROJECT_ROOT / "runtime" / "optimizer"
+            if not opt_dir.exists():
+                return self._json_response(200, {"available": False})
+            files = sorted(opt_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if not files:
+                return self._json_response(200, {"available": False})
+            latest = json.loads(files[0].read_text(encoding="utf-8"))
+            self._json_response(200, {"available": True, "file": files[0].name, "data": latest})
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    # ── dashboard data builder ─────────────────────
+
+    def _build_dashboard_data(self, market: str) -> dict:
+        from src.portfolio import account
+        from src.config import cfg
+        from src.data import fetcher
+
+        pf = account.load()
+        accounts = pf.get("accounts", {})
+        enabled = cfg.enabled_markets
+
+        # Filter markets
+        if market == "all":
+            markets_to_show = enabled
+        else:
+            markets_to_show = [market] if market in enabled else []
+
+        # Aggregate stats
+        total_assets = 0
+        total_cash = 0
+        total_positions = 0
+        all_holdings = []
+        all_trades = []
+
+        for m in markets_to_show:
+            acct = accounts.get(m, {})
+            cash = acct.get("cash", 0)
+            holdings = acct.get("holdings", [])
+            total_cash += cash
+            total_positions += len(holdings)
+
+            # Calculate holdings value
+            holdings_value = 0
+            for h in holdings:
+                try:
+                    rt = fetcher.realtime(h["code"])
+                    last_price = rt.get("price", h.get("costPrice", 0))
+                except Exception:
+                    last_price = h.get("lastPrice", h.get("costPrice", 0))
+                mv = last_price * h.get("shares", 0)
+                holdings_value += mv
+                all_holdings.append({
+                    "market": m, "code": h["code"], "name": h.get("name", ""),
+                    "shares": h.get("shares", 0), "cost_price": h.get("costPrice", 0),
+                    "last_price": last_price, "market_value": mv,
+                })
+
+            total_assets += cash + holdings_value
+            for t in acct.get("tradeHistory", []):
+                t["market"] = m
+                all_trades.append(t)
+
+        # Asset distribution by market
+        asset_dist = {"labels": [], "values": []}
+        for m in markets_to_show:
+            acct = accounts.get(m, {})
+            cash = acct.get("cash", 0)
+            hv = sum(h.get("market_value", 0) for h in all_holdings if h["market"] == m)
+            asset_dist["labels"].append(m.upper())
+            asset_dist["values"].append(round(cash + hv, 2))
+
+        # Cash vs Holdings
+        cash_vs = {"labels": [], "cash": [], "holdings": []}
+        for m in markets_to_show:
+            acct = accounts.get(m, {})
+            cash_vs["labels"].append(m.upper())
+            cash_vs["cash"].append(round(acct.get("cash", 0), 2))
+            hv = sum(h.get("market_value", 0) for h in all_holdings if h["market"] == m)
+            cash_vs["holdings"].append(round(hv, 2))
+
+        # Weight distribution
+        weight_dist = {"labels": [], "values": []}
+        for h in all_holdings:
+            weight_dist["labels"].append(f"{h['name']}({h['code']})")
+            weight_dist["values"].append(round(h["market_value"], 2))
+
+        # Optimizer comparison
+        opt_comparison = []
+        opt_dir = PROJECT_ROOT / "runtime" / "optimizer"
+        if opt_dir.exists():
+            files = sorted(opt_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if files:
+                try:
+                    opt_data = json.loads(files[0].read_text(encoding="utf-8"))
+                    schemes = {}
+                    for key in ["mean_variance", "black_litterman", "risk_parity", "cost_adjusted"]:
+                        if key in opt_data:
+                            m = opt_data[key]["metrics"]
+                            schemes[key] = {
+                                "annual_return": m.get("annual_return", 0),
+                                "annual_volatility": m.get("annual_volatility", 0),
+                                "sharpe": m.get("sharpe", 0),
+                                "var95": opt_data[key].get("stress", {}).get("var95", 0),
+                                "max_drawdown": opt_data[key].get("stress", {}).get("max_drawdown", 0),
+                            }
+                    opt_comparison = [
+                        {"label": k, "data": [v["annual_return"]*100, v["sharpe"], v["max_drawdown"]*100, v["var95"]*100, 0]}
+                        for k, v in schemes.items()
+                    ]
+                except Exception:
+                    pass
+
+        return {
+            "stats": {
+                "total_assets": round(total_assets, 2),
+                "today_pnl": 0,  # TODO: calculate from trade history
+                "today_pnl_pct": 0,
+                "total_positions": total_positions,
+                "cash_ratio": round(total_cash / total_assets * 100, 1) if total_assets > 0 else 0,
+                "enabled_markets": enabled,
+            },
+            "asset_distribution": asset_dist,
+            "cash_vs_holdings": cash_vs,
+            "weight_distribution": weight_dist,
+            "optimizer_comparison": opt_comparison,
+            "holdings": all_holdings,
+            "recent_trades": sorted(all_trades, key=lambda t: t.get("date", ""), reverse=True)[:20],
+            "optimizer": {"available": len(opt_comparison) > 0, "schemes": {}},
+        }
+
+    # ── helpers ────────────────────────────────────
 
     def _json_response(self, status: int, data: dict):
         self.send_response(status)
@@ -77,13 +267,33 @@ class ChatHandler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def log_message(self, format, *args):
-        # suppress default logging noise
         pass
 
 
-def start_server(host: str = "0.0.0.0", port: int = 8080):
-    server = HTTPServer((host, port), ChatHandler)
-    logger.info(f"AI Chat Panel running at http://{host}:{port}")
+def start_server(host: str = "localhost", port: int = 8080):
+    # Try localhost first, fallback to 0.0.0.0
+    for h in [host, "0.0.0.0"]:
+        try:
+            server = HTTPServer((h, port), ChatHandler)
+            actual_host = h
+            break
+        except OSError as e:
+            logger.warning(f"Cannot bind to {h}:{port} - {e}")
+            continue
+    else:
+        raise RuntimeError(f"Cannot bind to any host on port {port}")
+
+    url = f"http://localhost:{port}" if actual_host == "localhost" else f"http://{actual_host}:{port}"
+    logger.info(f"AI Chat Panel running at {url}")
+
+    # Auto-open browser
+    import webbrowser
+    try:
+        webbrowser.open(url)
+        logger.info("Browser opened automatically")
+    except Exception:
+        logger.info(f"Please open {url} in your browser")
+
     try:
         server.serve_forever()
     except KeyboardInterrupt:

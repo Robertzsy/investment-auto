@@ -60,6 +60,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
   <small style="font-weight:400;color:var(--text-dim)">· 完全操作权限</small>
   </h1>
   <div class="header-right">
+    <div class="nav" style="display:flex;gap:12px;margin-right:16px">
+      <a href="/" style="color:var(--accent);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;background:rgba(88,166,255,0.1)">💬 对话</a>
+      <a href="/dashboard" style="color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s">📊 仪表盘</a>
+      <a href="/settings" style="color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s">⚙️ 设置</a>
+    </div>
     <div class="toggle-wrap">
       <span>思考</span>
       <button class="toggle" id="thinkingToggle" onclick="toggleThinking()"></button>

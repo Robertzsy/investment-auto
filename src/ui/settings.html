@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment-Auto 设置</title>
+<style>
+:root{--bg:#0f1117;--surface:#1a1d27;--border:#2a2d3a;--text:#e1e4e8;--text-dim:#8b949e;--accent:#58a6ff;--accent-hover:#79c0ff;--success:#3fb950;--danger:#f85149;--radius:10px;--font:'Inter',system-ui,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:1.1rem;font-weight:600;display:flex;align-items:center;gap:8px}
+.header h1 span{color:var(--accent)}
+.nav{display:flex;gap:12px}
+.nav a{color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s}
+.nav a:hover,.nav a.active{color:var(--text);background:rgba(88,166,255,0.1)}
+.container{max-width:900px;margin:0 auto;padding:20px}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.section h2{font-size:1rem;margin-bottom:16px;color:var(--accent);display:flex;align-items:center;gap:8px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:0.85rem;color:var(--text-dim);margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 12px;font-size:0.9rem;outline:none}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:10px}
+.checkbox-item{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 14px;cursor:pointer;transition:all .15s}
+.checkbox-item:hover{border-color:var(--accent)}
+.checkbox-item input{accent-color:var(--accent)}
+.time-list{display:flex;flex-direction:column;gap:8px}
+.time-item{display:flex;gap:8px;align-items:center}
+.time-item input{flex:1}
+.time-item button{background:var(--danger);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:0.8rem}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;font-size:0.9rem;transition:background .15s}
+.btn:hover{background:var(--accent-hover)}
+.btn-secondary{background:var(--border);color:var(--text)}
+.btn-secondary:hover{background:var(--text-dim)}
+.btn-success{background:var(--success)}
+.btn-success:hover{opacity:0.9}
+.add-btn{background:var(--border);color:var(--text);border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:0.8rem}
+.add-btn:hover{background:var(--accent)}
+.save-bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:16px 20px;display:flex;gap:12px;justify-content:flex-end}
+.toast{position:fixed;top:20px;right:20px;background:var(--success);color:#fff;padding:12px 20px;border-radius:8px;font-size:0.9rem;opacity:0;transition:opacity .3s;z-index:1000}
+.toast.show{opacity:1}
+.toast.error{background:var(--danger)}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>⚙️ <span>Investment-Auto</span> 设置</h1>
+  <div class="nav">
+    <a href="/">💬 对话</a>
+    <a href="/dashboard">📊 仪表盘</a>
+    <a href="/settings" class="active">⚙️ 设置</a>
+  </div>
+</div>
+
+<div class="container">
+  <!-- 市场开关 -->
+  <div class="section">
+    <h2>🌐 市场开关</h2>
+    <div class="form-group">
+      <label>启用市场（可多选）</label>
+      <div class="checkbox-group" id="marketCheckboxes">
+        <label class="checkbox-item"><input type="checkbox" value="cn"> 🇨🇳 A股</label>
+        <label class="checkbox-item"><input type="checkbox" value="hk"> 🇭🇰 港股</label>
+        <label class="checkbox-item"><input type="checkbox" value="us"> 🇺🇸 美股</label>
+        <label class="checkbox-item"><input type="checkbox" value="etf"> 📊 ETF</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 调度设置 -->
+  <div class="section">
+    <h2>⏰ 调度设置</h2>
+    <div class="form-group">
+      <label>时区</label>
+      <input type="text" id="timezone" value="Asia/Shanghai">
+    </div>
+    <div class="form-group">
+      <label>仅工作日运行</label>
+      <select id="weekdaysOnly">
+        <option value="true">是</option>
+        <option value="false">否</option>
+      </select>
+    </div>
+    <div id="intradaySettings"></div>
+  </div>
+
+  <!-- LLM 设置 -->
+  <div class="section">
+    <h2>🤖 AI 模型</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>主模型提供方</label>
+        <select id="llmProvider">
+          <option value="deepseek">DeepSeek</option>
+          <option value="openai">OpenAI</option>
+          <option value="glm">GLM</option>
+          <option value="kimi">Kimi</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>回退顺序（逗号分隔）</label>
+        <input type="text" id="llmFallback" placeholder="openai,glm,kimi">
+      </div>
+    </div>
+    <div id="modelSettings"></div>
+  </div>
+
+  <!-- 优化器设置 -->
+  <div class="section">
+    <h2>📈 组合优化</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>启用优化器</label>
+        <select id="optimizerEnabled">
+          <option value="true">是</option>
+          <option value="false">否</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>回看天数</label>
+        <input type="number" id="lookbackDays" value="120">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>无风险利率</label>
+        <input type="number" id="riskFreeRate" value="0.02" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>成本感知</label>
+        <select id="costAware">
+          <option value="true">是</option>
+          <option value="false">否</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 交易设置 -->
+  <div class="section">
+    <h2>💰 交易</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>模式</label>
+        <select id="tradingMode">
+          <option value="paper">模拟盘</option>
+          <option value="live">实盘（预留）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>日最大交易笔数</label>
+        <input type="number" id="maxDailyTrades" value="6">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="save-bar">
+  <button class="btn btn-secondary" onclick="loadConfig()">🔄 重置</button>
+  <button class="btn btn-success" onclick="saveConfig()">💾 保存配置</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let config = {};
+
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    config = await res.json();
+    renderConfig();
+    showToast('配置已加载', 'success');
+  } catch(e) {
+    showToast('加载失败: ' + e.message, 'error');
+  }
+}
+
+function renderConfig() {
+  // 市场开关
+  const markets = config.markets?.enable || [];
+  document.querySelectorAll('#marketCheckboxes input').forEach(cb => {
+    cb.checked = markets.includes(cb.value);
+  });
+
+  // 调度
+  document.getElementById('timezone').value = config.schedule?.timezone || 'Asia/Shanghai';
+  document.getElementById('weekdaysOnly').value = String(config.schedule?.weekdays_only ?? true);
+  renderIntraday();
+
+  // LLM
+  document.getElementById('llmProvider').value = config.llm?.provider || 'deepseek';
+  document.getElementById('llmFallback').value = (config.llm?.provider_fallback || []).join(',');
+  renderModels();
+
+  // 优化器
+  document.getElementById('optimizerEnabled').value = String(config.optimizer?.enabled ?? true);
+  document.getElementById('lookbackDays').value = config.optimizer?.lookback_days || 120;
+  document.getElementById('riskFreeRate').value = config.optimizer?.risk_free_rate || 0.02;
+  document.getElementById('costAware').value = String(config.optimizer?.cost_aware ?? true);
+
+  // 交易
+  document.getElementById('tradingMode').value = config.trading?.mode || 'paper';
+  document.getElementById('maxDailyTrades').value = config.trading?.max_daily_trades || 6;
+}
+
+function renderIntraday() {
+  const container = document.getElementById('intradaySettings');
+  const rounds = config.schedule?.intraday_rounds || {};
+  container.innerHTML = '';
+  for (const [market, times] of Object.entries(rounds)) {
+    const div = document.createElement('div');
+    div.className = 'form-group';
+    div.innerHTML = `<label>${market.toUpperCase()} 盘中轮次</label><div class="time-list" id="times-${market}"></div><button class="add-btn" onclick="addTime('${market}')">+ 添加时间</button>`;
+    container.appendChild(div);
+    const list = div.querySelector(`#times-${market}`);
+    times.forEach((t, i) => {
+      const item = document.createElement('div');
+      item.className = 'time-item';
+      item.innerHTML = `<input type="time" value="${t}" data-market="${market}" data-index="${i}"><button onclick="removeTime('${market}',${i})">删除</button>`;
+      list.appendChild(item);
+    });
+  }
+}
+
+function renderModels() {
+  const container = document.getElementById('modelSettings');
+  const models = config.llm?.models || {};
+  container.innerHTML = '';
+  for (const [provider, cfg] of Object.entries(models)) {
+    const div = document.createElement('div');
+    div.className = 'form-row';
+    div.innerHTML = `
+      <div class="form-group"><label>${provider} 模型</label><input type="text" value="${cfg.model || ''}" data-provider="${provider}" data-field="model"></div>
+      <div class="form-group"><label>${provider} API Base</label><input type="text" value="${cfg.api_base || ''}" data-provider="${provider}" data-field="api_base"></div>
+    `;
+    container.appendChild(div);
+  }
+}
+
+function addTime(market) {
+  if (!config.schedule.intraday_rounds[market]) config.schedule.intraday_rounds[market] = [];
+  config.schedule.intraday_rounds[market].push('10:00');
+  renderIntraday();
+}
+
+function removeTime(market, index) {
+  config.schedule.intraday_rounds[market].splice(index, 1);
+  renderIntraday();
+}
+
+async function saveConfig() {
+  // 收集市场开关
+  const markets = [];
+  document.querySelectorAll('#marketCheckboxes input:checked').forEach(cb => markets.push(cb.value));
+  config.markets = config.markets || {};
+  config.markets.enable = markets;
+
+  // 调度
+  config.schedule = config.schedule || {};
+  config.schedule.timezone = document.getElementById('timezone').value;
+  config.schedule.weekdays_only = document.getElementById('weekdaysOnly').value === 'true';
+  // 收集盘中时间
+  document.querySelectorAll('.time-item input').forEach(input => {
+    const market = input.dataset.market;
+    const index = parseInt(input.dataset.index);
+    if (config.schedule.intraday_rounds[market]) {
+      config.schedule.intraday_rounds[market][index] = input.value;
+    }
+  });
+
+  // LLM
+  config.llm = config.llm || {};
+  config.llm.provider = document.getElementById('llmProvider').value;
+  config.llm.provider_fallback = document.getElementById('llmFallback').value.split(',').map(s=>s.trim()).filter(Boolean);
+  document.querySelectorAll('#modelSettings input').forEach(input => {
+    const provider = input.dataset.provider;
+    const field = input.dataset.field;
+    if (config.llm.models[provider]) config.llm.models[provider][field] = input.value;
+  });
+
+  // 优化器
+  config.optimizer = config.optimizer || {};
+  config.optimizer.enabled = document.getElementById('optimizerEnabled').value === 'true';
+  config.optimizer.lookback_days = parseInt(document.getElementById('lookbackDays').value);
+  config.optimizer.risk_free_rate = parseFloat(document.getElementById('riskFreeRate').value);
+  config.optimizer.cost_aware = document.getElementById('costAware').value === 'true';
+
+  // 交易
+  config.trading = config.trading || {};
+  config.trading.mode = document.getElementById('tradingMode').value;
+  config.trading.max_daily_trades = parseInt(document.getElementById('maxDailyTrades').value);
+
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(config)
+    });
+    const result = await res.json();
+    if (result.ok) {
+      showToast('✅ 配置已保存', 'success');
+    } else {
+      showToast('❌ 保存失败: ' + result.error, 'error');
+    }
+  } catch(e) {
+    showToast('❌ 保存失败: ' + e.message, 'error');
+  }
+}
+
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast show' + (type === 'error' ? ' error' : '');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+loadConfig();
+</script>
+</body>
+</html>
