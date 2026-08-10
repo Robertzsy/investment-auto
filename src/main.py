@@ -61,9 +61,9 @@ def main() -> None:
             sys.exit(0)
 
     if args.command == "chat":
-        logger.info("Starting AI Chat Panel on http://0.0.0.0:8080 ...")
+        logger.info("Starting AI Chat Panel on http://localhost:8080 ...")
         from src.ui.server import start_server
-        start_server(host="0.0.0.0", port=8080)
+        start_server(host="localhost", port=8080)
         return
 
 if __name__ == "__main__":
