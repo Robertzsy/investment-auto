@@ -39,6 +39,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .msg.assistant blockquote { border-left: 3px solid var(--accent); padding-left: 10px; margin: 6px 0; color: var(--text-dim); }
 .msg .ts { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 4px; display: block; }
 /* loading dot */ .dot-bounce { display: inline-flex; gap: 4px; } .dot-bounce span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); animation: bounce 1.2s infinite ease; } .dot-bounce span:nth-child(2) { animation-delay: 0.2s; } .dot-bounce span:nth-child(3) { animation-delay: 0.4s; } @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+/* model bar */
+.model-bar { display:flex; gap:8px; align-items:center; padding:10px 20px 0; color:var(--text-dim); font-size:.85rem; flex-wrap:wrap; }
+.model-bar select { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; }
+.model-bar button { background:var(--danger); color:#fff; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; display:none; }
 /* suggestions */
 .suggestions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 10px; }
 .suggestion { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 6px 14px; font-size: 0.82rem; color: var(--text-dim); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
@@ -83,6 +87,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
   </div>
 </div>
 
+<div class="model-bar">
+  <span>模型：</span>
+  <select id="providerSelect" onchange="updateModelSelect()"></select>
+  <select id="modelSelect"></select>
+  <button id="stopBtn" onclick="stopGeneration()">停止生成</button>
+</div>
+
 <div class="suggestions" id="suggestions">
   <span class="suggestion" onclick="sendSuggestion(this.textContent)">查看当前 A 股持仓</span>
   <span class="suggestion" onclick="sendSuggestion(this.textContent)">运行一次优化器分析</span>
@@ -101,6 +112,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 <script>
 const THINKING_KEY = 'ia_thinking_enabled';
 let thinking_enabled = localStorage.getItem(THINKING_KEY) === 'true';
+let modelCatalog = {};
 if (thinking_enabled) document.getElementById('thinkingToggle').classList.add('on');
 
 function toggleThinking() {
@@ -108,6 +120,46 @@ function toggleThinking() {
   document.getElementById('thinkingToggle').classList.toggle('on', thinking_enabled);
   localStorage.setItem(THINKING_KEY, thinking_enabled);
 }
+
+async function loadModels() {
+  try {
+    const res = await fetch('/api/models');
+    modelCatalog = await res.json();
+    const providerSel = document.getElementById('providerSelect');
+    providerSel.innerHTML = '';
+    Object.keys(modelCatalog).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p; opt.textContent = p;
+      providerSel.appendChild(opt);
+    });
+    const savedProvider = localStorage.getItem('ia_provider') || 'deepseek';
+    if (modelCatalog[savedProvider]) providerSel.value = savedProvider;
+    updateModelSelect();
+  } catch(e) { console.warn('load models failed', e); }
+}
+
+function updateModelSelect() {
+  const provider = document.getElementById('providerSelect').value;
+  localStorage.setItem('ia_provider', provider);
+  const modelSel = document.getElementById('modelSelect');
+  modelSel.innerHTML = '';
+  const cfg = modelCatalog[provider] || {};
+  const variants = cfg.variants || [cfg.model].filter(Boolean);
+  variants.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    modelSel.appendChild(opt);
+  });
+  const savedModel = localStorage.getItem('ia_model_' + provider) || cfg.model;
+  if (variants.includes(savedModel)) modelSel.value = savedModel;
+}
+
+document.addEventListener('change', e => {
+  if (e.target.id === 'modelSelect') {
+    const provider = document.getElementById('providerSelect').value;
+    localStorage.setItem('ia_model_' + provider, e.target.value);
+  }
+});
 
 function sendSuggestion(text) {
   document.getElementById('userInput').value = text;
@@ -137,7 +189,13 @@ async function sendMessage() {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: text, thinking: thinking_enabled, stream: true})
+      body: JSON.stringify({
+        message: text,
+        thinking: thinking_enabled,
+        stream: true,
+        provider: document.getElementById('providerSelect').value,
+        model: document.getElementById('modelSelect').value
+      })
     });
     if (!res.ok || !res.body) {
       const errText = await res.text();
@@ -165,6 +223,9 @@ async function sendMessage() {
           body.innerHTML += `<div style="color:var(--text-dim);font-size:.8rem;margin:6px 0">🔧 调用工具: <code>${evt.name}</code></div>`;
         } else if (evt.type === 'status') {
           if (!raw) body.innerHTML = `<span style="color:var(--text-dim)">${evt.content}</span>`;
+        } else if (evt.type === 'cancelled') {
+          raw += '\n\n> 已停止生成。';
+          body.innerHTML = marked.parse(raw);
         } else if (evt.type === 'error') {
           body.innerHTML = `❌ 错误: ${evt.content}`;
         }
@@ -183,10 +244,19 @@ function setInputLocked(locked) {
   isGenerating = locked;
   const input = document.getElementById('userInput');
   const btn = document.getElementById('sendBtn');
+  const stopBtn = document.getElementById('stopBtn');
   input.disabled = locked;
   btn.disabled = locked;
   btn.textContent = locked ? '生成中...' : '发送';
+  stopBtn.style.display = locked ? 'inline-block' : 'none';
+  document.getElementById('providerSelect').disabled = locked;
+  document.getElementById('modelSelect').disabled = locked;
   document.querySelectorAll('.suggestion').forEach(s => s.style.pointerEvents = locked ? 'none' : 'auto');
+}
+
+async function stopGeneration() {
+  try { await fetch('/api/chat/cancel', {method:'POST'}); }
+  catch(e) { console.warn(e); }
 }
 
 function appendMessage(role, html, isTemp) {
@@ -229,6 +299,7 @@ async function clearHistory() {
   location.reload();
 }
 
+loadModels();
 loadHistory();
 </script>
 </body>

@@ -26,6 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 RUNTIME_DIR = PROJECT_ROOT / "runtime"
 HISTORY_FILE = RUNTIME_DIR / "chat_history.json"
 MEMORY_FILE = RUNTIME_DIR / "chat_memory.md"
+CANCEL_FILE = RUNTIME_DIR / "chat_cancel.flag"
 
 logger = logging.getLogger("investment-auto.chat")
 
@@ -162,9 +163,23 @@ def append_memory(note: str) -> None:
         f.write(f"\n- {datetime.now().isoformat(timespec='seconds')}: {note}\n")
 
 # ── public handlers ─────────────────────────────────
-def handle_chat(message: str, thinking: bool = False) -> str:
+def request_cancel() -> None:
+    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+    CANCEL_FILE.write_text(datetime.now().isoformat(), encoding="utf-8")
+
+
+def clear_cancel() -> None:
+    if CANCEL_FILE.exists():
+        CANCEL_FILE.unlink()
+
+
+def is_cancelled() -> bool:
+    return CANCEL_FILE.exists()
+
+
+def handle_chat(message: str, thinking: bool = False, provider: Optional[str] = None, model: Optional[str] = None) -> str:
     parts = []
-    for ev in handle_chat_stream(message, thinking):
+    for ev in handle_chat_stream(message, thinking, provider=provider, model=model):
         if ev.get("type") == "token":
             parts.append(ev.get("content", ""))
         elif ev.get("type") == "final":
@@ -173,10 +188,11 @@ def handle_chat(message: str, thinking: bool = False) -> str:
     return "".join(parts)
 
 
-def handle_chat_stream(message: str, thinking: bool = False) -> Generator[Dict[str, Any], None, None]:
+def handle_chat_stream(message: str, thinking: bool = False, provider: Optional[str] = None, model: Optional[str] = None) -> Generator[Dict[str, Any], None, None]:
     """Yield events: token/status/tool/final/error."""
     from src.llm.registry import resolve_llm
 
+    clear_cancel()
     append_history("user", message)
     history = load_history(limit=20)
     memory = load_memory()
@@ -190,10 +206,16 @@ def handle_chat_stream(message: str, thinking: bool = False) -> Generator[Dict[s
             messages.append({"role": item["role"], "content": item.get("content", "")})
     messages.append({"role": "user", "content": _build_user_message(message)})
 
-    llm = resolve_llm(role="chat")
+    llm = resolve_llm(provider=provider, model=model) if provider else resolve_llm(role="chat")
     final_answer = ""
 
+    last_tool_result = None
     for round_idx in range(8):
+        if is_cancelled():
+            yield {"type": "cancelled", "content": "已停止生成"}
+            append_history("assistant", "（用户已停止生成）")
+            clear_cancel()
+            return
         yield {"type": "status", "content": "思考中..." if round_idx == 0 else "继续处理工具结果..."}
         kwargs: Dict[str, Any] = {}
         if thinking:
@@ -209,6 +231,11 @@ def handle_chat_stream(message: str, thinking: bool = False) -> Generator[Dict[s
             final_answer = _strip_tool_blocks(resp)
             # stream by chunks for UI responsiveness
             for chunk in _chunk_text(final_answer, 18):
+                if is_cancelled():
+                    yield {"type": "cancelled", "content": "已停止生成"}
+                    append_history("assistant", raw if 'raw' in locals() else "（用户已停止生成）")
+                    clear_cancel()
+                    return
                 yield {"type": "token", "content": chunk}
             append_history("assistant", final_answer)
             # primitive memory extraction
@@ -221,9 +248,13 @@ def handle_chat_stream(message: str, thinking: bool = False) -> Generator[Dict[s
         yield {"type": "tool", "name": tool_call.get("tool"), "params": tool_call.get("params", {})}
         messages.append({"role": "assistant", "content": resp})
         tool_result = _execute_tool(tool_call)
+        last_tool_result = tool_result
         messages.append({"role": "user", "content": f"[工具执行结果]\n{json.dumps(tool_result, ensure_ascii=False, indent=2)}\n\n请基于工具结果继续。如果需要更多工具，再调用工具；否则给出最终回答，不要重复工具JSON。"})
 
-    final_answer = "工具调用轮次过多，已停止。请拆分任务或查看日志。"
+    if last_tool_result is not None:
+        final_answer = "工具调用轮次较多，已停止继续调用工具。以下是最后一次工具执行结果摘要：\n\n```json\n" + json.dumps(last_tool_result, ensure_ascii=False, indent=2)[:4000] + "\n```"
+    else:
+        final_answer = "工具调用轮次过多，已停止。请拆分任务或查看日志。"
     for chunk in _chunk_text(final_answer, 18):
         yield {"type": "token", "content": chunk}
     append_history("assistant", final_answer)

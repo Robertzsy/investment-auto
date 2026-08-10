@@ -16,7 +16,7 @@ class GenericOpenAILLM(BaseLLM):
         api_key_env: str    (env-var name)
     """
 
-    def __init__(self, provider_config: Dict[str, Any]) -> None:
+    def __init__(self, provider_config: Dict[str, Any], model_override: str | None = None) -> None:
         import os
 
         key_env = provider_config.get("api_key_env", "")
@@ -27,7 +27,7 @@ class GenericOpenAILLM(BaseLLM):
 
         base = provider_config.get("api_base", "")
         self._client = OpenAI(api_key=api_key, base_url=base + "/" if base else None)
-        self._model = provider_config.get("model", "gpt-3.5-turbo")
+        self._model = model_override or provider_config.get("model", "gpt-3.5-turbo")
         self._provider_name = provider_config.get("provider_name", "openai")
 
     @property

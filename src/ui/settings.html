@@ -92,6 +92,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <input type="text" id="llmFallback" placeholder="openai,glm,kimi">
       <div class="help-text">当主模型失败时，按此顺序尝试其他模型</div>
     </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>快速模型（分析师/研究员）</label>
+        <select id="quickModel"></select>
+      </div>
+      <div class="form-group">
+        <label>专业模型（裁决/交易/风控）</label>
+        <select id="proModel"></select>
+      </div>
+    </div>
+    <button class="add-btn" onclick="addProvider()">+ 添加模型供应商</button>
   </div>
 
   <!-- 市场开关 -->
@@ -188,12 +199,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 let config = {};
 let envVars = {};
 
-const PROVIDERS = {
+const DEFAULT_PROVIDERS = {
   deepseek: { name: 'DeepSeek', desc: '深度求索 V4', defaultModel: 'deepseek-v4-pro', defaultBase: 'https://api.deepseek.com' },
-  openai: { name: 'OpenAI', desc: 'GPT-5.6 系列', defaultModel: 'gpt-5.6-sol', defaultBase: 'https://ai-apigateway.must.edu.mo/openhub/v1' },
+  openai: { name: 'OpenAI/MUST中转', desc: 'GPT-5.6 / 学校中转站', defaultModel: 'gpt-5.5', defaultBase: 'https://ai-apigateway.must.edu.mo/openhub/v1' },
   glm: { name: 'GLM', desc: '智谱 5.2', defaultModel: 'glm-5.2', defaultBase: 'https://open.bigmodel.cn/api/paas/v4' },
   kimi: { name: 'Kimi', desc: '月之暗面 K3', defaultModel: 'kimi-k3', defaultBase: 'https://api.moonshot.cn/v1' }
 };
+function providers() {
+  const out = {...DEFAULT_PROVIDERS};
+  for (const [k,v] of Object.entries(config.llm?.models || {})) {
+    if (!out[k]) out[k] = {name:k, desc:'自定义模型供应商', defaultModel:v.model || '', defaultBase:v.api_base || ''};
+  }
+  return out;
+}
 
 async function loadConfig() {
   try {
@@ -213,6 +231,7 @@ async function loadConfig() {
 function renderConfig() {
   renderApiKeys();
   renderModelSelect();
+  renderRoleModels();
   
   // 市场开关
   const markets = config.markets?.enable || [];
@@ -243,7 +262,7 @@ function renderApiKeys() {
   const container = document.getElementById('apiKeysContainer');
   container.innerHTML = '';
   
-  for (const [key, info] of Object.entries(PROVIDERS)) {
+  for (const [key, info] of Object.entries(providers())) {
     const envKey = key.toUpperCase() + '_API_KEY';
     const hasKey = envVars[envKey] && envVars[envKey].length > 0;
     const currentModel = config.llm?.models?.[key]?.model || info.defaultModel;
@@ -281,7 +300,7 @@ function renderModelSelect() {
   const currentProvider = config.llm?.provider || 'deepseek';
   container.innerHTML = '';
   
-  for (const [key, info] of Object.entries(PROVIDERS)) {
+  for (const [key, info] of Object.entries(providers())) {
     const div = document.createElement('div');
     div.className = 'model-option' + (key === currentProvider ? ' selected' : '');
     div.dataset.provider = key;
@@ -292,6 +311,46 @@ function renderModelSelect() {
     };
     container.appendChild(div);
   }
+}
+
+function allModelNames() {
+  const names = [];
+  for (const [provider, cfg] of Object.entries(config.llm?.models || {})) {
+    const variants = cfg.variants || [cfg.model].filter(Boolean);
+    variants.forEach(v => names.push(v));
+  }
+  return [...new Set(names)];
+}
+
+function renderRoleModels() {
+  const names = allModelNames();
+  const quick = document.getElementById('quickModel');
+  const pro = document.getElementById('proModel');
+  quick.innerHTML = '';
+  pro.innerHTML = '';
+  names.forEach(n => {
+    const o1 = document.createElement('option'); o1.value=n; o1.textContent=n; quick.appendChild(o1);
+    const o2 = document.createElement('option'); o2.value=n; o2.textContent=n; pro.appendChild(o2);
+  });
+  const roleMap = config.llm?.role_model_override || {};
+  quick.value = roleMap.analyst || roleMap.researcher || names[0] || '';
+  pro.value = roleMap.judge || roleMap.trader || roleMap.risk_chairman || names[0] || '';
+}
+
+function addProvider() {
+  const key = prompt('输入供应商标识（英文小写，例如 qwen、openrouter）');
+  if (!key) return;
+  const provider = key.trim().toLowerCase();
+  if (!provider) return;
+  config.llm = config.llm || {}; config.llm.models = config.llm.models || {};
+  if (config.llm.models[provider]) { alert('供应商已存在'); return; }
+  config.llm.models[provider] = {
+    model: prompt('默认模型名', '') || '',
+    api_base: prompt('API Base URL', 'https://') || '',
+    variants: [],
+    api_key_env: provider.toUpperCase() + '_API_KEY'
+  };
+  renderApiKeys(); renderModelSelect(); renderRoleModels();
 }
 
 function renderIntraday() {
@@ -327,8 +386,8 @@ function removeTime(market, index) {
 async function saveConfig() {
   // 收集 API Keys
   const newEnv = {};
-  for (const key of Object.keys(PROVIDERS)) {
-    const envKey = key.toUpperCase() + '_API_KEY';
+  for (const key of Object.keys(providers())) {
+    const envKey = (config.llm?.models?.[key]?.api_key_env) || (key.toUpperCase() + '_API_KEY');
     const value = document.getElementById(`apikey_${key}`).value;
     if (value) newEnv[envKey] = value;
   }
@@ -352,11 +411,26 @@ async function saveConfig() {
   
   // 更新各 provider 的 model 和 base
   config.llm.models = config.llm.models || {};
-  for (const key of Object.keys(PROVIDERS)) {
+  for (const key of Object.keys(providers())) {
     config.llm.models[key] = config.llm.models[key] || {};
     config.llm.models[key].model = document.getElementById(`model_${key}`).value;
     config.llm.models[key].api_base = document.getElementById(`base_${key}`).value;
+    if (!config.llm.models[key].api_key_env) config.llm.models[key].api_key_env = key.toUpperCase() + '_API_KEY';
+    const m = config.llm.models[key].model;
+    const variants = config.llm.models[key].variants || [];
+    if (m && !variants.includes(m)) variants.unshift(m);
+    config.llm.models[key].variants = variants;
   }
+  // 快速/专业模型映射
+  const quickModel = document.getElementById('quickModel').value;
+  const proModel = document.getElementById('proModel').value;
+  config.llm.role_model_override = config.llm.role_model_override || {};
+  config.llm.role_model_override.analyst = quickModel;
+  config.llm.role_model_override.researcher = quickModel;
+  config.llm.role_model_override.quant_analyst = proModel;
+  config.llm.role_model_override.judge = proModel;
+  config.llm.role_model_override.trader = proModel;
+  config.llm.role_model_override.risk_chairman = proModel;
 
   // 市场开关
   const markets = [];

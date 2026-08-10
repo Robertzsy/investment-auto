@@ -42,6 +42,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_macro(query)
         if path == "/api/macro/dates":
             return self._handle_macro_dates()
+        if path == "/api/models":
+            return self._handle_models()
         if path == "/api/history":
             return self._handle_get_history()
 
@@ -63,6 +65,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_chat()
         if path == "/api/history/clear":
             return self._handle_clear_history()
+        if path == "/api/chat/cancel":
+            return self._handle_chat_cancel()
         if path == "/api/config":
             return self._handle_save_config()
         if path == "/api/env":
@@ -85,21 +89,23 @@ class ChatHandler(SimpleHTTPRequestHandler):
         message = data.get("message", "").strip()
         thinking = data.get("thinking", False)
         stream = data.get("stream", True)
+        provider = data.get("provider")
+        model = data.get("model")
         if not message:
             return self._json_response(400, {"error": "empty message"})
 
         logger.info(f"Chat: {message[:100]}...")
         try:
             if stream:
-                return self._handle_chat_stream(message, thinking)
+                return self._handle_chat_stream(message, thinking, provider, model)
             from .chat_server import handle_chat
-            reply = handle_chat(message, thinking)
+            reply = handle_chat(message, thinking, provider=provider, model=model)
             self._json_response(200, {"reply": reply})
         except Exception as e:
             logger.exception("chat error")
             self._json_response(500, {"error": str(e)})
 
-    def _handle_chat_stream(self, message: str, thinking: bool):
+    def _handle_chat_stream(self, message: str, thinking: bool, provider: str | None = None, model: str | None = None):
         from .chat_server import handle_chat_stream
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -108,7 +114,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         try:
-            for event in handle_chat_stream(message, thinking):
+            for event in handle_chat_stream(message, thinking, provider=provider, model=model):
                 payload = json.dumps(event, ensure_ascii=False)
                 self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
                 self.wfile.flush()
@@ -118,6 +124,13 @@ class ChatHandler(SimpleHTTPRequestHandler):
             payload = json.dumps({"type": "error", "content": str(e)}, ensure_ascii=False)
             self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
             self.wfile.flush()
+
+    def _handle_models(self):
+        try:
+            from src.llm.registry import available_models
+            self._json_response(200, available_models())
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
 
     def _handle_get_history(self):
         try:
@@ -130,6 +143,14 @@ class ChatHandler(SimpleHTTPRequestHandler):
         try:
             from .chat_server import clear_history
             clear_history()
+            self._json_response(200, {"ok": True})
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_chat_cancel(self):
+        try:
+            from .chat_server import request_cancel
+            request_cancel()
             self._json_response(200, {"ok": True})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
