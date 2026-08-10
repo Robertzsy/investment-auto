@@ -12,6 +12,7 @@ runtime/data/
 runtime/logs/
 runtime/reports/
 runtime/optimizer/
+/runtime/chat_*
 data/
 *.db
 *.sqlite

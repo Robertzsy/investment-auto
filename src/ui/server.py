@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import re
 import sys
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
@@ -16,6 +18,29 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 UI_DIR = Path(__file__).resolve().parent
 
 logger = logging.getLogger("investment-auto.http")
+
+ENV_VALUE_MASK = "********"
+_ENV_KEY_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}\Z")
+_REQUEST_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+_SENSITIVE_ENV_MARKERS = (
+    "_KEY",
+    "API_KEY",
+    "APIKEY",
+    "ACCESS_KEY",
+    "AUTH_TOKEN",
+    "CREDENTIAL",
+    "PASSWORD",
+    "PASSWD",
+    "PRIVATE_KEY",
+    "SECRET",
+    "TOKEN",
+    "WEBHOOK",
+)
+
+
+def _is_sensitive_env_key(key: str) -> bool:
+    normalized = key.upper()
+    return any(marker in normalized for marker in _SENSITIVE_ENV_MARKERS)
 
 
 class ChatHandler(SimpleHTTPRequestHandler):
@@ -85,37 +110,42 @@ class ChatHandler(SimpleHTTPRequestHandler):
             data = json.loads(body)
         except json.JSONDecodeError:
             return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"error": "chat payload must be a JSON object"})
 
-        message = data.get("message", "").strip()
-        thinking = data.get("thinking", False)
-        stream = data.get("stream", True)
+        message = str(data.get("message", "")).strip()
+        thinking = bool(data.get("thinking", False))
+        stream = bool(data.get("stream", True))
         provider = data.get("provider")
         model = data.get("model")
+        request_id = data.get("request_id")
+        if request_id is not None:
+            if not isinstance(request_id, str) or not _REQUEST_ID_RE.fullmatch(request_id):
+                return self._json_response(400, {"error": "invalid request_id"})
         if not message:
             return self._json_response(400, {"error": "empty message"})
 
         logger.info(f"Chat: {message[:100]}...")
         try:
             if stream:
-                return self._handle_chat_stream(message, thinking, provider, model)
+                return self._handle_chat_stream(message, thinking, provider, model, request_id)
             from .chat_server import handle_chat
-            reply = handle_chat(message, thinking, provider=provider, model=model)
+            reply = handle_chat(message, thinking, provider=provider, model=model, request_id=request_id)
             self._json_response(200, {"reply": reply})
         except Exception as e:
             logger.exception("chat error")
             self._json_response(500, {"error": str(e)})
 
-    def _handle_chat_stream(self, message: str, thinking: bool, provider: str | None = None, model: str | None = None):
+    def _handle_chat_stream(self, message: str, thinking: bool, provider: str | None = None, model: str | None = None, request_id: str | None = None):
         from .chat_server import handle_chat_stream
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "close")
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("X-Accel-Buffering", "no")
         self.end_headers()
         try:
-            for event in handle_chat_stream(message, thinking, provider=provider, model=model):
+            for event in handle_chat_stream(message, thinking, provider=provider, model=model, request_id=request_id):
                 payload = json.dumps(event, ensure_ascii=False)
                 self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
                 self.wfile.flush()
@@ -157,9 +187,22 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
     def _handle_chat_cancel(self):
         try:
+            request_id = parse_qs(urlparse(self.path).query).get("request_id", [None])[0]
+            length = int(self.headers.get("Content-Length", 0))
+            if length:
+                try:
+                    data = json.loads(self.rfile.read(length))
+                except json.JSONDecodeError:
+                    return self._json_response(400, {"error": "invalid json"})
+                if not isinstance(data, dict):
+                    return self._json_response(400, {"error": "cancel payload must be a JSON object"})
+                request_id = data.get("request_id", request_id)
+            if request_id is not None:
+                if not isinstance(request_id, str) or not _REQUEST_ID_RE.fullmatch(request_id):
+                    return self._json_response(400, {"error": "invalid request_id"})
             from .chat_server import request_cancel
-            request_cancel()
-            self._json_response(200, {"ok": True})
+            cancelled = request_cancel(request_id)
+            self._json_response(200, {"ok": True, "cancelled": cancelled})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
 
@@ -207,7 +250,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
                     line = line.strip()
                     if line and not line.startswith("#") and "=" in line:
                         k, v = line.split("=", 1)
-                        env_vars[k.strip()] = v.strip()
+                        key = k.strip()
+                        env_vars[key] = ENV_VALUE_MASK if _is_sensitive_env_key(key) and v.strip() else v.strip()
             self._json_response(200, env_vars)
         except Exception as e:
             self._json_response(500, {"error": str(e)})
@@ -221,6 +265,21 @@ class ChatHandler(SimpleHTTPRequestHandler):
         except json.JSONDecodeError:
             return self._json_response(400, {"error": "invalid json"})
 
+        if not isinstance(data, dict):
+            return self._json_response(400, {"error": "environment variables must be a JSON object"})
+
+        updates = {}
+        for key, value in data.items():
+            if not isinstance(key, str) or not _ENV_KEY_RE.fullmatch(key):
+                return self._json_response(400, {"error": f"invalid environment variable name: {key!r}"})
+            if not isinstance(value, str):
+                return self._json_response(400, {"error": f"environment variable {key} must be a string"})
+            if len(value) > 65536 or any(char in value for char in ("\x00", "\r", "\n")):
+                return self._json_response(400, {"error": f"invalid value for environment variable {key}"})
+            # Blank fields and the display-only mask mean "keep the current value".
+            if value and value != ENV_VALUE_MASK:
+                updates[key] = value
+
         try:
             env_path = PROJECT_ROOT / ".env"
             # Read existing
@@ -232,29 +291,15 @@ class ChatHandler(SimpleHTTPRequestHandler):
                         k, v = line.split("=", 1)
                         existing[k.strip()] = v.strip()
             # Merge
-            existing.update(data)
+            existing.update(updates)
             # Write back
             lines = [f"{k}={v}" for k, v in existing.items()]
             env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            env_path.chmod(0o600)
+            # dotenv does not refresh an already-running process. Keep adapters
+            # created after this request in sync with the newly saved values.
+            os.environ.update(updates)
             self._json_response(200, {"ok": True})
-        except Exception as e:
-            self._json_response(500, {"error": str(e)})
-
-    def _handle_macro(self):
-        """Get macro environment data."""
-        try:
-            from src.config import cfg
-            macro_dir = PROJECT_ROOT / "runtime" / "macro"
-            if not macro_dir.exists():
-                return self._json_response(200, {"available": False, "message": "宏观数据目录不存在"})
-            
-            # Find latest macro report
-            files = sorted(macro_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
-            if not files:
-                return self._json_response(200, {"available": False, "message": "暂无宏观数据"})
-            
-            latest = json.loads(files[0].read_text(encoding="utf-8"))
-            self._json_response(200, {"available": True, "file": files[0].name, "data": latest})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
 
@@ -474,43 +519,36 @@ class ChatHandler(SimpleHTTPRequestHandler):
     def _json_response(self, status: int, data: dict):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode("utf-8"))
 
     def do_OPTIONS(self):
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def log_message(self, format, *args):
         pass
 
 
-def start_server(host: str = "localhost", port: int = 8080):
-    # Try localhost first, fallback to 0.0.0.0
-    for h in [host, "0.0.0.0"]:
-        try:
-            server = ThreadingHTTPServer((h, port), ChatHandler)
-            actual_host = h
-            break
-        except OSError as e:
-            logger.warning(f"Cannot bind to {h}:{port} - {e}")
-            continue
-    else:
-        raise RuntimeError(f"Cannot bind to any host on port {port}")
+def start_server(host: str = "localhost", port: int = 8080, open_browser: bool = True):
+    try:
+        server = ThreadingHTTPServer((host, port), ChatHandler)
+    except OSError as exc:
+        raise RuntimeError(f"Cannot bind to {host}:{port}: {exc}") from exc
 
-    url = f"http://localhost:{port}" if actual_host == "localhost" else f"http://{actual_host}:{port}"
+    url_host = "localhost" if host in {"localhost", "127.0.0.1", "::1"} else host
+    url = f"http://{url_host}:{port}"
     logger.info(f"AI Chat Panel running at {url}")
 
-    # Auto-open browser
-    import webbrowser
-    try:
-        webbrowser.open(url)
-        logger.info("Browser opened automatically")
-    except Exception:
+    # Auto-open browser for interactive local use only.
+    if open_browser:
+        import webbrowser
+        try:
+            webbrowser.open(url)
+            logger.info("Browser opened automatically")
+        except Exception:
+            logger.info(f"Please open {url} in your browser")
+    else:
         logger.info(f"Please open {url} in your browser")
 
     try:

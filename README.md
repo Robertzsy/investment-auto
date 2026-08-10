@@ -28,6 +28,7 @@ python -m src.main init
 python -m src.main chat
 # 打开浏览器访问 http://localhost:8080
 # AI 拥有完全操作权限：读写配置、运行优化器、启停调度
+# 可用 CHAT_HOST、CHAT_PORT、CHAT_OPEN_BROWSER 覆盖监听地址、端口和自动打开浏览器行为
 
 # 6. 启动自动化调度器
 python -m src.main run
@@ -41,13 +42,20 @@ python -m src.main once --market cn
 - `config/config.yaml`：总控制文件，决定市场开关、盘中建仓次数/时间、模型选择
 - 环境变量 `.env`：存储 API Key，切勿提交至 Git
 - `config/market/`：各市场风控参数、手续费、交易规则
+- APScheduler 的星期编号以周一为 `0`。A股/港股/ETF 和美股北京时间晚间轮次使用 `0-4`（周一至周五）；美股北京时间凌晨轮次使用 `schedule.us_early_morning_days`，默认 `1-5`（周二至周六）。设置 `weekdays_only: false` 可允许每日触发。
 
 ## Docker 部署
 
 ```bash
 docker compose up -d --build
-# AI 对话面板 → http://localhost:8080
+# 同时启动 scheduler 和 chat 两个服务
+docker compose ps
+docker compose logs -f scheduler chat
+
+# AI 对话面板 → http://127.0.0.1:8080
 ```
+
+Compose 中聊天服务在容器内监听 `0.0.0.0:8080`，但端口只发布到宿主机回环地址 `127.0.0.1:8080`，不会直接暴露到局域网或公网。`config/` 与 `runtime/` 由两个服务共享挂载；`.env` 仅作为运行时环境文件使用，不会进入镜像构建上下文。
 
 ## 多模型接入
 

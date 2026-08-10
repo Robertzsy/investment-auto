@@ -14,7 +14,65 @@ from src.llm.registry import resolve_llm
 from src.portfolio import account
 
 logger = logging.getLogger(__name__)
-ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def _normalize_days(value: Any, default: str = "1-5") -> str:
+    """Return an APScheduler numeric day-of-week expression (Monday is 0)."""
+    if value is None or value == "":
+        return default
+
+    parts = value if isinstance(value, (list, tuple, set)) else str(value).split(",")
+    days = set()
+    for part in parts:
+        text = str(part).strip()
+        if not text:
+            continue
+        if "-" in text:
+            start_text, end_text = text.split("-", 1)
+            start, end = int(start_text), int(end_text)
+            if start > end:
+                raise ValueError(f"Invalid day-of-week range: {text}")
+            days.update(range(start, end + 1))
+        else:
+            days.add(int(text))
+
+    if not days or min(days) < 0 or max(days) > 6:
+        raise ValueError(f"APScheduler day-of-week must be between 0 and 6: {value}")
+
+    ordered = sorted(days)
+    ranges = []
+    start = previous = ordered[0]
+    for day in ordered[1:]:
+        if day == previous + 1:
+            previous = day
+            continue
+        ranges.append(str(start) if start == previous else f"{start}-{previous}")
+        start = previous = day
+    ranges.append(str(start) if start == previous else f"{start}-{previous}")
+    return ",".join(ranges)
+
+
+def _day_of_week(market: str, time_str: str) -> str:
+    """Map Beijing-time jobs to the relevant market's trading weekdays."""
+    schedule = cfg.schedule
+    if not schedule.get("weekdays_only", True):
+        return "*"
+
+    hour = int(time_str.split(":", 1)[0])
+    if market.lower() == "us" and hour < 12:
+        return _normalize_days(schedule.get("us_early_morning_days"), default="1-5")
+    return "0-4"
+
+
+def _cron_trigger(market: str, time_str: str) -> CronTrigger:
+    hour_text, minute_text = time_str.split(":", 1)
+    return CronTrigger(
+        day_of_week=_day_of_week(market, time_str),
+        hour=int(hour_text),
+        minute=int(minute_text),
+        timezone=cfg.schedule.get("timezone", "Asia/Shanghai"),
+    )
 
 # ── market rules from YAML ──────────────────────────
 def _market_config(market: str) -> Dict:
@@ -54,11 +112,11 @@ def start() -> _BgScheduler:
     for market in cfg.enabled_markets:
         for t in cfg.intraday_times(market) or []:
             label = t.replace(":", "")
-            trigger = CronTrigger.from_crontab(f"{t.split(':')[1]} {t.split(':')[0]} * * 1-5")
+            trigger = _cron_trigger(market, t)
             scheduler.add_job(_build_intraday_job(market, t, label), trigger=trigger, id=f"{market}-{label}")
         ct = cfg.close_time(market)
         if ct:
-            trigger = CronTrigger.from_crontab(f"{ct.split(':')[1]} {ct.split(':')[0]} * * 1-5")
+            trigger = _cron_trigger(market, ct)
             scheduler.add_job(_build_close_job(market, ct), trigger=trigger, id=f"{market}-close")
     scheduler.start()
     return scheduler

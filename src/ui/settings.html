@@ -258,38 +258,50 @@ function renderConfig() {
   document.getElementById('maxDailyTrades').value = config.trading?.max_daily_trades || 6;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  })[ch]);
+}
+
 function renderApiKeys() {
   const container = document.getElementById('apiKeysContainer');
   container.innerHTML = '';
   
   for (const [key, info] of Object.entries(providers())) {
-    const envKey = key.toUpperCase() + '_API_KEY';
-    const hasKey = envVars[envKey] && envVars[envKey].length > 0;
+    const envKey = (config.llm?.models?.[key]?.api_key_env) || (key.toUpperCase() + '_API_KEY');
+    const hasKey = Boolean(envVars[envKey]);
     const currentModel = config.llm?.models?.[key]?.model || info.defaultModel;
     const currentBase = config.llm?.models?.[key]?.api_base || info.defaultBase;
+    const safeKey = escapeHtml(key);
+    const safeName = escapeHtml(info.name);
+    const safeModel = escapeHtml(currentModel);
+    const safeBase = escapeHtml(currentBase);
+    const safeDefaultModel = escapeHtml(info.defaultModel);
+    const safeDescription = escapeHtml(info.desc);
     
     const div = document.createElement('div');
     div.className = 'api-card';
     div.innerHTML = `
       <div class="api-card-header">
-        <h3>${info.name}</h3>
+        <h3>${safeName}</h3>
         <span class="status ${hasKey ? 'configured' : 'not-configured'}">${hasKey ? '已配置' : '未配置'}</span>
       </div>
       <div class="form-group">
         <label>API Key</label>
-        <input type="password" id="apikey_${key}" value="${envVars[envKey] || ''}" placeholder="输入 ${info.name} API Key">
+        <input type="password" id="apikey_${safeKey}" value="" autocomplete="new-password" placeholder="留空以保持当前 API Key">
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>模型</label>
-          <input type="text" id="model_${key}" value="${currentModel}" placeholder="${info.defaultModel}">
+          <input type="text" id="model_${safeKey}" value="${safeModel}" placeholder="${safeDefaultModel}">
         </div>
         <div class="form-group">
           <label>API 地址</label>
-          <input type="text" id="base_${key}" value="${currentBase}" placeholder="${info.defaultBase}">
+          <input type="text" id="base_${safeKey}" value="${safeBase}" placeholder="${escapeHtml(info.defaultBase)}">
         </div>
       </div>
-      <div class="help-text">${info.desc} · 默认模型: ${info.defaultModel}</div>
+      <div class="help-text">${safeDescription} · 默认模型: ${safeDefaultModel}</div>
     `;
     container.appendChild(div);
   }
@@ -304,7 +316,13 @@ function renderModelSelect() {
     const div = document.createElement('div');
     div.className = 'model-option' + (key === currentProvider ? ' selected' : '');
     div.dataset.provider = key;
-    div.innerHTML = `<div class="name">${info.name}</div><div class="desc">${info.desc}</div>`;
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = info.name;
+    const description = document.createElement('div');
+    description.className = 'desc';
+    description.textContent = info.desc;
+    div.append(name, description);
     div.onclick = () => {
       document.querySelectorAll('.model-option').forEach(el => el.classList.remove('selected'));
       div.classList.add('selected');
@@ -316,7 +334,7 @@ function renderModelSelect() {
 function allModelNames() {
   const names = [];
   for (const [provider, cfg] of Object.entries(config.llm?.models || {})) {
-    const variants = cfg.variants || [cfg.model].filter(Boolean);
+    const variants = [...new Set([cfg.model, ...(cfg.variants || [])].filter(Boolean))];
     variants.forEach(v => names.push(v));
   }
   return [...new Set(names)];
@@ -360,13 +378,29 @@ function renderIntraday() {
   for (const [market, times] of Object.entries(rounds)) {
     const div = document.createElement('div');
     div.className = 'form-group';
-    div.innerHTML = `<label>${market.toUpperCase()} 盘中轮次</label><div class="time-list" id="times-${market}"></div><button class="add-btn" onclick="addTime('${market}')">+ 添加时间</button>`;
+    const label = document.createElement('label');
+    label.textContent = `${market.toUpperCase()} 盘中轮次`;
+    const list = document.createElement('div');
+    list.className = 'time-list';
+    list.id = `times-${market}`;
+    const addButton = document.createElement('button');
+    addButton.className = 'add-btn';
+    addButton.textContent = '+ 添加时间';
+    addButton.onclick = () => addTime(market);
+    div.append(label, list, addButton);
     container.appendChild(div);
-    const list = div.querySelector(`#times-${market}`);
     times.forEach((t, i) => {
       const item = document.createElement('div');
       item.className = 'time-item';
-      item.innerHTML = `<input type="time" value="${t}" data-market="${market}" data-index="${i}"><button onclick="removeTime('${market}',${i})">删除</button>`;
+      const input = document.createElement('input');
+      input.type = 'time';
+      input.value = t;
+      input.dataset.market = market;
+      input.dataset.index = String(i);
+      const removeButton = document.createElement('button');
+      removeButton.textContent = '删除';
+      removeButton.onclick = () => removeTime(market, i);
+      item.append(input, removeButton);
       list.appendChild(item);
     });
   }

@@ -9,10 +9,23 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be one of: true/false, yes/no, on/off, 1/0")
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -26,7 +39,7 @@ def main() -> None:
 
     # load config early
     if args.config:
-        import os; os.environ["CONFIG_PATH"] = args.config
+        os.environ["CONFIG_PATH"] = args.config
 
     # defer heavy imports until needed
     if args.command == "version":
@@ -61,9 +74,21 @@ def main() -> None:
             sys.exit(0)
 
     if args.command == "chat":
-        logger.info("Starting AI Chat Panel on http://localhost:8080 ...")
+        host = os.getenv("CHAT_HOST", "localhost")
+        try:
+            port = int(os.getenv("CHAT_PORT", "8080"))
+        except ValueError as exc:
+            raise SystemExit("CHAT_PORT must be an integer") from exc
+        if not 1 <= port <= 65535:
+            raise SystemExit("CHAT_PORT must be between 1 and 65535")
+        try:
+            open_browser = _env_bool("CHAT_OPEN_BROWSER", True)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+
+        logger.info("Starting AI Chat Panel on %s:%s ...", host, port)
         from src.ui.server import start_server
-        start_server(host="localhost", port=8080)
+        start_server(host=host, port=port, open_browser=open_browser)
         return
 
 if __name__ == "__main__":

@@ -128,6 +128,12 @@ tr:hover{background:rgba(88,166,255,0.05)}
 let currentMarket = 'all';
 let charts = {};
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[ch]);
+}
+
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -149,7 +155,7 @@ async function loadDashboard() {
     loadMacroSummary();
   } catch(e) {
     console.error(e);
-    document.getElementById('holdingsTable').innerHTML = '<div class="empty">加载失败: ' + e.message + '</div>';
+    document.getElementById('holdingsTable').innerHTML = '<div class="empty">加载失败: ' + escapeHtml(e.message) + '</div>';
   }
 }
 
@@ -166,7 +172,7 @@ async function loadMacroSummary() {
     let html = '<div style="display:flex;flex-direction:column;gap:8px">';
     data.dates.slice(0, 3).forEach(date => {
       html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--bg);border-radius:6px">
-        <span>${date}</span>
+        <span>${escapeHtml(date)}</span>
         <a href="/macro" style="color:var(--accent);font-size:0.8rem;text-decoration:none">查看 →</a>
       </div>`;
     });
@@ -260,7 +266,7 @@ function renderHoldings(data) {
     const pnl = (h.last_price - h.cost_price) * h.shares;
     const pnlPct = ((h.last_price / h.cost_price - 1) * 100).toFixed(2);
     const cls = pnl >= 0 ? 'positive' : 'negative';
-    html += `<tr><td>${h.market}</td><td>${h.code}</td><td>${h.name}</td><td>${h.shares}</td><td>${h.cost_price}</td><td>${h.last_price}</td><td>${formatMoney(h.market_value)}</td><td class="${cls}">${formatMoney(pnl)}</td><td class="${cls}">${pnlPct}%</td></tr>`;
+    html += `<tr><td>${escapeHtml(h.market)}</td><td>${escapeHtml(h.code)}</td><td>${escapeHtml(h.name)}</td><td>${escapeHtml(h.shares)}</td><td>${escapeHtml(h.cost_price)}</td><td>${escapeHtml(h.last_price)}</td><td>${formatMoney(h.market_value)}</td><td class="${cls}">${formatMoney(pnl)}</td><td class="${cls}">${pnlPct}%</td></tr>`;
   });
   html += '</table>';
   document.getElementById('holdingsTable').innerHTML = html;
@@ -274,7 +280,7 @@ function renderTrades(data) {
   }
   let html = '<table><tr><th>日期</th><th>市场</th><th>代码</th><th>名称</th><th>操作</th><th>数量</th><th>价格</th><th>金额</th></tr>';
   trades.slice(-10).reverse().forEach(t => {
-    html += `<tr><td>${t.date}</td><td>${t.market}</td><td>${t.code}</td><td>${t.name}</td><td>${t.action}</td><td>${t.shares}</td><td>${t.price}</td><td>${formatMoney(t.amount)}</td></tr>`;
+    html += `<tr><td>${escapeHtml(t.date)}</td><td>${escapeHtml(t.market)}</td><td>${escapeHtml(t.code)}</td><td>${escapeHtml(t.name)}</td><td>${escapeHtml(t.action)}</td><td>${escapeHtml(t.shares)}</td><td>${escapeHtml(t.price)}</td><td>${formatMoney(t.amount)}</td></tr>`;
   });
   html += '</table>';
   document.getElementById('tradesTable').innerHTML = html;
@@ -288,7 +294,7 @@ function renderOptimizer(data) {
   }
   let html = '<table><tr><th>方案</th><th>年化收益</th><th>年化波动</th><th>夏普</th><th>VaR95</th><th>最大回撤</th></tr>';
   for (const [name, m] of Object.entries(opt.schemes || {})) {
-    html += `<tr><td>${name}</td><td>${(m.annual_return*100).toFixed(2)}%</td><td>${(m.annual_volatility*100).toFixed(2)}%</td><td>${m.sharpe?.toFixed(3)}</td><td>${(m.var95*100).toFixed(2)}%</td><td>${(m.max_drawdown*100).toFixed(2)}%</td></tr>`;
+    html += `<tr><td>${escapeHtml(name)}</td><td>${(m.annual_return*100).toFixed(2)}%</td><td>${(m.annual_volatility*100).toFixed(2)}%</td><td>${m.sharpe?.toFixed(3)}</td><td>${(m.var95*100).toFixed(2)}%</td><td>${(m.max_drawdown*100).toFixed(2)}%</td></tr>`;
   }
   html += '</table>';
   document.getElementById('optimizerResult').innerHTML = html;

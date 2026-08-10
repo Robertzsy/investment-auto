@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+import threading
+from typing import Any, Dict, Iterator, List, Optional
 
 
 class BaseLLM(ABC):
@@ -22,6 +23,28 @@ class BaseLLM(ABC):
     ) -> str:
         """Return the assistant text content from a chat-completion call."""
         ...
+
+    def chat_stream(
+        self,
+        messages: List[Dict[str, str]],
+        *,
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+        cancel_event: Optional[threading.Event] = None,
+        **kwargs: Any,
+    ) -> Iterator[str]:
+        """Yield assistant text, with a non-streaming fallback for providers.
+
+        Providers with a streaming transport should override this method so a
+        cancellation event can also interrupt an in-flight network read.
+        """
+        if cancel_event is not None and cancel_event.is_set():
+            raise InterruptedError("chat completion cancelled")
+        text = self.chat(messages, temperature=temperature, max_tokens=max_tokens, **kwargs)
+        if cancel_event is not None and cancel_event.is_set():
+            raise InterruptedError("chat completion cancelled")
+        if text:
+            yield text
 
     def chat_structured(
         self,

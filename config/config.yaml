@@ -36,8 +36,9 @@ schedule:
     hk: "16:10"
     us: "04:10"
     etf: "15:40"
-  # For US early-morning Beijing-time jobs use Tue-Sat to map US Mon-Fri.
-  us_early_morning_days: "2-6"
+  # APScheduler uses Monday=0. Beijing-time US early-morning jobs therefore
+  # run Tue-Sat (1-5), mapping to US Mon-Fri sessions.
+  us_early_morning_days: "1-5"
 
 llm:
   provider: deepseek
@@ -46,7 +47,7 @@ llm:
     openai:
       model: gpt-5.5
       api_base: https://ai-apigateway.must.edu.mo/openhub/v1
-      variants: [gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna]
+      variants: [gpt-5.5, gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna]
       api_key_env: OPENAI_API_KEY
     deepseek:
       model: deepseek-v4-pro

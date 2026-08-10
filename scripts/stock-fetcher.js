@@ -17,7 +17,7 @@ const fs = require("fs");
 const path = require("path");
 const { execFile } = require("child_process");
 
-const WATCHLIST_FILE = path.join(__dirname, "..", "..", "..", "data", "watchlist.json");
+const WATCHLIST_FILE = path.join(__dirname, "..", "runtime", "data", "watchlist.json");
 
 // ─── HTTP 工具 ──────────────────────────────────────────
 
@@ -52,6 +52,9 @@ function detectMarket(input) {
   if (lower.startsWith("hk")) return { market: "hk", code: code.slice(2).toUpperCase() };
   if (lower.startsWith("us")) return { market: "us", code: code.slice(2).toUpperCase() };
   if (/^(sh|sz|bj)\d{6}$/.test(lower)) return { market: "cn", code: lower };
+  if (/^\d{5}$/.test(code)) {
+    return { market: "hk", code };
+  }
   if (/^\d{6}$/.test(code)) {
     const first = code[0];
     // A股: 0/3→深市, 6→沪市, 4/8→北交所
@@ -343,6 +346,7 @@ function loadWatchlist() {
 }
 
 function saveWatchlist(list) {
+  fs.mkdirSync(path.dirname(WATCHLIST_FILE), { recursive: true });
   fs.writeFileSync(WATCHLIST_FILE, JSON.stringify(list, null, 2), "utf8");
 }
 
@@ -781,7 +785,11 @@ async function main() {
   console.log(JSON.stringify({ error: `未知命令: ${command}` }));
 }
 
-main().catch((e) => {
-  console.error(JSON.stringify({ error: e.message }));
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((e) => {
+    console.error(JSON.stringify({ error: e.message }));
+    process.exit(1);
+  });
+}
+
+module.exports = { detectMarket };

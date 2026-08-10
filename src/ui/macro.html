@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>宏观日报 - Investment-Auto</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
 <style>
 :root{--bg:#0f1117;--surface:#1a1d27;--border:#2a2d3a;--text:#e1e4e8;--text-dim:#8b949e;--accent:#58a6ff;--accent-hover:#79c0ff;--success:#3fb950;--danger:#f85149;--warning:#d29922;--radius:10px;--font:'Inter',system-ui,sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -77,6 +78,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <script>
 let currentDate = null;
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[ch]);
+}
+
+function renderMarkdown(value) {
+  const html = marked.parse(String(value ?? ''));
+  if (globalThis.DOMPurify && typeof globalThis.DOMPurify.sanitize === 'function') {
+    return globalThis.DOMPurify.sanitize(html, {USE_PROFILES: {html: true}});
+  }
+  return escapeHtml(html);
+}
+
 async function loadDates() {
   try {
     const res = await fetch('/api/macro/dates');
@@ -97,7 +112,7 @@ async function loadDates() {
     // Load latest
     if (data.latest) loadReport(data.latest);
   } catch(e) {
-    document.getElementById('dateSelector').innerHTML = '<div class="empty">加载失败: ' + e.message + '</div>';
+    document.getElementById('dateSelector').innerHTML = '<div class="empty">加载失败: ' + escapeHtml(e.message) + '</div>';
   }
 }
 
@@ -111,16 +126,16 @@ async function loadReport(date) {
   container.innerHTML = '<div class="loading">加载中...</div>';
   
   try {
-    const res = await fetch('/api/macro?date=' + date);
+    const res = await fetch('/api/macro?date=' + encodeURIComponent(date));
     const data = await res.json();
     if (!data.available) {
-      container.innerHTML = '<div class="empty">' + (data.message || '暂无数据') + '</div>';
+      container.innerHTML = '<div class="empty">' + escapeHtml(data.message || '暂无数据') + '</div>';
       return;
     }
     // Render markdown
-    container.innerHTML = '<div class="macro-content">' + marked.parse(data.content || '') + '</div>';
+    container.innerHTML = '<div class="macro-content">' + renderMarkdown(data.content || '') + '</div>';
   } catch(e) {
-    container.innerHTML = '<div class="empty">加载失败: ' + e.message + '</div>';
+    container.innerHTML = '<div class="empty">加载失败: ' + escapeHtml(e.message) + '</div>';
   }
 }
 

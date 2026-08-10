@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Investment-Auto AI 助手</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
 <style>
@@ -144,7 +145,7 @@ function updateModelSelect() {
   const modelSel = document.getElementById('modelSelect');
   modelSel.innerHTML = '';
   const cfg = modelCatalog[provider] || {};
-  const variants = cfg.variants || [cfg.model].filter(Boolean);
+  const variants = [...new Set([cfg.model, ...(cfg.variants || [])].filter(Boolean))];
   variants.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m; opt.textContent = m;
@@ -173,6 +174,33 @@ function handleKey(e) {
 let isGenerating = false;
 let currentController = null;
 let currentReader = null;
+let currentRequestId = null;
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[ch]);
+}
+
+function sanitizeHtml(html) {
+  if (globalThis.DOMPurify && typeof globalThis.DOMPurify.sanitize === 'function') {
+    return globalThis.DOMPurify.sanitize(html, {USE_PROFILES: {html: true}});
+  }
+  // Safe degradation if the CDN is unavailable: show markup as text.
+  return escapeHtml(html);
+}
+
+function renderMarkdown(text, inline=false) {
+  const rendered = inline ? marked.parseInline(String(text ?? '')) : marked.parse(String(text ?? ''));
+  return sanitizeHtml(rendered);
+}
+
+function newRequestId() {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
 
 async function sendMessage() {
   if (isGenerating) return;
@@ -182,10 +210,12 @@ async function sendMessage() {
   input.value = '';
   setInputLocked(true);
 
-  appendMessage('user', marked.parseInline(text));
+  appendMessage('user', renderMarkdown(text, true));
   const assistantMsg = appendMessage('assistant', '<div class="dot-bounce"><span></span><span></span><span></span></div>', true);
   const body = assistantMsg.querySelector('.body');
   let raw = '';
+  const requestId = newRequestId();
+  currentRequestId = requestId;
 
   try {
     currentController = new AbortController();
@@ -197,13 +227,14 @@ async function sendMessage() {
         message: text,
         thinking: thinking_enabled,
         stream: true,
+        request_id: requestId,
         provider: document.getElementById('providerSelect').value,
         model: document.getElementById('modelSelect').value
       })
     });
     if (!res.ok || !res.body) {
       const errText = await res.text();
-      body.innerHTML = `❌ 错误: ${errText || res.status}`;
+      body.innerHTML = `❌ 错误: ${escapeHtml(errText || res.status)}`;
       return;
     }
     currentReader = res.body.getReader();
@@ -225,19 +256,19 @@ async function sendMessage() {
         catch(e) { console.warn('bad sse event', part, e); continue; }
         if (evt.type === 'token') {
           raw += evt.content || '';
-          body.innerHTML = marked.parse(raw);
+          body.innerHTML = renderMarkdown(raw);
           assistantMsg.scrollIntoView({behavior:'smooth', block:'end'});
         } else if (evt.type === 'tool') {
-          body.innerHTML += `<div style="color:var(--text-dim);font-size:.8rem;margin:6px 0">🔧 调用工具: <code>${evt.name}</code></div>`;
+          body.insertAdjacentHTML('beforeend', sanitizeHtml(`<div style="color:var(--text-dim);font-size:.8rem;margin:6px 0">🔧 调用工具: <code>${escapeHtml(evt.name)}</code></div>`));
         } else if (evt.type === 'status') {
-          if (!raw) body.innerHTML = `<span style="color:var(--text-dim)">${evt.content}</span>`;
+          if (!raw) body.innerHTML = `<span style="color:var(--text-dim)">${escapeHtml(evt.content)}</span>`;
         } else if (evt.type === 'cancelled') {
           raw += raw ? '\n\n> 已停止生成。' : '> 已停止生成。';
-          body.innerHTML = marked.parse(raw);
+          body.innerHTML = renderMarkdown(raw);
           shouldStopRead = true;
           break;
         } else if (evt.type === 'error') {
-          body.innerHTML = `❌ 错误: ${evt.content}`;
+          body.innerHTML = `❌ 错误: ${escapeHtml(evt.content)}`;
           shouldStopRead = true;
           break;
         } else if (evt.type === 'final') {
@@ -250,14 +281,17 @@ async function sendMessage() {
   } catch (e) {
     if (e.name === 'AbortError') {
       raw += raw ? '\n\n> 已停止生成。' : '> 已停止生成。';
-      body.innerHTML = marked.parse(raw);
+      body.innerHTML = renderMarkdown(raw);
     } else {
-      body.innerHTML = `❌ 网络错误: ${e.message}`;
+      body.innerHTML = `❌ 网络错误: ${escapeHtml(e.message)}`;
     }
   } finally {
-    currentReader = null;
-    currentController = null;
-    setInputLocked(false);
+    if (currentRequestId === requestId) {
+      currentReader = null;
+      currentController = null;
+      currentRequestId = null;
+      setInputLocked(false);
+    }
     loadHistory(false);
   }
 }
@@ -278,12 +312,19 @@ function setInputLocked(locked) {
 
 async function stopGeneration() {
   const body = document.querySelector('.msg.assistant:last-child .body');
+  const requestId = currentRequestId;
+  if (!requestId || !isGenerating) return;
+  try {
+    fetch(`/api/chat/cancel?request_id=${encodeURIComponent(requestId)}`, {
+      method:'POST',
+      keepalive:true,
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({request_id: requestId})
+    }).catch(()=>{});
+  } catch(e) { console.warn(e); }
   try { if (currentController) currentController.abort(); } catch(e) { console.warn(e); }
   try { if (currentReader) currentReader.cancel().catch(()=>{}); } catch(e) { console.warn(e); }
-  try { fetch('/api/chat/cancel', {method:'POST', keepalive:true}).catch(()=>{}); }
-  catch(e) { console.warn(e); }
-  if (body && isGenerating) body.innerHTML += `<div style="color:var(--text-dim);font-size:.85rem;margin-top:8px">⏹️ 已请求停止生成</div>`;
-  setInputLocked(false);
+  if (body && isGenerating) body.insertAdjacentHTML('beforeend', `<div style="color:var(--text-dim);font-size:.85rem;margin-top:8px">⏹️ 已请求停止生成</div>`);
 }
 
 function appendMessage(role, html, isTemp) {
@@ -296,7 +337,7 @@ function appendMessage(role, html, isTemp) {
   div.appendChild(ts);
   const body = document.createElement('div');
   body.className = 'body';
-  body.innerHTML = html;
+  body.innerHTML = sanitizeHtml(html);
   div.appendChild(body);
   box.appendChild(div);
   if (!isTemp) box.scrollTop = box.scrollHeight;
@@ -314,7 +355,7 @@ async function loadHistory(render=true) {
     box.appendChild(welcome);
     (data.history || []).forEach(m => {
       if (m.role === 'user' || m.role === 'assistant') {
-        appendMessage(m.role, marked.parse(m.content || ''));
+        appendMessage(m.role, renderMarkdown(m.content || ''));
       }
     });
   } catch(e) { console.warn('history load failed', e); }

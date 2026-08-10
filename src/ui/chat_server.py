@@ -15,7 +15,10 @@ import logging
 import os
 import re
 import subprocess
+import threading
 import traceback
+import uuid
+from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
@@ -26,7 +29,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 RUNTIME_DIR = PROJECT_ROOT / "runtime"
 HISTORY_FILE = RUNTIME_DIR / "chat_history.json"
 MEMORY_FILE = RUNTIME_DIR / "chat_memory.md"
-CANCEL_FILE = RUNTIME_DIR / "chat_cancel.flag"
+
+_history_lock = threading.RLock()
+_cancel_lock = threading.RLock()
+_cancel_events: "OrderedDict[str, threading.Event]" = OrderedDict()
+_active_request_ids: List[str] = []
+_MAX_CANCEL_EVENTS = 512
 
 logger = logging.getLogger("investment-auto.chat")
 
@@ -156,24 +164,27 @@ def _stock_fetcher(command: str, value: str) -> Dict[str, Any]:
 
 # ── history/memory ───────────────────────────────────
 def load_history(limit: int = 30) -> List[Dict[str, Any]]:
-    if not HISTORY_FILE.exists():
-        return []
-    try:
-        data = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
-        return data[-limit:]
-    except Exception:
-        return []
+    with _history_lock:
+        if not HISTORY_FILE.exists():
+            return []
+        try:
+            data = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+            return data[-limit:]
+        except Exception:
+            return []
 
 
 def save_history(history: List[Dict[str, Any]]) -> None:
-    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-    HISTORY_FILE.write_text(json.dumps(history[-200:], ensure_ascii=False, indent=2), encoding="utf-8")
+    with _history_lock:
+        RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+        HISTORY_FILE.write_text(json.dumps(history[-200:], ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def append_history(role: str, content: str) -> None:
-    h = load_history(limit=200)
-    h.append({"role": role, "content": content, "time": datetime.now().isoformat(timespec="seconds")})
-    save_history(h)
+    with _history_lock:
+        h = load_history(limit=200)
+        h.append({"role": role, "content": content, "time": datetime.now().isoformat(timespec="seconds")})
+        save_history(h)
 
 
 def clear_history() -> None:
@@ -192,23 +203,82 @@ def append_memory(note: str) -> None:
         f.write(f"\n- {datetime.now().isoformat(timespec='seconds')}: {note}\n")
 
 # ── public handlers ─────────────────────────────────
-def request_cancel() -> None:
-    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-    CANCEL_FILE.write_text(datetime.now().isoformat(), encoding="utf-8")
+def _trim_cancel_events() -> None:
+    while len(_cancel_events) > _MAX_CANCEL_EVENTS:
+        key = next(iter(_cancel_events))
+        if key in _active_request_ids:
+            _cancel_events.move_to_end(key)
+            if all(item in _active_request_ids for item in _cancel_events):
+                break
+            continue
+        _cancel_events.pop(key, None)
 
 
-def clear_cancel() -> None:
-    if CANCEL_FILE.exists():
-        CANCEL_FILE.unlink()
+def _register_cancel_event(request_id: Optional[str]) -> tuple[str, threading.Event]:
+    key = str(request_id).strip() if request_id else f"legacy:{uuid.uuid4().hex}"
+    with _cancel_lock:
+        event = _cancel_events.get(key)
+        if event is None:
+            event = threading.Event()
+            _cancel_events[key] = event
+        else:
+            _cancel_events.move_to_end(key)
+        _active_request_ids.append(key)
+        _trim_cancel_events()
+        return key, event
 
 
-def is_cancelled() -> bool:
-    return CANCEL_FILE.exists()
+def _unregister_cancel_event(key: str) -> None:
+    with _cancel_lock:
+        try:
+            _active_request_ids.remove(key)
+        except ValueError:
+            pass
+        _cancel_events.pop(key, None)
 
 
-def handle_chat(message: str, thinking: bool = False, provider: Optional[str] = None, model: Optional[str] = None) -> str:
+def request_cancel(request_id: Optional[str] = None) -> bool:
+    """Cancel one request; without an id, target the newest active request."""
+    with _cancel_lock:
+        if request_id:
+            key = str(request_id).strip()
+            event = _cancel_events.get(key)
+            if event is None:
+                # Preserve an early cancellation until that request registers.
+                event = threading.Event()
+                _cancel_events[key] = event
+            _cancel_events.move_to_end(key)
+        elif _active_request_ids:
+            key = _active_request_ids[-1]
+            event = _cancel_events[key]
+        else:
+            return False
+        event.set()
+        _trim_cancel_events()
+        return True
+
+
+def clear_cancel(request_id: Optional[str] = None) -> None:
+    """Compatibility helper; request startup deliberately never calls this."""
+    with _cancel_lock:
+        if request_id:
+            _cancel_events.pop(str(request_id).strip(), None)
+
+
+def is_cancelled(request_id: Optional[str] = None) -> bool:
+    with _cancel_lock:
+        if request_id:
+            event = _cancel_events.get(str(request_id).strip())
+        elif _active_request_ids:
+            event = _cancel_events.get(_active_request_ids[-1])
+        else:
+            event = None
+        return bool(event and event.is_set())
+
+
+def handle_chat(message: str, thinking: bool = False, provider: Optional[str] = None, model: Optional[str] = None, request_id: Optional[str] = None) -> str:
     parts = []
-    for ev in handle_chat_stream(message, thinking, provider=provider, model=model):
+    for ev in handle_chat_stream(message, thinking, provider=provider, model=model, request_id=request_id):
         if ev.get("type") == "token":
             parts.append(ev.get("content", ""))
         elif ev.get("type") == "final":
@@ -217,12 +287,22 @@ def handle_chat(message: str, thinking: bool = False, provider: Optional[str] = 
     return "".join(parts)
 
 
-def handle_chat_stream(message: str, thinking: bool = False, provider: Optional[str] = None, model: Optional[str] = None) -> Generator[Dict[str, Any], None, None]:
+def handle_chat_stream(message: str, thinking: bool = False, provider: Optional[str] = None, model: Optional[str] = None, request_id: Optional[str] = None) -> Generator[Dict[str, Any], None, None]:
     """Yield events: token/status/tool/final/error."""
+    key, cancel_event = _register_cancel_event(request_id)
+    try:
+        yield from _handle_chat_stream(message, thinking, provider, model, cancel_event)
+    finally:
+        _unregister_cancel_event(key)
+
+
+def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], model: Optional[str], cancel_event: threading.Event) -> Generator[Dict[str, Any], None, None]:
     from src.llm.registry import resolve_llm
 
-    clear_cancel()
     append_history("user", message)
+    if cancel_event.is_set():
+        yield from _emit_cancelled("")
+        return
     history = load_history(limit=20)
     memory = load_memory()
 
@@ -244,18 +324,24 @@ def handle_chat_stream(message: str, thinking: bool = False, provider: Optional[
             {"role": "system", "content": "你是专业但谨慎的中文投资分析助手。只能基于用户给出的行情快照分析，不要再调用任何工具；输出要包含：行情概况、技术面、风险点、操作参考。必须提示不构成投资建议。"},
             {"role": "user", "content": f"用户问题：{message}\n\n股票数据快照：\n{json.dumps(stock_context, ensure_ascii=False, indent=2)[:18000]}"},
         ]
+        response_parts: List[str] = []
         try:
-            resp = llm.chat(final_messages, temperature=0.25, max_tokens=1800)
+            for delta in _stream_llm(llm, final_messages, cancel_event, temperature=0.25, max_tokens=1800):
+                response_parts.append(delta)
+            resp = "".join(response_parts)
+        except InterruptedError:
+            yield from _emit_cancelled("")
+            return
         except Exception as e:
             yield {"type": "error", "content": str(e)}
             return
         final_answer = _strip_tool_blocks(resp).strip()
+        emitted = ""
         for chunk in _chunk_text(final_answer, 18):
-            if is_cancelled():
-                yield {"type": "cancelled", "content": "已停止生成"}
-                append_history("assistant", "（用户已停止生成）")
-                clear_cancel()
+            if cancel_event.is_set():
+                yield from _emit_cancelled(emitted)
                 return
+            emitted += chunk
             yield {"type": "token", "content": chunk}
         append_history("assistant", final_answer)
         yield {"type": "final", "content": final_answer}
@@ -265,17 +351,21 @@ def handle_chat_stream(message: str, thinking: bool = False, provider: Optional[
 
     last_tool_result = None
     for round_idx in range(8):
-        if is_cancelled():
-            yield {"type": "cancelled", "content": "已停止生成"}
-            append_history("assistant", "（用户已停止生成）")
-            clear_cancel()
+        if cancel_event.is_set():
+            yield from _emit_cancelled("")
             return
         yield {"type": "status", "content": "思考中..." if round_idx == 0 else "继续处理工具结果..."}
         kwargs: Dict[str, Any] = {}
         if thinking:
             kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+        response_parts = []
         try:
-            resp = llm.chat(messages, temperature=0.25, max_tokens=4096, **kwargs)
+            for delta in _stream_llm(llm, messages, cancel_event, temperature=0.25, max_tokens=4096, **kwargs):
+                response_parts.append(delta)
+            resp = "".join(response_parts)
+        except InterruptedError:
+            yield from _emit_cancelled("")
+            return
         except Exception as e:
             yield {"type": "error", "content": str(e)}
             return
@@ -284,12 +374,12 @@ def handle_chat_stream(message: str, thinking: bool = False, provider: Optional[
         if not tool_call:
             final_answer = _strip_tool_blocks(resp)
             # stream by chunks for UI responsiveness
+            emitted = ""
             for chunk in _chunk_text(final_answer, 18):
-                if is_cancelled():
-                    yield {"type": "cancelled", "content": "已停止生成"}
-                    append_history("assistant", raw if 'raw' in locals() else "（用户已停止生成）")
-                    clear_cancel()
+                if cancel_event.is_set():
+                    yield from _emit_cancelled(emitted)
                     return
+                emitted += chunk
                 yield {"type": "token", "content": chunk}
             append_history("assistant", final_answer)
             # primitive memory extraction
@@ -309,10 +399,40 @@ def handle_chat_stream(message: str, thinking: bool = False, provider: Optional[
         final_answer = "工具调用轮次较多，已停止继续调用工具。以下是最后一次工具执行结果摘要：\n\n```json\n" + json.dumps(last_tool_result, ensure_ascii=False, indent=2)[:4000] + "\n```"
     else:
         final_answer = "工具调用轮次过多，已停止。请拆分任务或查看日志。"
+    emitted = ""
     for chunk in _chunk_text(final_answer, 18):
+        if cancel_event.is_set():
+            yield from _emit_cancelled(emitted)
+            return
+        emitted += chunk
         yield {"type": "token", "content": chunk}
     append_history("assistant", final_answer)
     yield {"type": "final", "content": final_answer}
+
+
+def _stream_llm(llm: Any, messages: List[Dict[str, str]], cancel_event: threading.Event, **kwargs: Any) -> Generator[str, None, None]:
+    """Use streaming providers while retaining compatibility with simple test/provider doubles."""
+    stream_fn = getattr(llm, "chat_stream", None)
+    if callable(stream_fn):
+        yield from stream_fn(messages, cancel_event=cancel_event, **kwargs)
+        return
+    if cancel_event.is_set():
+        raise InterruptedError("chat completion cancelled")
+    text = llm.chat(messages, **kwargs)
+    if cancel_event.is_set():
+        raise InterruptedError("chat completion cancelled")
+    if text:
+        yield text
+
+
+def _emit_cancelled(partial_answer: str) -> Generator[Dict[str, Any], None, None]:
+    saved = partial_answer.rstrip()
+    if saved:
+        saved += "\n\n（用户已停止生成）"
+    else:
+        saved = "（用户已停止生成）"
+    append_history("assistant", saved)
+    yield {"type": "cancelled", "content": "已停止生成"}
 
 
 def _build_user_message(user_text: str) -> str:
@@ -321,15 +441,28 @@ def _build_user_message(user_text: str) -> str:
 
 def _looks_like_stock_analysis(user_text: str) -> bool:
     text = user_text.strip()
-    if re.search(r"(分析|看看|看一下|技术面|走势|股票|个股|K线|k线|茅台|腾讯|阿里|宁德|平安|招商|五粮液)", text):
+    if not text:
+        return False
+    if re.search(r"(?<![A-Za-z0-9])(?:sh|sz|bj)?\d{6}(?!\d)|(?<![A-Za-z0-9])hk\d{5}(?!\d)|(?<![A-Za-z0-9])us[A-Za-z.]{1,10}\b|(?<!\d)\d{5}(?!\d)", text, re.I):
         return True
-    return bool(re.search(r"\b(sh|sz|bj)?\d{6}\b|\bhk\d{5}\b|\bus[A-Za-z.]{1,10}\b", text, re.I))
+    if re.search(r"(?<![A-Za-z])(?:[A-Z]{2,5})(?![A-Za-z])", text):
+        return True
+    # Broad market/configuration requests belong to the normal assistant, not
+    # the single-security snapshot route.
+    if re.search(r"A\s*股(?:市场|大盘|整体|行情)|(?:项目)?代码|配置|文件|风控|优化器|数据源", text, re.I):
+        return False
+    if re.search(r"茅台|腾讯(?:控股)?|阿里(?:巴巴)?|宁德时代|中国平安|招商银行|五粮液", text):
+        return True
+    return bool(re.search(r"技术面|基本面|个股|股票|股价|股份|K线|k线|走势", text))
 
 
 def _extract_stock_query(user_text: str) -> str:
-    code = re.search(r"\b(?:sh|sz|bj)?\d{6}\b|\bhk\d{5}\b|\bus[A-Za-z.]{1,10}\b|\b[A-Z]{1,5}\b", user_text, re.I)
+    code = re.search(r"(?<![A-Za-z0-9])(?:sh|sz|bj)?\d{6}(?!\d)|(?<![A-Za-z0-9])hk\d{5}(?!\d)|(?<![A-Za-z0-9])us[A-Za-z.]{1,10}\b|(?<!\d)\d{5}(?!\d)", user_text, re.I)
     if code:
         return code.group(0)
+    ticker = re.search(r"(?<![A-Za-z])(?:[A-Z]{2,5})(?![A-Za-z])", user_text)
+    if ticker:
+        return ticker.group(0)
     cleaned = re.sub(r"(请|帮我|麻烦|分析一下|分析下|分析|看一下|看看|一下|股票|个股|技术面|基本面|走势|的|怎么样|如何|今天|现在)", "", user_text)
     cleaned = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "", cleaned).strip()
     return cleaned or user_text.strip()
@@ -345,12 +478,17 @@ def _build_stock_analysis_context(user_text: str) -> Optional[Dict[str, Any]]:
     code = query
     if not re.search(r"\d{5,6}|^[A-Za-z.]{1,10}$", query):
         search_result = _stock_fetcher("search", query)
+        first: Any = None
         if isinstance(search_result, list) and search_result:
             first = search_result[0]
-            code = first.get("symbol") or first.get("code") or query
         elif isinstance(search_result, dict) and search_result.get("stocks"):
             first = search_result["stocks"][0]
+        if isinstance(first, dict):
             code = first.get("symbol") or first.get("code") or query
+        else:
+            # Never pass an unresolved Chinese phrase to snapshot: the fetcher
+            # would treat it as a code and turn a failed search into noise.
+            return None
     snapshot = _stock_fetcher("snapshot", code)
     if isinstance(snapshot, dict) and snapshot.get("error"):
         return None
