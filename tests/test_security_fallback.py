@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
 from src.llm import registry
 from src.llm.adapter import GenericOpenAILLM
@@ -66,6 +68,85 @@ def test_env_save_validates_and_updates_running_environment(
     server.ChatHandler._handle_save_env(invalid)  # type: ignore[arg-type]
     assert invalid.responses[-1][0] == 400
     assert "BAD\nKEY=value" not in (tmp_path / ".env").read_text(encoding="utf-8")
+
+
+def test_market_config_api_exposes_rules_and_updates_only_risk_controls(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    market_dir = tmp_path / "config" / "market"
+    market_dir.mkdir(parents=True)
+    base = {
+        "name": "测试市场",
+        "trading": {
+            "settlement": "T+1",
+            "lot_size": 100,
+            "commission_rate": 0.00025,
+            "stamp_tax": 0.001,
+            "slippage": 0.001,
+        },
+        "risk": {
+            "single_stock_max_pct": 12,
+            "min_cash_reserve_pct": 3,
+            "hard_stop_pct": -8,
+            "trailing_stop_pct": -5,
+            "take_profit_1_pct": 12,
+            "take_profit_1_sell_ratio": 0.4,
+            "take_profit_2_pct": 20,
+            "take_profit_2_sell_ratio": 0.5,
+            "max_drawdown_pct": -20,
+            "unexposed_control": 99,
+        },
+    }
+    for filename in server._MARKET_CONFIG_FILES.values():
+        (market_dir / filename).write_text(
+            yaml.safe_dump(base, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+
+    get_handler = _FakeHandler()
+    server.ChatHandler._handle_get_market_configs(get_handler)  # type: ignore[arg-type]
+    status, payload = get_handler.responses[-1]
+    assert status == 200
+    assert payload["cn"]["rules"]["settlement"] == "T+1"
+    assert payload["cn"]["risk"]["hard_stop_pct"] == -8
+    assert "unexposed_control" not in payload["cn"]["risk"]
+
+    update = {
+        "cn": {
+            "risk": {
+                "single_stock_max_pct": 10,
+                "min_cash_reserve_pct": 5,
+                "hard_stop_pct": -7,
+                "trailing_stop_pct": -4,
+                "take_profit_1_pct": 15,
+                "take_profit_1_sell_ratio": 0.3,
+                "take_profit_2_pct": 25,
+                "take_profit_2_sell_ratio": 0.4,
+                "max_drawdown_pct": -18,
+            }
+        }
+    }
+    save_handler = _FakeHandler(json.dumps(update).encode())
+    server.ChatHandler._handle_save_market_configs(save_handler)  # type: ignore[arg-type]
+    assert save_handler.responses[-1] == (200, {"ok": True})
+    saved = yaml.safe_load((market_dir / "cn.yaml").read_text(encoding="utf-8"))
+    assert saved["risk"]["hard_stop_pct"] == -7
+    assert saved["risk"]["unexposed_control"] == 99
+    assert saved["trading"] == base["trading"]
+
+
+def test_market_config_api_rejects_unexposed_or_invalid_controls(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    unknown = _FakeHandler(b'{"cn":{"risk":{"commission_rate":0}}}')
+    server.ChatHandler._handle_save_market_configs(unknown)  # type: ignore[arg-type]
+    assert unknown.responses[-1][0] == 400
+
+    invalid = _FakeHandler(b'{"cn":{"risk":{"min_cash_reserve_pct":101}}}')
+    server.ChatHandler._handle_save_market_configs(invalid)  # type: ignore[arg-type]
+    assert invalid.responses[-1][0] == 400
 
 
 def test_control_plane_responses_do_not_enable_wildcard_cors() -> None:

@@ -12,10 +12,13 @@ UI = ROOT / "src" / "ui"
 def test_all_markdown_renderers_are_sanitized():
     chat = (UI / "index.html").read_text(encoding="utf-8")
     macro = (UI / "macro.html").read_text(encoding="utf-8")
+    dashboard = (UI / "dashboard.html").read_text(encoding="utf-8")
 
     assert "DOMPurify.sanitize" in chat
     assert "DOMPurify.sanitize" in macro
+    assert "DOMPurify.sanitize" in dashboard
     assert "renderMarkdown(data.content || '')" in macro
+    assert "renderMarkdown(preview)" in dashboard
     assert "marked.parse(data.content || '')" not in macro
 
 
@@ -42,3 +45,16 @@ def test_default_model_is_always_present_in_ui_catalog():
     assert expression in settings
     for provider in config["llm"]["models"].values():
         assert provider["model"] in provider.get("variants", [])
+
+
+def test_market_context_is_embedded_in_dashboard_not_main_navigation():
+    pages = {
+        name: (UI / name).read_text(encoding="utf-8")
+        for name in ("index.html", "dashboard.html", "settings.html", "macro.html")
+    }
+
+    assert "市场环境研判" in pages["dashboard.html"]
+    assert "market-insight" in pages["dashboard.html"]
+    assert "市场环境研判" in pages["macro.html"]
+    for content in pages.values():
+        assert "📰 宏观日报" not in content

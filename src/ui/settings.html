@@ -53,6 +53,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .api-card .form-group{margin-bottom:8px}
 .api-card .form-group:last-child{margin-bottom:0}
 .help-text{font-size:0.75rem;color:var(--text-dim);margin-top:4px}
+.section-note{font-size:0.82rem;line-height:1.6;color:var(--text-dim);margin:-6px 0 16px;padding:10px 12px;background:rgba(88,166,255,0.07);border-left:3px solid var(--accent);border-radius:4px}
+.rule-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px}
+.rule-item{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px}
+.rule-item span{display:block;font-size:0.72rem;color:var(--text-dim);margin-bottom:4px}
+.rule-item strong{font-size:0.88rem;color:var(--text)}
+.subheading{font-size:0.88rem;font-weight:600;color:var(--text);margin:4px 0 12px}
 /* 模型选择简化 */
 .model-select-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .model-option{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:all .15s;text-align:center}
@@ -68,7 +74,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   <div class="nav">
     <a href="/">💬 对话</a>
     <a href="/dashboard">📊 仪表盘</a>
-    <a href="/macro">📰 宏观日报</a>
     <a href="/settings" class="active">⚙️ 设置</a>
   </div>
 </div>
@@ -169,6 +174,112 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     </div>
   </div>
 
+  <!-- AI 自主交易 -->
+  <div class="section">
+    <h2>🤖 AI 自主交易</h2>
+    <div class="section-note">这些是全局硬上限。即使 AI 给出更激进的建议，也不能突破这里的仓位、金额、换手和频次限制。</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>启用自主决策</label>
+        <select id="autonomousEnabled">
+          <option value="true">启用</option>
+          <option value="false">停用</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>自动执行模拟订单</label>
+        <select id="autoExecute">
+          <option value="true">自动执行</option>
+          <option value="false">仅生成决策，不下单</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>最低决策置信度（0-1）</label>
+        <input type="number" id="minConfidence" min="0" max="1" step="0.05">
+      </div>
+      <div class="form-group">
+        <label>单轮最大订单数</label>
+        <input type="number" id="maxOrdersPerCycle" min="0" step="1">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>单标的最大仓位（%）</label>
+        <input type="number" id="maxPositionPct" min="0" max="100" step="0.5">
+      </div>
+      <div class="form-group">
+        <label>单笔最大金额占总资产（%）</label>
+        <input type="number" id="maxOrderValuePct" min="0" max="100" step="0.5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>单轮最大换手（%）</label>
+        <input type="number" id="maxCycleTurnoverPct" min="0" max="100" step="0.5">
+      </div>
+      <div class="form-group">
+        <label>补跑轮次允许交易</label>
+        <select id="tradeOnCatchUp">
+          <option value="false">否，仅记录补跑结果</option>
+          <option value="true">是，允许补跑下单</option>
+        </select>
+      </div>
+    </div>
+    <div class="subheading">AI 可交易标的（留空则使用优化器默认标的）</div>
+    <div class="form-row">
+      <div class="form-group"><label>A 股</label><input type="text" id="universe_cn" placeholder="600519, 000858, 510300"></div>
+      <div class="form-group"><label>港股</label><input type="text" id="universe_hk" placeholder="00700, 09988, 02800"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>美股</label><input type="text" id="universe_us" placeholder="AAPL, MSFT, SPY"></div>
+      <div class="form-group"><label>ETF</label><input type="text" id="universe_etf" placeholder="510300, 510050, 159915"></div>
+    </div>
+  </div>
+
+  <!-- 分市场风控 -->
+  <div class="section">
+    <h2>🛡️ 分市场风控</h2>
+    <div class="section-note">止损、止盈、现金储备和最大回撤按市场分别生效。手续费、印花税、滑点、整手和结算制度是模拟撮合规则，只展示、不在这里修改。</div>
+    <div class="form-group">
+      <label>编辑市场</label>
+      <select id="riskMarket" onchange="switchMarketRisk()">
+        <option value="cn">A 股</option>
+        <option value="hk">港股</option>
+        <option value="us">美股</option>
+        <option value="etf">ETF</option>
+      </select>
+    </div>
+    <div class="rule-strip">
+      <div class="rule-item"><span>结算</span><strong id="ruleSettlement">-</strong></div>
+      <div class="rule-item"><span>整手</span><strong id="ruleLotSize">-</strong></div>
+      <div class="rule-item"><span>佣金率</span><strong id="ruleCommission">-</strong></div>
+      <div class="rule-item"><span>印花税</span><strong id="ruleStampTax">-</strong></div>
+      <div class="rule-item"><span>滑点</span><strong id="ruleSlippage">-</strong></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>市场内单标的最大仓位（%）</label><input type="number" id="singleStockMaxPct" min="1" max="100" step="0.5"></div>
+      <div class="form-group"><label>最低现金储备（%）</label><input type="number" id="minCashReservePct" min="0" max="100" step="0.5"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>硬止损（%，负数）</label><input type="number" id="hardStopPct" min="-100" max="0" step="0.5"></div>
+      <div class="form-group"><label>移动止损回撤（%，负数）</label><input type="number" id="trailingStopPct" min="-100" max="0" step="0.5"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>第一档止盈（%）</label><input type="number" id="takeProfit1Pct" min="0" step="0.5"></div>
+      <div class="form-group"><label>第一档卖出比例（0-1）</label><input type="number" id="takeProfit1SellRatio" min="0" max="1" step="0.05"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>第二档止盈（%）</label><input type="number" id="takeProfit2Pct" min="0" step="0.5"></div>
+      <div class="form-group"><label>第二档卖出比例（0-1）</label><input type="number" id="takeProfit2SellRatio" min="0" max="1" step="0.05"></div>
+    </div>
+    <div class="form-group">
+      <label>账户最大回撤强制清仓线（%，负数）</label>
+      <input type="number" id="maxDrawdownPct" min="-100" max="0" step="0.5">
+    </div>
+  </div>
+
   <!-- 交易设置 -->
   <div class="section">
     <h2>💰 交易</h2>
@@ -198,6 +309,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <script>
 let config = {};
 let envVars = {};
+let marketConfigs = {};
+let currentRiskMarket = 'cn';
 
 const DEFAULT_PROVIDERS = {
   deepseek: { name: 'DeepSeek', desc: '深度求索 V4', defaultModel: 'deepseek-v4-pro', defaultBase: 'https://api.deepseek.com' },
@@ -215,12 +328,15 @@ function providers() {
 
 async function loadConfig() {
   try {
-    const [configRes, envRes] = await Promise.all([
+    const [configRes, envRes, marketConfigRes] = await Promise.all([
       fetch('/api/config'),
-      fetch('/api/env')
+      fetch('/api/env'),
+      fetch('/api/market-configs')
     ]);
+    if (!configRes.ok || !envRes.ok || !marketConfigRes.ok) throw new Error('配置接口返回异常');
     config = await configRes.json();
     envVars = await envRes.json();
+    marketConfigs = await marketConfigRes.json();
     renderConfig();
     showToast('配置已加载', 'success');
   } catch(e) {
@@ -253,9 +369,94 @@ function renderConfig() {
   document.getElementById('riskFreeRate').value = config.optimizer?.risk_free_rate || 0.02;
   document.getElementById('costAware').value = String(config.optimizer?.cost_aware ?? true);
 
+  // AI 自主交易
+  const autonomy = config.autonomous || {};
+  document.getElementById('autonomousEnabled').value = String(autonomy.enabled ?? false);
+  document.getElementById('autoExecute').value = String(autonomy.auto_execute ?? true);
+  document.getElementById('tradeOnCatchUp').value = String(autonomy.trade_on_catch_up ?? false);
+  document.getElementById('minConfidence').value = autonomy.min_confidence ?? 0.65;
+  document.getElementById('maxOrdersPerCycle').value = autonomy.max_orders_per_cycle ?? 3;
+  document.getElementById('maxPositionPct').value = autonomy.max_position_pct ?? 12;
+  document.getElementById('maxOrderValuePct').value = autonomy.max_order_value_pct ?? 8;
+  document.getElementById('maxCycleTurnoverPct').value = autonomy.max_cycle_turnover_pct ?? 15;
+  for (const market of ['cn', 'hk', 'us', 'etf']) {
+    document.getElementById('universe_' + market).value = (autonomy.universe?.[market] || []).join(', ');
+  }
+
+  renderMarketRisk();
+
   // 交易
   document.getElementById('tradingMode').value = config.trading?.mode || 'paper';
   document.getElementById('maxDailyTrades').value = config.trading?.max_daily_trades || 6;
+}
+
+function renderMarketRisk() {
+  const market = document.getElementById('riskMarket').value;
+  const marketConfig = marketConfigs[market] || {};
+  const risk = marketConfig.risk || {};
+  const rules = marketConfig.rules || {};
+  document.getElementById('ruleSettlement').textContent = rules.settlement ?? '-';
+  document.getElementById('ruleLotSize').textContent = rules.lot_size ?? '-';
+  document.getElementById('ruleCommission').textContent = formatRate(rules.commission_rate);
+  document.getElementById('ruleStampTax').textContent = formatRate(rules.stamp_tax);
+  document.getElementById('ruleSlippage').textContent = formatRate(rules.slippage);
+  document.getElementById('singleStockMaxPct').value = risk.single_stock_max_pct ?? '';
+  document.getElementById('minCashReservePct').value = risk.min_cash_reserve_pct ?? '';
+  document.getElementById('hardStopPct').value = risk.hard_stop_pct ?? '';
+  document.getElementById('trailingStopPct').value = risk.trailing_stop_pct ?? '';
+  document.getElementById('takeProfit1Pct').value = risk.take_profit_1_pct ?? '';
+  document.getElementById('takeProfit1SellRatio').value = risk.take_profit_1_sell_ratio ?? '';
+  document.getElementById('takeProfit2Pct').value = risk.take_profit_2_pct ?? '';
+  document.getElementById('takeProfit2SellRatio').value = risk.take_profit_2_sell_ratio ?? '';
+  document.getElementById('maxDrawdownPct').value = risk.max_drawdown_pct ?? '';
+}
+
+function switchMarketRisk() {
+  collectCurrentMarketRisk(currentRiskMarket);
+  currentRiskMarket = document.getElementById('riskMarket').value;
+  renderMarketRisk();
+}
+
+function formatRate(value) {
+  return typeof value === 'number' ? (value * 100).toFixed(3).replace(/0+$/, '').replace(/\.$/, '') + '%' : '-';
+}
+
+function collectCurrentMarketRisk(market = currentRiskMarket) {
+  marketConfigs[market] = marketConfigs[market] || {};
+  marketConfigs[market].risk = {
+    single_stock_max_pct: parseFloat(document.getElementById('singleStockMaxPct').value),
+    min_cash_reserve_pct: parseFloat(document.getElementById('minCashReservePct').value),
+    hard_stop_pct: parseFloat(document.getElementById('hardStopPct').value),
+    trailing_stop_pct: parseFloat(document.getElementById('trailingStopPct').value),
+    take_profit_1_pct: parseFloat(document.getElementById('takeProfit1Pct').value),
+    take_profit_1_sell_ratio: parseFloat(document.getElementById('takeProfit1SellRatio').value),
+    take_profit_2_pct: parseFloat(document.getElementById('takeProfit2Pct').value),
+    take_profit_2_sell_ratio: parseFloat(document.getElementById('takeProfit2SellRatio').value),
+    max_drawdown_pct: parseFloat(document.getElementById('maxDrawdownPct').value)
+  };
+}
+
+function validateTradingControls() {
+  const ids = [
+    'minConfidence', 'maxOrdersPerCycle', 'maxPositionPct', 'maxOrderValuePct',
+    'maxCycleTurnoverPct', 'singleStockMaxPct', 'minCashReservePct',
+    'hardStopPct', 'trailingStopPct', 'takeProfit1Pct', 'takeProfit1SellRatio',
+    'takeProfit2Pct', 'takeProfit2SellRatio', 'maxDrawdownPct', 'maxDailyTrades'
+  ];
+  for (const id of ids) {
+    const input = document.getElementById(id);
+    if (input.value === '' || !input.checkValidity() || !Number.isFinite(Number(input.value))) {
+      showToast('❌ 请检查“' + input.closest('.form-group').querySelector('label').textContent + '”', 'error');
+      input.focus();
+      return false;
+    }
+  }
+  if (Number(document.getElementById('takeProfit2Pct').value) < Number(document.getElementById('takeProfit1Pct').value)) {
+    showToast('❌ 第二档止盈不能低于第一档', 'error');
+    document.getElementById('takeProfit2Pct').focus();
+    return false;
+  }
+  return true;
 }
 
 function escapeHtml(value) {
@@ -418,6 +619,8 @@ function removeTime(market, index) {
 }
 
 async function saveConfig() {
+  if (!validateTradingControls()) return;
+
   // 收集 API Keys
   const newEnv = {};
   for (const key of Object.keys(providers())) {
@@ -491,22 +694,56 @@ async function saveConfig() {
   config.optimizer.risk_free_rate = parseFloat(document.getElementById('riskFreeRate').value);
   config.optimizer.cost_aware = document.getElementById('costAware').value === 'true';
 
+  // AI 自主交易
+  config.autonomous = config.autonomous || {};
+  config.autonomous.enabled = document.getElementById('autonomousEnabled').value === 'true';
+  config.autonomous.auto_execute = document.getElementById('autoExecute').value === 'true';
+  config.autonomous.trade_on_catch_up = document.getElementById('tradeOnCatchUp').value === 'true';
+  config.autonomous.min_confidence = parseFloat(document.getElementById('minConfidence').value);
+  config.autonomous.max_orders_per_cycle = parseInt(document.getElementById('maxOrdersPerCycle').value);
+  config.autonomous.max_position_pct = parseFloat(document.getElementById('maxPositionPct').value);
+  config.autonomous.max_order_value_pct = parseFloat(document.getElementById('maxOrderValuePct').value);
+  config.autonomous.max_cycle_turnover_pct = parseFloat(document.getElementById('maxCycleTurnoverPct').value);
+  config.autonomous.universe = {};
+  for (const market of ['cn', 'hk', 'us', 'etf']) {
+    const symbols = document.getElementById('universe_' + market).value
+      .split(',')
+      .map(value => value.trim().toUpperCase())
+      .filter(Boolean);
+    if (symbols.length) config.autonomous.universe[market] = [...new Set(symbols)];
+  }
+
   // 交易
   config.trading = config.trading || {};
   config.trading.mode = document.getElementById('tradingMode').value;
   config.trading.max_daily_trades = parseInt(document.getElementById('maxDailyTrades').value);
 
+  collectCurrentMarketRisk();
+  const riskPayload = Object.fromEntries(
+    Object.entries(marketConfigs).map(([market, value]) => [market, {risk: value.risk || {}}])
+  );
+
   try {
-    const res = await fetch('/api/config', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(config)
-    });
-    const result = await res.json();
-    if (result.ok) {
+    const [configRes, marketConfigRes] = await Promise.all([
+      fetch('/api/config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(config)
+      }),
+      fetch('/api/market-configs', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(riskPayload)
+      })
+    ]);
+    const [configResult, marketConfigResult] = await Promise.all([
+      configRes.json(),
+      marketConfigRes.json()
+    ]);
+    if (configRes.ok && marketConfigRes.ok && configResult.ok && marketConfigResult.ok) {
       showToast('✅ 配置已保存', 'success');
     } else {
-      showToast('❌ 保存失败: ' + result.error, 'error');
+      showToast('❌ 保存失败: ' + (configResult.error || marketConfigResult.error || '未知错误'), 'error');
     }
   } catch(e) {
     showToast('❌ 保存失败: ' + e.message, 'error');

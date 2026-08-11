@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>宏观日报 - Investment-Auto</title>
+<title>市场环境研判 - Investment-Auto</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
 <style>
@@ -21,7 +21,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .section h2{font-size:1rem;margin-bottom:16px;color:var(--accent);display:flex;align-items:center;gap:8px}
 .loading{text-align:center;padding:40px;color:var(--text-dim)}
 .empty{text-align:center;padding:40px;color:var(--text-dim)}
-/* 宏观报告样式 */
+  /* 市场环境研判样式 */
 .macro-content{line-height:1.8;font-size:0.95rem}
 .macro-content h1,.macro-content h2,.macro-content h3{color:var(--accent);margin:16px 0 12px}
 .macro-content h1{font-size:1.3rem}
@@ -50,11 +50,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 </head>
 <body>
 <div class="header">
-  <h1>📰 <span>宏观日报</span></h1>
+  <h1>🌐 <span>市场环境研判</span></h1>
   <div class="nav">
     <a href="/">💬 对话</a>
     <a href="/dashboard">📊 仪表盘</a>
-    <a href="/macro" class="active">📰 宏观日报</a>
     <a href="/settings">⚙️ 设置</a>
   </div>
 </div>
@@ -68,7 +67,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </div>
 
   <div class="section">
-    <h2>📊 宏观环境报告</h2>
+    <h2>🧭 市场、政策与板块信号</h2>
     <div id="macroContent">
       <div class="loading">加载中...</div>
     </div>
@@ -98,7 +97,7 @@ async function loadDates() {
     const data = await res.json();
     const container = document.getElementById('dateSelector');
     if (!data.dates || data.dates.length === 0) {
-      container.innerHTML = '<div class="empty">暂无宏观数据</div>';
+      container.innerHTML = '<div class="empty">暂无市场环境数据</div>';
       return;
     }
     container.innerHTML = '';

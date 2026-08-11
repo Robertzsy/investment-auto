@@ -22,6 +22,23 @@ logger = logging.getLogger("investment-auto.http")
 ENV_VALUE_MASK = "********"
 _ENV_KEY_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}\Z")
 _REQUEST_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+_MARKET_CONFIG_FILES = {
+    "cn": "cn.yaml",
+    "hk": "hk.yaml",
+    "us": "us.yaml",
+    "etf": "etf.yaml",
+}
+_EDITABLE_RISK_LIMITS = {
+    "single_stock_max_pct": (1.0, 100.0),
+    "min_cash_reserve_pct": (0.0, 100.0),
+    "hard_stop_pct": (-100.0, 0.0),
+    "trailing_stop_pct": (-100.0, 0.0),
+    "take_profit_1_pct": (0.0, 1000.0),
+    "take_profit_1_sell_ratio": (0.0, 1.0),
+    "take_profit_2_pct": (0.0, 1000.0),
+    "take_profit_2_sell_ratio": (0.0, 1.0),
+    "max_drawdown_pct": (-100.0, 0.0),
+}
 _SENSITIVE_ENV_MARKERS = (
     "_KEY",
     "API_KEY",
@@ -63,6 +80,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
         # API routes
         if path == "/api/config":
             return self._handle_get_config()
+        if path == "/api/market-configs":
+            return self._handle_get_market_configs()
         if path == "/api/env":
             return self._handle_get_env()
         if path == "/api/dashboard":
@@ -104,6 +123,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_chat_cancel()
         if path == "/api/config":
             return self._handle_save_config()
+        if path == "/api/market-configs":
+            return self._handle_save_market_configs()
         if path == "/api/env":
             return self._handle_save_env()
         if path.startswith("/api/autonomy/"):
@@ -222,6 +243,100 @@ class ChatHandler(SimpleHTTPRequestHandler):
         try:
             from src.config import cfg
             self._json_response(200, cfg.raw)
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_get_market_configs(self):
+        """Return editable risk controls and read-only trading mechanics by market."""
+        try:
+            import yaml
+
+            payload = {}
+            base = PROJECT_ROOT / "config" / "market"
+            for market, filename in _MARKET_CONFIG_FILES.items():
+                data = yaml.safe_load((base / filename).read_text(encoding="utf-8")) or {}
+                risk = data.get("risk", {})
+                trading = data.get("trading", {})
+                payload[market] = {
+                    "name": data.get("name", market.upper()),
+                    "risk": {
+                        key: risk.get(key)
+                        for key in _EDITABLE_RISK_LIMITS
+                    },
+                    "rules": {
+                        "settlement": trading.get("settlement"),
+                        "lot_size": trading.get("lot_size"),
+                        "commission_rate": trading.get("commission_rate"),
+                        "stamp_tax": trading.get("stamp_tax"),
+                        "slippage": trading.get("slippage"),
+                    },
+                }
+            self._json_response(200, payload)
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_save_market_configs(self):
+        """Update only the risk controls intentionally exposed by Settings."""
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length))
+        except json.JSONDecodeError:
+            return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"error": "market configs must be a JSON object"})
+
+        normalized = {}
+        for market, market_data in data.items():
+            if market not in _MARKET_CONFIG_FILES:
+                return self._json_response(400, {"error": f"unsupported market: {market}"})
+            if not isinstance(market_data, dict) or not isinstance(market_data.get("risk"), dict):
+                return self._json_response(400, {"error": f"{market}.risk must be a JSON object"})
+            risk = market_data["risk"]
+            unknown = set(risk) - set(_EDITABLE_RISK_LIMITS)
+            if unknown:
+                return self._json_response(400, {"error": f"unsupported risk field: {sorted(unknown)[0]}"})
+            normalized[market] = {}
+            for key, value in risk.items():
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    return self._json_response(400, {"error": f"{market}.{key} must be numeric"})
+                lower, upper = _EDITABLE_RISK_LIMITS[key]
+                numeric = float(value)
+                if not lower <= numeric <= upper:
+                    return self._json_response(
+                        400,
+                        {"error": f"{market}.{key} must be between {lower:g} and {upper:g}"},
+                    )
+                normalized[market][key] = numeric
+
+            risk = normalized[market]
+            if (
+                "take_profit_1_pct" in risk
+                and "take_profit_2_pct" in risk
+                and risk["take_profit_2_pct"] < risk["take_profit_1_pct"]
+            ):
+                return self._json_response(
+                    400,
+                    {"error": f"{market}.take_profit_2_pct must not be below take_profit_1_pct"},
+                )
+
+        try:
+            import yaml
+
+            base = PROJECT_ROOT / "config" / "market"
+            prepared = []
+            for market, risk_updates in normalized.items():
+                path = base / _MARKET_CONFIG_FILES[market]
+                market_config = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+                market_config.setdefault("risk", {}).update(risk_updates)
+                prepared.append((path, market_config))
+            for path, market_config in prepared:
+                temporary = path.with_suffix(path.suffix + ".tmp")
+                temporary.write_text(
+                    yaml.safe_dump(market_config, allow_unicode=True, sort_keys=False),
+                    encoding="utf-8",
+                )
+                temporary.replace(path)
+            self._json_response(200, {"ok": True})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
 
@@ -406,7 +521,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
     def _macro_json_to_markdown(self, data: dict) -> str:
         """Convert macro JSON to markdown format."""
-        lines = [f"# 宏观环境日报 {data.get('date', '')}\n"]
+        lines = [f"# 市场环境研判 {data.get('date', '')}\n"]
         
         # Market data
         if "market_data" in data:
