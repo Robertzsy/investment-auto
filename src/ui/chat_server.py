@@ -22,6 +22,7 @@ from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
+from zoneinfo import ZoneInfo
 
 from src.config import cfg
 from src.subprocess_utils import decode_subprocess_output
@@ -343,6 +344,20 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
             messages.append({"role": item["role"], "content": content})
     messages.append({"role": "user", "content": _build_user_message(message)})
 
+    market_status_answer = _build_market_status_answer(message)
+    if market_status_answer is not None:
+        yield {"type": "tool", "name": "market_status", "params": {}}
+        emitted = ""
+        for chunk in _chunk_text(market_status_answer, 18):
+            if cancel_event.is_set():
+                yield from _emit_cancelled(emitted)
+                return
+            emitted += chunk
+            yield {"type": "token", "content": chunk}
+        append_history("assistant", market_status_answer)
+        yield {"type": "final", "content": market_status_answer}
+        return
+
     optimizer_request = _build_optimizer_request(message)
     if optimizer_request is not None:
         yield {"type": "tool", "name": "optimizer", "params": optimizer_request}
@@ -481,6 +496,166 @@ def _emit_cancelled(partial_answer: str) -> Generator[Dict[str, Any], None, None
 
 def _build_user_message(user_text: str) -> str:
     return f"{user_text}\n\n项目根目录: {PROJECT_ROOT}\n如需操作，请使用工具。"
+
+
+def _market_status_request(user_text: str) -> Optional[str]:
+    if not re.search(r"开始了吗|开始操作|开始交易|开盘了吗|交易了吗|运行状态|调度状态|当前状态|现在.*(?:运行|交易|操作)", user_text, re.I):
+        return None
+    if re.search(r"美股|美国股市|(?<![A-Za-z])US(?![A-Za-z])", user_text, re.I):
+        return "us"
+    if re.search(r"港股|香港股市|(?<![A-Za-z])HK(?![A-Za-z])", user_text, re.I):
+        return "hk"
+    if re.search(r"ETF|场内基金", user_text, re.I):
+        return "etf"
+    if re.search(r"A股|沪深|中国股市|(?<![A-Za-z])CN(?![A-Za-z])", user_text, re.I):
+        return "cn"
+    return None
+
+
+def _status_now(value: Optional[datetime] = None) -> datetime:
+    timezone = ZoneInfo(cfg.schedule.get("timezone", "Asia/Shanghai"))
+    if value is None:
+        return datetime.now(timezone)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone)
+    return value.astimezone(timezone)
+
+
+def _session_is_active(market: str, current: datetime, sessions: List[Dict[str, Any]]) -> bool:
+    from src.scheduler import _day_of_week, _expand_days
+
+    if current.weekday() not in _expand_days(_day_of_week(market, current.strftime("%H:%M"))):
+        return False
+    current_minute = current.hour * 60 + current.minute
+    for session in sessions:
+        try:
+            start_hour, start_minute = (int(value) for value in str(session.get("start", "")).split(":", 1))
+            end_hour, end_minute = (int(value) for value in str(session.get("end", "")).split(":", 1))
+        except (TypeError, ValueError):
+            continue
+        start = start_hour * 60 + start_minute
+        end = end_hour * 60 + end_minute
+        if start <= end and start <= current_minute <= end:
+            return True
+        if start > end and (current_minute >= start or current_minute <= end):
+            return True
+    return False
+
+
+def _format_session(sessions: List[Dict[str, Any]]) -> str:
+    parts = []
+    for session in sessions:
+        start = str(session.get("start", ""))
+        end = str(session.get("end", ""))
+        if start and end:
+            suffix = "（跨午夜）" if start > end else ""
+            parts.append(f"{start}–{end}{suffix}")
+    return " / ".join(parts) or "未配置"
+
+
+def _next_scheduled_time(market: str, time_values: List[str], current: datetime) -> Optional[datetime]:
+    from src.scheduler import _cron_trigger
+
+    candidates = []
+    for time_value in time_values:
+        fire_time = _cron_trigger(market, str(time_value)).get_next_fire_time(None, current)
+        if fire_time is not None:
+            candidates.append(fire_time)
+    return min(candidates) if candidates else None
+
+
+def _latest_market_report(market: str) -> Optional[Dict[str, str]]:
+    from src.scheduler import REPORT_DIR
+
+    files = sorted(
+        REPORT_DIR.glob(f"*-{market}-*.md"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    ) if REPORT_DIR.exists() else []
+    if not files:
+        return None
+    path = files[0]
+    try:
+        prefix = path.read_text(encoding="utf-8")[:800]
+    except OSError:
+        prefix = ""
+    generated = re.search(r"生成时间：([^\s|]+)", prefix)
+    label = path.stem.rsplit("-", 1)[-1]
+    if re.fullmatch(r"\d{4}", label):
+        label = label[:2] + ":" + label[2:]
+    return {
+        "file": path.name,
+        "label": label,
+        "generated_at": generated.group(1) if generated else datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds"),
+    }
+
+
+def _build_market_status_answer(user_text: str, *, now: Optional[datetime] = None) -> Optional[str]:
+    market = _market_status_request(user_text)
+    if market is None:
+        return None
+
+    from src.trading.control import load_state
+    from src.trading.controller import autonomous_enabled
+
+    names = {"cn": "A 股", "hk": "港股", "us": "美股", "etf": "ETF"}
+    current = _status_now(now)
+    market_config = cfg.market_config(market)
+    sessions = list(market_config.get("trading", {}).get("session", []) or [])
+    session_active = _session_is_active(market, current, sessions)
+    rounds = [str(value) for value in (cfg.intraday_times(market) or [])]
+    next_round = _next_scheduled_time(market, rounds, current)
+    close_time = str(cfg.close_time(market) or "")
+    next_close = _next_scheduled_time(market, [close_time], current) if close_time else None
+    latest_report = _latest_market_report(market)
+    control = load_state()
+    market_enabled = market in cfg.enabled_markets
+    ai_enabled = autonomous_enabled()
+    auto_execute = bool(cfg.autonomous.get("auto_execute", False))
+
+    lines = [
+        f"## 📊 {names[market]}实时运行状态",
+        "",
+        f"- **当前北京时间**：{current.strftime('%Y-%m-%d %H:%M:%S')}（{current.tzname() or 'Asia/Shanghai'}）",
+        f"- **配置交易时段**：{_format_session(sessions)}",
+        f"- **当前是否在交易时段**：{'是' if session_active else '否'}",
+        f"- **市场开关**：{'已启用' if market_enabled else '已停用'}",
+    ]
+    if latest_report:
+        lines.append(
+            f"- **最近实际轮次**：{latest_report['label']} 已完成"
+            f"（{latest_report['generated_at']}，{latest_report['file']}）"
+        )
+    else:
+        lines.append("- **最近实际轮次**：尚未找到报告文件")
+    lines.extend([
+        f"- **下一构建轮次**：{next_round.strftime('%Y-%m-%d %H:%M:%S') if next_round else '未配置'}",
+        f"- **下一收盘轮次**：{next_close.strftime('%Y-%m-%d %H:%M:%S') if next_close else '未配置'}",
+        f"- **自主交易控制**：{'紧急停止' if control.get('kill_switch') else '已暂停' if control.get('paused') else '运行中'}",
+    ])
+    if control.get("reason"):
+        lines.append(f"- **控制原因**：{control['reason']}")
+
+    lines.extend(["", "### 结论", ""])
+    if not market_enabled:
+        lines.append(f"{names[market]}当前未启用，不会运行分析或提交订单。")
+    elif control.get("kill_switch"):
+        lines.append(f"{names[market]}调度信息可读取，但紧急停止开关已生效，不会提交订单。")
+    elif control.get("paused"):
+        detail = f"最近 {latest_report['label']} 轮次已经完成" if latest_report else "当前没有已完成轮次记录"
+        lines.append(
+            f"{names[market]}{'已经进入' if session_active else '当前不在'}配置交易时段，{detail}；"
+            "**但自主交易处于暂停状态，因此不会提交任何模拟订单。**"
+        )
+    elif not ai_enabled:
+        lines.append(f"{names[market]}调度可运行，但 AI 自主交易总开关未启用，不会自动下单。")
+    elif not auto_execute:
+        lines.append(f"{names[market]}会生成 AI 决策，但自动执行已关闭，不会提交模拟订单。")
+    elif session_active:
+        lines.append(f"{names[market]}已经进入交易时段，自主模拟交易处于运行状态。")
+    else:
+        lines.append(f"{names[market]}尚未进入配置交易时段，将等待下一轮自动触发。")
+    return "\n".join(lines)
 
 
 def _build_optimizer_request(user_text: str) -> Optional[Dict[str, Any]]:

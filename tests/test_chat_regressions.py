@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import sys
 import threading
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -136,6 +138,7 @@ def test_provider_specific_tool_call_aliases_are_normalized(payload):
 def test_tool_name_envelope_executes_and_continues_to_final_answer(monkeypatch):
     llm = _ToolThenAnswerLLM()
     executions = []
+    monkeypatch.setattr(chat_server, "_build_market_status_answer", lambda message: None)
     monkeypatch.setattr("src.llm.registry.resolve_llm", lambda **kwargs: llm)
     monkeypatch.setitem(
         chat_server.TOOLS,
@@ -165,6 +168,110 @@ def test_tool_name_envelope_executes_and_continues_to_final_answer(monkeypatch):
         if item["role"] == "assistant"
     )
     assert chat_server.load_history(10)[-1]["content"] == "美股调度器正在运行，状态检查已完成。"
+
+
+class _MarketStatusConfig:
+    schedule = {
+        "timezone": "Asia/Shanghai",
+        "weekdays_only": True,
+        "us_early_morning_days": "1-5",
+    }
+    autonomous = {"auto_execute": True}
+    enabled_markets = ["us"]
+
+    @staticmethod
+    def market_config(market):
+        assert market == "us"
+        return {
+            "trading": {
+                "session": [
+                    {"start": "21:30", "end": "04:00", "note": "Beijing time"}
+                ]
+            }
+        }
+
+    @staticmethod
+    def intraday_times(market):
+        assert market == "us"
+        return ["21:35", "23:30", "01:00"]
+
+    @staticmethod
+    def close_time(market):
+        assert market == "us"
+        return "04:10"
+
+
+def test_market_status_uses_current_clock_actual_report_and_pause_state(
+    monkeypatch, tmp_path
+):
+    from src import scheduler
+    from src.trading import control, controller
+
+    fake_cfg = _MarketStatusConfig()
+    monkeypatch.setattr(chat_server, "cfg", fake_cfg)
+    monkeypatch.setattr(scheduler, "cfg", fake_cfg)
+    monkeypatch.setattr(scheduler, "REPORT_DIR", tmp_path)
+    monkeypatch.setattr(
+        control,
+        "load_state",
+        lambda: {
+            "paused": True,
+            "kill_switch": False,
+            "reason": "等待 dry-run 验证",
+        },
+    )
+    monkeypatch.setattr(controller, "autonomous_enabled", lambda: True)
+    (tmp_path / "20260811-us-2330.md").write_text(
+        "# US 2330 轮次报告\n\n"
+        "> 生成时间：2026-08-11T23:30:00+08:00 | 模式：定时运行\n",
+        encoding="utf-8",
+    )
+    current = datetime(2026, 8, 11, 23, 34, 45, tzinfo=ZoneInfo("Asia/Shanghai"))
+
+    answer = chat_server._build_market_status_answer("美股开始了吗", now=current)
+
+    assert answer is not None
+    assert "2026-08-11 23:34:45" in answer
+    assert "当前是否在交易时段**：是" in answer
+    assert "23:30 已完成" in answer
+    assert "2026-08-12 01:00:00" in answer
+    assert "2026-08-12 04:10:00" in answer
+    assert "自主交易控制**：已暂停" in answer
+    assert "不会提交任何模拟订单" in answer
+    assert "15:10" not in answer
+
+
+def test_us_cross_midnight_session_is_active(monkeypatch):
+    from src import scheduler
+
+    fake_cfg = _MarketStatusConfig()
+    monkeypatch.setattr(chat_server, "cfg", fake_cfg)
+    monkeypatch.setattr(scheduler, "cfg", fake_cfg)
+    sessions = fake_cfg.market_config("us")["trading"]["session"]
+
+    current = datetime(2026, 8, 12, 1, 15, tzinfo=ZoneInfo("Asia/Shanghai"))
+
+    assert chat_server._session_is_active("us", current, sessions) is True
+
+
+def test_market_status_question_bypasses_llm(monkeypatch):
+    monkeypatch.setattr(
+        chat_server,
+        "_build_market_status_answer",
+        lambda message: "北京时间 23:34，美股 23:30 轮次已完成，自主交易已暂停。",
+    )
+    monkeypatch.setattr(
+        "src.llm.registry.resolve_llm",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not be called")),
+    )
+
+    events = list(
+        chat_server.handle_chat_stream("美股开始了吗", request_id="market-status")
+    )
+
+    assert events[0] == {"type": "tool", "name": "market_status", "params": {}}
+    assert events[-1]["type"] == "final"
+    assert "23:30 轮次已完成" in events[-1]["content"]
 
 
 @pytest.mark.parametrize("text", ["分析 A 股市场", "分析项目代码", "看看配置"])
