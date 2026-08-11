@@ -612,11 +612,14 @@ def _build_market_status_answer(user_text: str, *, now: Optional[datetime] = Non
     market_enabled = market in cfg.enabled_markets
     ai_enabled = autonomous_enabled()
     auto_execute = bool(cfg.autonomous.get("auto_execute", False))
+    utc_offset = current.strftime("%z")
+    if len(utc_offset) == 5:
+        utc_offset = utc_offset[:3] + ":" + utc_offset[3:]
 
     lines = [
         f"## 📊 {names[market]}实时运行状态",
         "",
-        f"- **当前北京时间**：{current.strftime('%Y-%m-%d %H:%M:%S')}（{current.tzname() or 'Asia/Shanghai'}）",
+        f"- **当前北京时间**：{current.strftime('%Y-%m-%d %H:%M:%S')}（Asia/Shanghai，UTC{utc_offset}）",
         f"- **配置交易时段**：{_format_session(sessions)}",
         f"- **当前是否在交易时段**：{'是' if session_active else '否'}",
         f"- **市场开关**：{'已启用' if market_enabled else '已停用'}",

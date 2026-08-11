@@ -232,6 +232,7 @@ def test_market_status_uses_current_clock_actual_report_and_pause_state(
 
     assert answer is not None
     assert "2026-08-11 23:34:45" in answer
+    assert "Asia/Shanghai，UTC+08:00" in answer
     assert "当前是否在交易时段**：是" in answer
     assert "23:30 已完成" in answer
     assert "2026-08-12 01:00:00" in answer
