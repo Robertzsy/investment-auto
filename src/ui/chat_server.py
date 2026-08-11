@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
 
 from src.config import cfg
+from src.subprocess_utils import decode_subprocess_output
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 RUNTIME_DIR = PROJECT_ROOT / "runtime"
@@ -74,8 +75,10 @@ SYSTEM_PROMPT = """你是 Investment-Auto 的 AI 操作助手，拥有对项目�
 def run_shell(cmd: str, cwd: Optional[str] = None, timeout: int = 60) -> Dict[str, Any]:
     workdir = cwd or str(PROJECT_ROOT)
     try:
-        p = subprocess.run(cmd, shell=True, cwd=workdir, capture_output=True, text=True, timeout=int(timeout))
-        return {"stdout": p.stdout[:20000], "stderr": p.stderr[:8000], "returncode": p.returncode}
+        p = subprocess.run(cmd, shell=True, cwd=workdir, capture_output=True, timeout=int(timeout))
+        stdout = decode_subprocess_output(p.stdout)
+        stderr = decode_subprocess_output(p.stderr)
+        return {"stdout": stdout[:20000], "stderr": stderr[:8000], "returncode": p.returncode}
     except subprocess.TimeoutExpired:
         return {"error": f"命令超时 ({timeout}s)"}
     except Exception as e:
@@ -147,16 +150,16 @@ def _stock_fetcher(command: str, value: str) -> Dict[str, Any]:
             ["node", str(script), command, str(value)],
             cwd=str(PROJECT_ROOT),
             capture_output=True,
-            text=True,
             timeout=45,
         )
-        text = (p.stdout or "").strip()
+        text = decode_subprocess_output(p.stdout).strip()
+        stderr = decode_subprocess_output(p.stderr)
         try:
             data = json.loads(text) if text else {}
         except Exception:
             data = {"stdout": text[:8000]}
         if p.returncode != 0:
-            data["stderr"] = p.stderr[:4000]
+            data["stderr"] = stderr[:4000]
             data["returncode"] = p.returncode
         return data
     except Exception as e:

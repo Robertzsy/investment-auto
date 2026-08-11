@@ -13,7 +13,7 @@ runtime/logs/
 runtime/reports/
 runtime/optimizer/
 /runtime/chat_*
-data/
+/data/
 *.db
 *.sqlite
 portfolio.json
