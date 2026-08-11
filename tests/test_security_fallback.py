@@ -322,6 +322,29 @@ def test_provider_never_reuses_openai_key_for_another_vendor(monkeypatch: pytest
         )
 
 
+def test_llm_client_uses_bounded_configurable_request_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured = {}
+    monkeypatch.setenv("TEST_API_KEY", "configured")
+    monkeypatch.setattr(
+        "src.llm.adapter.OpenAI",
+        lambda **kwargs: captured.update(kwargs) or SimpleNamespace(),
+    )
+
+    GenericOpenAILLM(
+        {
+            "provider_name": "test",
+            "api_key_env": "TEST_API_KEY",
+            "api_base": "https://example.invalid/v1",
+            "model": "test-model",
+            "request_timeout_seconds": 75,
+        }
+    )
+
+    assert captured["timeout"] == 75
+
+
 def test_chat_and_cancel_handlers_forward_valid_request_id(monkeypatch: pytest.MonkeyPatch) -> None:
     request_id = "request-1234"
     payload = (

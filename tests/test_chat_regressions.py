@@ -49,6 +49,25 @@ class _ImmediateLLM:
         yield "x" * 40
 
 
+class _ToolThenAnswerLLM:
+    def __init__(self):
+        self.round = 0
+        self.messages = []
+
+    def chat_stream(self, messages, *, cancel_event, **kwargs):
+        self.messages.append([dict(item) for item in messages])
+        if self.round == 0:
+            self.round += 1
+            yield (
+                "好的，我来检查。\n\n<tool_call>\n"
+                '{"tool_name":"run_shell","params":{"cmd":"Get-Date","timeout":5}}'
+                "\n</tool_call>"
+            )
+            return
+        assert "[工具执行结果]" in messages[-1]["content"]
+        yield "美股调度器正在运行，状态检查已完成。"
+
+
 def test_request_cancellation_is_isolated_and_saves_only_emitted_partial(monkeypatch):
     monkeypatch.setattr("src.llm.registry.resolve_llm", lambda **kwargs: _ImmediateLLM())
     first = chat_server.handle_chat_stream("普通问题一", request_id="request-a")
@@ -99,6 +118,53 @@ def test_missing_request_id_keeps_legacy_cancel_working(monkeypatch):
     assert chat_server.request_cancel() is True
     assert next(events)["type"] == "cancelled"
     events.close()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"tool_name":"run_shell","params":{"cmd":"Get-Date","timeout":5}}',
+        '{"name":"run_shell","arguments":{"command":"Get-Date","timeout":5}}',
+    ],
+)
+def test_provider_specific_tool_call_aliases_are_normalized(payload):
+    parsed = chat_server._parse_tool_call("<tool_call>" + payload + "</tool_call>")
+
+    assert parsed == {"tool": "run_shell", "params": {"cmd": "Get-Date", "timeout": 5}}
+
+
+def test_tool_name_envelope_executes_and_continues_to_final_answer(monkeypatch):
+    llm = _ToolThenAnswerLLM()
+    executions = []
+    monkeypatch.setattr("src.llm.registry.resolve_llm", lambda **kwargs: llm)
+    monkeypatch.setitem(
+        chat_server.TOOLS,
+        "run_shell",
+        {"fn": lambda **params: executions.append(params) or {"stdout": "23:18:00", "returncode": 0}},
+    )
+    chat_server.append_history("user", "旧问题")
+    chat_server.append_history(
+        "assistant",
+        '<tool_call>{"tool_name":"run_shell","params":{"cmd":"stale"}}</tool_call>',
+    )
+
+    events = list(
+        chat_server.handle_chat_stream("美股开始操作了吗", request_id="tool-alias-request")
+    )
+
+    assert executions == [{"cmd": "Get-Date", "timeout": 5}]
+    assert [event["type"] for event in events].count("tool") == 1
+    assert events[-1] == {
+        "type": "final",
+        "content": "美股调度器正在运行，状态检查已完成。",
+    }
+    assert all("tool_name" not in event.get("content", "") for event in events if event["type"] == "token")
+    assert all(
+        "tool_name" not in item["content"]
+        for item in llm.messages[0]
+        if item["role"] == "assistant"
+    )
+    assert chat_server.load_history(10)[-1]["content"] == "美股调度器正在运行，状态检查已完成。"
 
 
 @pytest.mark.parametrize("text", ["分析 A 股市场", "分析项目代码", "看看配置"])

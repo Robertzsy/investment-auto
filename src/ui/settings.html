@@ -97,6 +97,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <input type="text" id="llmFallback" placeholder="openai,glm,kimi">
       <div class="help-text">当主模型失败时，按此顺序尝试其他模型</div>
     </div>
+    <div class="form-group">
+      <label>单次 AI 请求超时（秒）</label>
+      <input type="number" id="llmRequestTimeout" min="10" max="600" step="10" value="120">
+      <div class="help-text">DeepSeek 等供应商长时间无响应时停止等待并尝试回退模型，默认 120 秒</div>
+    </div>
     <div class="form-row">
       <div class="form-group">
         <label>快速模型（分析师/研究员）</label>
@@ -362,6 +367,7 @@ function renderConfig() {
 
   // LLM
   document.getElementById('llmFallback').value = (config.llm?.provider_fallback || []).join(',');
+  document.getElementById('llmRequestTimeout').value = config.llm?.request_timeout_seconds ?? 120;
 
   // 优化器
   document.getElementById('optimizerEnabled').value = String(config.optimizer?.enabled ?? true);
@@ -441,7 +447,8 @@ function validateTradingControls() {
     'minConfidence', 'maxOrdersPerCycle', 'maxPositionPct', 'maxOrderValuePct',
     'maxCycleTurnoverPct', 'singleStockMaxPct', 'minCashReservePct',
     'hardStopPct', 'trailingStopPct', 'takeProfit1Pct', 'takeProfit1SellRatio',
-    'takeProfit2Pct', 'takeProfit2SellRatio', 'maxDrawdownPct', 'maxDailyTrades'
+    'takeProfit2Pct', 'takeProfit2SellRatio', 'maxDrawdownPct', 'maxDailyTrades',
+    'llmRequestTimeout'
   ];
   for (const id of ids) {
     const input = document.getElementById(id);
@@ -645,6 +652,7 @@ async function saveConfig() {
   config.llm = config.llm || {};
   config.llm.provider = selectedProvider;
   config.llm.provider_fallback = document.getElementById('llmFallback').value.split(',').map(s=>s.trim()).filter(Boolean);
+  config.llm.request_timeout_seconds = parseInt(document.getElementById('llmRequestTimeout').value);
   
   // 更新各 provider 的 model 和 base
   config.llm.models = config.llm.models || {};

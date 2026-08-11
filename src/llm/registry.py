@@ -107,7 +107,12 @@ def _build_llm(provider: str, model_override: Optional[str] = None) -> BaseLLM:
     config = cfg.llm_model_config(provider)
     if not config:
         raise ValueError(f"LLM provider '{provider}' not configured in config.yaml")
-    config = dict(config, provider_name=provider)
+    config = dict(config)
+    config.setdefault(
+        "request_timeout_seconds",
+        cfg.raw.get("llm", {}).get("request_timeout_seconds", 120),
+    )
+    config["provider_name"] = provider
     cls = PROVIDER_CLASS.get(provider, GenericOpenAILLM)
     return cls(config, model_override=model_override)
 

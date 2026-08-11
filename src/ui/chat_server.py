@@ -335,7 +335,12 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
     # Add recent history except the freshly appended user duplicated later
     for item in history[:-1]:
         if item.get("role") in ("user", "assistant"):
-            messages.append({"role": item["role"], "content": item.get("content", "")})
+            content = item.get("content", "")
+            # Older versions could save provider-specific tool envelopes as if
+            # they were final answers. Do not teach the model to repeat them.
+            if item["role"] == "assistant" and _parse_tool_call(content):
+                continue
+            messages.append({"role": item["role"], "content": content})
     messages.append({"role": "user", "content": _build_user_message(message)})
 
     optimizer_request = _build_optimizer_request(message)
@@ -429,6 +434,7 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
         # Do not surface raw tool JSON as assistant answer; show tool status instead.
         yield {"type": "tool", "name": tool_call.get("tool"), "params": tool_call.get("params", {})}
         messages.append({"role": "assistant", "content": resp})
+        logger.info("Executing chat tool: %s", tool_call.get("tool"))
         tool_result = _execute_tool(tool_call)
         last_tool_result = tool_result
         messages.append({"role": "user", "content": f"[工具执行结果]\n{json.dumps(tool_result, ensure_ascii=False, indent=2)}\n\n请基于工具结果继续。如果需要更多工具，再调用工具；否则给出最终回答，不要重复工具JSON。"})
@@ -638,9 +644,20 @@ def _loads_tool_json(text: str) -> Optional[Dict[str, Any]]:
         data = json.loads(text)
     except Exception:
         return None
-    if isinstance(data, dict) and data.get("tool") in TOOLS:
-        return {"tool": data["tool"], "params": _normalize_params(data.get("params", {}))}
-    return None
+    if not isinstance(data, dict):
+        return None
+    name = data.get("tool") or data.get("tool_name") or data.get("name")
+    if name not in TOOLS:
+        return None
+    params = data.get("params", data.get("arguments", data.get("input", {})))
+    if isinstance(params, str):
+        try:
+            params = json.loads(params)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(params, dict):
+        return None
+    return {"tool": name, "params": _normalize_params(params)}
 
 
 def _extract_json_objects(text: str) -> List[str]:
@@ -688,6 +705,7 @@ def _normalize_params(params: Dict[str, Any]) -> Dict[str, Any]:
 def _strip_tool_blocks(text: str) -> str:
     text = re.sub(r"```tool\s*\n.*?\n\s*```", "", text, flags=re.DOTALL).strip()
     text = re.sub(r"<｜｜DSML｜｜tool_calls>.*?</｜｜DSML｜｜tool_calls>", "", text, flags=re.DOTALL).strip()
+    text = re.sub(r"<tool_call>.*?</tool_call>", "", text, flags=re.DOTALL | re.IGNORECASE).strip()
     return text
 
 

@@ -29,7 +29,14 @@ class GenericOpenAILLM(BaseLLM):
             raise ValueError(f"LLM provider '{provider_name}' requires environment variable {key_env}")
 
         base = provider_config.get("api_base", "")
-        self._client = OpenAI(api_key=api_key, base_url=base + "/" if base else None)
+        request_timeout = float(provider_config.get("request_timeout_seconds", 120))
+        if request_timeout <= 0:
+            raise ValueError("request_timeout_seconds must be positive")
+        self._client = OpenAI(
+            api_key=api_key,
+            base_url=base + "/" if base else None,
+            timeout=request_timeout,
+        )
         self._model = model_override or provider_config.get("model", "gpt-3.5-turbo")
         self._provider_name = provider_name
 
