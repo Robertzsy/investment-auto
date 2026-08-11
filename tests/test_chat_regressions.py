@@ -275,6 +275,71 @@ def test_market_status_question_bypasses_llm(monkeypatch):
     assert "23:30 轮次已完成" in events[-1]["content"]
 
 
+class _AutonomyControlConfig:
+    schedule = {"timezone": "Asia/Shanghai"}
+    autonomous = {"enabled": True, "auto_execute": True}
+    trading = {"mode": "paper"}
+    enabled_markets = ["cn", "hk", "us", "etf"]
+
+
+def test_market_scoped_start_command_requires_global_confirmation_and_bypasses_llm(
+    monkeypatch, tmp_path
+):
+    from src.trading import control
+
+    control_file = tmp_path / "control.json"
+    monkeypatch.setattr(control, "CONTROL_FILE", control_file)
+    monkeypatch.setattr(chat_server, "cfg", _AutonomyControlConfig())
+    control.set_paused(True, reason="等待人工确认")
+    monkeypatch.setattr(
+        "src.llm.registry.resolve_llm",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not be called")),
+    )
+
+    events = list(
+        chat_server.handle_chat_stream("开始美股交易", request_id="market-scoped-resume")
+    )
+
+    assert events[0] == {"type": "tool", "name": "autonomy_control", "params": {}}
+    assert events[-1]["type"] == "final"
+    assert "尚未执行" in events[-1]["content"]
+    assert "全局控制" in events[-1]["content"]
+    assert "解除全局暂停并恢复自主模拟交易" in events[-1]["content"]
+    assert control.load_state()["paused"] is True
+
+
+def test_explicit_global_resume_command_clears_runtime_pause(monkeypatch, tmp_path):
+    from src.trading import control
+
+    control_file = tmp_path / "control.json"
+    monkeypatch.setattr(control, "CONTROL_FILE", control_file)
+    monkeypatch.setattr(chat_server, "cfg", _AutonomyControlConfig())
+    monkeypatch.delenv("AUTONOMOUS_TRADING_ENABLED", raising=False)
+    control.set_paused(True, reason="等待人工确认")
+    monkeypatch.setattr(
+        "src.llm.registry.resolve_llm",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not be called")),
+    )
+
+    events = list(
+        chat_server.handle_chat_stream(
+            "解除全局暂停并恢复自主模拟交易",
+            request_id="global-resume",
+        )
+    )
+
+    assert events[0] == {"type": "tool", "name": "autonomy_control", "params": {}}
+    assert "已解除全局暂停" in events[-1]["content"]
+    assert "A 股、港股、美股、ETF" in events[-1]["content"]
+    state = control.load_state()
+    assert state["paused"] is False
+    assert state["updated_by"] == "human"
+
+
+def test_market_status_question_is_not_misclassified_as_control_command():
+    assert chat_server._autonomy_control_request("美股开始了吗") is None
+
+
 @pytest.mark.parametrize("text", ["分析 A 股市场", "分析项目代码", "看看配置"])
 def test_generic_analysis_requests_do_not_enter_stock_route(monkeypatch, text):
     calls = []

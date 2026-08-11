@@ -344,6 +344,20 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
             messages.append({"role": item["role"], "content": content})
     messages.append({"role": "user", "content": _build_user_message(message)})
 
+    autonomy_control_answer = _handle_autonomy_control_command(message)
+    if autonomy_control_answer is not None:
+        yield {"type": "tool", "name": "autonomy_control", "params": {}}
+        emitted = ""
+        for chunk in _chunk_text(autonomy_control_answer, 18):
+            if cancel_event.is_set():
+                yield from _emit_cancelled(emitted)
+                return
+            emitted += chunk
+            yield {"type": "token", "content": chunk}
+        append_history("assistant", autonomy_control_answer)
+        yield {"type": "final", "content": autonomy_control_answer}
+        return
+
     market_status_answer = _build_market_status_answer(message)
     if market_status_answer is not None:
         yield {"type": "tool", "name": "market_status", "params": {}}
@@ -510,6 +524,124 @@ def _market_status_request(user_text: str) -> Optional[str]:
     if re.search(r"A股|沪深|中国股市|(?<![A-Za-z])CN(?![A-Za-z])", user_text, re.I):
         return "cn"
     return None
+
+
+def _named_market(user_text: str) -> Optional[str]:
+    if re.search(r"美股|美国股市|(?<![A-Za-z])US(?![A-Za-z])", user_text, re.I):
+        return "us"
+    if re.search(r"港股|香港股市|(?<![A-Za-z])HK(?![A-Za-z])", user_text, re.I):
+        return "hk"
+    if re.search(r"ETF|场内基金", user_text, re.I):
+        return "etf"
+    if re.search(r"A股|沪深|中国股市|(?<![A-Za-z])CN(?![A-Za-z])", user_text, re.I):
+        return "cn"
+    return None
+
+
+def _autonomy_control_request(user_text: str) -> Optional[Dict[str, Any]]:
+    """Recognize only imperative pause/resume requests, never status questions."""
+    text = re.sub(r"\s+", "", str(user_text or ""))
+    if not text or re.search(r"吗|么|是否|有没有|什么时候|何时|状态|怎么|如何|为什么|为何", text):
+        return None
+    if not re.search(r"交易|下单|自主|自动|全局暂停", text, re.I):
+        return None
+
+    explicit_resume = bool(
+        re.search(r"解除.{0,8}暂停", text)
+        or re.search(r"(?:开始|启动|开启|恢复|继续).{0,20}(?:交易|下单)", text)
+        or re.search(r"(?:交易|下单).{0,12}(?:开始|启动|开启|恢复|继续)", text)
+    )
+    explicit_pause = bool(
+        re.search(r"(?:暂停|停止|关闭).{0,20}(?:交易|下单)", text)
+        or re.search(r"(?:交易|下单).{0,12}(?:暂停|停止|关闭)", text)
+    )
+    if explicit_resume:
+        action = "resume"
+    elif explicit_pause:
+        action = "pause"
+    else:
+        return None
+
+    market = _named_market(text)
+    global_scope = bool(
+        re.search(r"全局|全部|所有市场|全部市场", text)
+        or re.search(r"自主(?:模拟)?交易|自动(?:模拟)?交易", text)
+    )
+    return {"action": action, "market": market, "global_scope": global_scope}
+
+
+def _handle_autonomy_control_command(user_text: str) -> Optional[str]:
+    """Apply explicit global control commands without sending the LLM on a tool loop."""
+    request = _autonomy_control_request(user_text)
+    if request is None:
+        return None
+
+    names = {"cn": "A 股", "hk": "港股", "us": "美股", "etf": "ETF"}
+    market = request.get("market")
+    if market and not request.get("global_scope"):
+        action_name = "恢复" if request["action"] == "resume" else "暂停"
+        return "\n".join([
+            "## ⚠️ 尚未执行",
+            "",
+            f"你要求{action_name}{names[market]}交易，但当前运行时暂停锁是**全局控制**，不能只对单个市场解除或设置。",
+            f"直接执行会同时影响所有已启用市场，因此我没有擅自扩大命令范围。",
+            "",
+            f"如果确认{action_name}所有已启用市场，请发送：",
+            "",
+            f"> {'解除全局暂停并恢复自主模拟交易' if request['action'] == 'resume' else '全局暂停自主模拟交易'}",
+        ])
+    if not request.get("global_scope"):
+        return "\n".join([
+            "## ⚠️ 尚未执行",
+            "",
+            "这条命令没有明确作用范围。当前暂停锁是全局控制，我没有修改运行状态。",
+            "",
+            f"请明确发送：`{'解除全局暂停并恢复自主模拟交易' if request['action'] == 'resume' else '全局暂停自主模拟交易'}`",
+        ])
+
+    from src.trading.control import load_state, set_paused
+    from src.trading.controller import autonomous_enabled
+
+    enabled_markets = [names.get(value, str(value).upper()) for value in cfg.enabled_markets]
+    enabled_label = "、".join(enabled_markets) or "无"
+    state = load_state()
+    if request["action"] == "pause":
+        if state.get("paused"):
+            return f"## ⏸️ 已处于全局暂停状态\n\n运行状态未变化。已启用市场：{enabled_label}。"
+        state = set_paused(True, reason="通过 AI 对话人工全局暂停自主模拟交易", updated_by="human")
+        return "\n".join([
+            "## ⏸️ 已全局暂停自主模拟交易",
+            "",
+            f"受影响的已启用市场：{enabled_label}。后续调度仍可生成报告，但不会提交模拟订单。",
+            f"更新时间：{state.get('updated_at') or '刚刚'}",
+        ])
+
+    if str(cfg.trading.get("mode", "paper")).lower() != "paper":
+        return "## ⛔ 未恢复\n\n当前不是 `paper` 模式。为避免触发真实交易，运行状态未修改。"
+    if not autonomous_enabled(cfg.autonomous):
+        return "## ⛔ 未恢复\n\n配置或环境变量中的 AI 自主交易总开关未启用，运行状态未修改。"
+    if state.get("kill_switch"):
+        return "## ⛔ 未恢复\n\n紧急停止开关仍处于激活状态。请先在设置中解除紧急停止，再重新确认恢复。"
+    if not state.get("paused"):
+        execution_note = "自动执行已开启" if cfg.autonomous.get("auto_execute", False) else "自动执行仍关闭"
+        return f"## ▶️ 自主模拟交易已在运行\n\n无需重复解除暂停。已启用市场：{enabled_label}；{execution_note}。"
+
+    state = set_paused(
+        False,
+        reason="通过 AI 对话人工确认解除全局暂停并恢复自主模拟交易",
+        updated_by="human",
+    )
+    execution_note = (
+        "系统将在后续轮次按风控规则自主提交模拟订单。"
+        if cfg.autonomous.get("auto_execute", False)
+        else "但自动执行配置仍关闭，只会生成决策而不会提交模拟订单。"
+    )
+    return "\n".join([
+        "## ▶️ 已解除全局暂停",
+        "",
+        f"已恢复的市场：{enabled_label}。{execution_note}",
+        f"更新时间：{state.get('updated_at') or '刚刚'}",
+    ])
 
 
 def _status_now(value: Optional[datetime] = None) -> datetime:
