@@ -42,12 +42,15 @@ class RuntimeFallbackLLM(BaseLLM):
         for provider, model_override in self._chain:
             try:
                 llm = _build_llm(provider, model_override=model_override)
-                return llm.chat(
+                text = llm.chat(
                     messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
                     **kwargs,
                 )
+                if not text or not text.strip():
+                    raise RuntimeError("provider returned an empty completion")
+                return text
             except InterruptedError:
                 raise
             except Exception as exc:
@@ -82,6 +85,8 @@ class RuntimeFallbackLLM(BaseLLM):
                 ):
                     emitted = True
                     yield chunk
+                if not emitted:
+                    raise RuntimeError("provider returned an empty stream")
                 return
             except InterruptedError:
                 raise

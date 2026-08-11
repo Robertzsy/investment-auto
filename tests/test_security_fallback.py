@@ -117,6 +117,34 @@ def test_runtime_fallback_switches_provider_after_chat_failure(
     assert attempts == ["primary", "secondary"]
 
 
+def test_runtime_fallback_switches_provider_after_empty_completion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts: list[str] = []
+
+    class Adapter:
+        def __init__(self, provider: str) -> None:
+            self.provider = provider
+
+        def chat(self, messages, **kwargs):
+            attempts.append(self.provider)
+            return "" if self.provider == "primary" else "non-empty fallback"
+
+        def chat_stream(self, messages, **kwargs):
+            attempts.append(self.provider)
+            if self.provider != "primary":
+                yield "stream fallback"
+
+    monkeypatch.setattr(registry, "cfg", _FakeConfig())
+    monkeypatch.setattr(registry, "_build_llm", lambda provider, model_override=None: Adapter(provider))
+
+    assert registry.resolve_llm().chat([]) == "non-empty fallback"
+    assert attempts == ["primary", "secondary"]
+    attempts.clear()
+    assert list(registry.resolve_llm().chat_stream([])) == ["stream fallback"]
+    assert attempts == ["primary", "secondary"]
+
+
 def test_runtime_fallback_propagates_interruption_without_switching(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
