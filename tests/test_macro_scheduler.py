@@ -88,20 +88,22 @@ def test_startup_catch_up_finds_missed_cn_rounds(monkeypatch, tmp_path):
     assert [item["label"] for item in planned] == ["1030", "1300"]
 
 
-def test_scheduler_report_completion_prefers_streaming_output():
+def test_scheduler_report_completion_disables_deepseek_thinking():
     calls = []
 
     class FakeLLM:
-        def chat_stream(self, messages, **kwargs):
-            calls.append("stream")
-            yield "完整"
-            yield "报告"
+        provider_name = "deepseek"
 
         def chat(self, messages, **kwargs):
-            raise AssertionError("non-stream chat must not be used")
+            calls.append(kwargs)
+            return "完整报告"
 
     assert scheduler._complete_report(FakeLLM(), [{"role": "user", "content": "x"}]) == "完整报告"
-    assert calls == ["stream"]
+    assert calls == [{
+        "temperature": 0.2,
+        "max_tokens": 4096,
+        "extra_body": {"thinking": {"type": "disabled"}},
+    }]
 
 
 def test_us_evening_misfire_keeps_original_schedule_date(monkeypatch, tmp_path):

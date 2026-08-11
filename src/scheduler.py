@@ -167,11 +167,10 @@ def _latest_macro_excerpt() -> str:
 
 
 def _complete_report(llm: Any, messages: List[Dict[str, str]]) -> str:
-    stream = getattr(llm, "chat_stream", None)
-    if callable(stream):
-        text = "".join(stream(messages, temperature=0.25, max_tokens=4096))
-    else:
-        text = llm.chat(messages, temperature=0.25, max_tokens=4096)
+    kwargs: Dict[str, Any] = {"temperature": 0.2, "max_tokens": 4096}
+    if getattr(llm, "provider_name", "") == "deepseek":
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    text = llm.chat(messages, **kwargs)
     if not text or not text.strip():
         raise RuntimeError("LLM returned an empty report")
     return text
@@ -202,10 +201,10 @@ def _run_intraday_job(
         prompt = (
             f"当前北京时间 {current.strftime('%Y-%m-%d %H:%M')}，执行 {market} 市场 {label} 轮次"
             f"（计划时间 {scheduled.isoformat(timespec='minutes')}，{'补跑' if catch_up else '准时运行'}）。\n"
-            f"账户及持仓行情：\n{json.dumps(context, ensure_ascii=False)[:16000]}\n\n"
-            f"最新宏观摘要：\n{macro or '暂无宏观日报'}\n\n"
-            "请输出可审计的轮次报告：行情与持仓检查、止损止盈、风险暴露、候选方向；"
-            "数据不足时明确说明，不得虚构成交。"
+            f"账户及持仓行情：\n{json.dumps(context, ensure_ascii=False)[:8000]}\n\n"
+            f"最新宏观摘要：\n{(macro or '暂无宏观日报')[:2500]}\n\n"
+            "请直接输出不超过 800 字的可审计最终报告，不展示思考过程。包括行情与持仓检查、"
+            "止损止盈、风险暴露和操作参考；数据不足时明确说明，不得虚构成交。"
         )
         response = _complete_report(llm, [{"role": "user", "content": prompt}])
         _write_report(path, f"{market.upper()} {label} 轮次报告", response, current, catch_up)
@@ -243,9 +242,10 @@ def _run_close_job(
         prompt = (
             f"当前北京时间 {current.strftime('%Y-%m-%d %H:%M')}，执行 {market} 收盘分析"
             f"（计划时间 {scheduled.isoformat(timespec='minutes')}，{'补跑' if catch_up else '准时运行'}）。\n"
-            f"账户及持仓行情：\n{json.dumps(context, ensure_ascii=False)[:15000]}\n\n"
-            f"组合优化结果：\n{json.dumps(optimizer_result, ensure_ascii=False)[:15000]}\n\n"
-            "请输出收盘复盘、压力测试解读和下一交易日计划；不得虚构成交。"
+            f"账户及持仓行情：\n{json.dumps(context, ensure_ascii=False)[:7000]}\n\n"
+            f"组合优化结果：\n{json.dumps(optimizer_result, ensure_ascii=False)[:9000]}\n\n"
+            "请直接输出不超过 1200 字的收盘复盘、压力测试解读和下一交易日计划，"
+            "不展示思考过程，不得虚构成交。"
         )
         response = _complete_report(llm, [{"role": "user", "content": prompt}])
         _write_report(path, f"{market.upper()} 收盘报告", response, current, catch_up)
