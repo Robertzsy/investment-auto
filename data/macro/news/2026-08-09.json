@@ -1,0 +1,322 @@
+{
+  "period": "daily",
+  "window": {
+    "start": 1786204800,
+    "end": 1786291199,
+    "startDate": "2026-08-09",
+    "endDate": "2026-08-09"
+  },
+  "collected_at": "2026-08-10T12:25:51.835Z",
+  "stats": {
+    "total": 16,
+    "high": 2,
+    "medium": 14,
+    "low": 0,
+    "categories": {
+      "监管动态": 2,
+      "国际财经": 1,
+      "其他": 12,
+      "科技前沿": 2
+    },
+    "sectors": {
+      "消费电子": 1,
+      "半导体": 1,
+      "人工智能": 2
+    }
+  },
+  "news": [
+    {
+      "id": "a830e5711753d77653154fad6193efcd",
+      "time": "1786257580",
+      "date": "2026-08-09",
+      "title": "传音控股最快9月登陆港交所：募资约5亿美元 已完成港股上市备案",
+      "intro": "快科技8月9日消息，传音控股近日公告，公司于近日收到中国证监会出具的《关于深圳传音控股股份有限公司境外发行上市备案通知书》。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-09/doc-inimtchr5592639.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "cb46d612892ef1998f5a01b8a0a8b066",
+      "time": "1786254166",
+      "date": "2026-08-09",
+      "title": "传音控股：赴港上市获中国证监会备案，拟发行不超过 1.32 亿股",
+      "intro": "IT之家 8 月 9 日消息，传音控股于 8 月 7 日发布公告称，公司正在进行申请发行境外上市股份（H 股）并在香港联合交易所主板挂牌上市的相关工作...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-09/doc-inimswyp1922886.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "64a81e800ff63e85534ee2621934f76e",
+      "time": "1786288846",
+      "date": "2026-08-09",
+      "title": "古尔曼曝光苹果早前设想：生产 iPhone 时就装好 iCloud 数据，让用户不再经历繁琐导数据流程",
+      "intro": "IT之家 8 月 9 日消息，据彭博社记者马克 · 古尔曼今日透露，苹果在构想 Apple Upgrade 设备租赁计划时考虑推出一项功能，让用户拿到新手机时不再需要导数据。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-10/doc-inimtuef8655401.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ef96fd7d86a99e5abb8ea49d7a66e1af",
+      "time": "1786283026",
+      "date": "2026-08-09",
+      "title": "苹果开始测试长鑫存储芯片 合作还需获得美国许可",
+      "intro": "快科技8月9日消息，据媒体报道，苹果公司正着手测试长鑫存储生产的内存芯片，计划将其导入iPhone、MacBook等多条产品线，以应对全球内存芯片因人工智能需求激增而引发的供...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-10/doc-inimtuef3240569.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "58a90df1f95cdd1260b81606d02c51e9",
+      "time": "1786273282",
+      "date": "2026-08-09",
+      "title": "路透社民调：超 60% 美国成年人赞成对社交媒体公司加强监管",
+      "intro": "IT之家 8 月 9 日消息，根据路透社与益普索的一项民意调查，约 61% 的民调受访者表示，社交媒体公司需要接受更严格的监管。这项通过网络开展的民调共调查了 4...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-10/doc-inimtiqm3425126.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f7060ef2a36b7d9daba4b9cddbce4a53",
+      "time": "1786269182",
+      "date": "2026-08-09",
+      "title": "“一斤羊肉180元” 西贝贾国龙再入局鲜羊餐饮：羊肉串8元起，部分店员来自西贝，网友：更贵了？",
+      "intro": "文 | 《BUG》栏目 张奥 近日，继西贝事件后，西贝餐饮集团创始人贾国龙再度入局“鲜羊”领域，并开出全新品牌“天边羊多”。 恰逢开业首个周末，新品牌首店的状况如何？",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimtiqm8772580.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5594fd92f07383f76bfd513248465b9f",
+      "time": "1786268173",
+      "date": "2026-08-09",
+      "title": "飞猪启动台风“白海豚”应急响应机制，已保障多批消费者无损退改",
+      "intro": "据中央气象台消息，台风“白海豚”（强台风级）预计于9日傍晚至10日凌晨在浙江舟山到福建福鼎一带沿海登陆。目前，飞猪已启动应急响应机制，充分保障消费者的退改权益。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimtiqm3377715.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c9d40f8693e11af3b3b5b059b0fd50a1",
+      "time": "1786267846",
+      "date": "2026-08-09",
+      "title": "新加坡总理黄循财谈 AI：将利用新技术提高生产效率、创造高质量就业岗位",
+      "intro": "IT之家 8 月 9 日消息，据彭博社 8 日报道，在新加坡独立 61 周年前夕，新加坡总理黄循财发表国庆献词指出，人工智能快速发展正在给新加坡带来新的增长机会。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-10/doc-inimtiqm3378207.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "7379950ceacd04f1f55ad2749f83b8db",
+      "time": "1786267129",
+      "date": "2026-08-09",
+      "title": "43.98万起的硬派豪华SUV！享界G9预售72小时订单破1.5万台",
+      "intro": "快科技8月9日消息，近日，享界汽车官方公布旗下首款豪华硬派SUV享界G9开启预售72小时，累计订单量突破15000台，新车预售价43.98万元起。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-10/doc-inimtiqm8762611.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "36aa2dd93afdea48ab0aae5350da175c",
+      "time": "1786264136",
+      "date": "2026-08-09",
+      "title": "摩尔线程：2026上半年营收17.36亿元，同比增长147.42%",
+      "intro": "新浪科技讯 8月9日下午消息，摩尔线程发布2026年半年度报告。根据报告，2026年上半年，摩尔线程实现营收17.36亿元，同比增长147.42%，已超2025年全年营收；毛利总额达9...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimtchp3473249.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "03ccca10b0a42886959a66355e2312f2",
+      "time": "1786263144",
+      "date": "2026-08-09",
+      "title": "苹果回应删除接入千问手册：没收到通知，中国大陆还没推出“Apple智能使用千问”功能",
+      "intro": "新浪科技讯 8月9日下午消息，针对删除《在 Mac 上配合Apple智能使用千问》使用文档一事，苹果客服最新回应新浪科技称：“我们有功能或新项目发布时，都会提前收到通知...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimtchr5630368.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "a3324b2256fab76980336795333785f9",
+      "time": "1786263087",
+      "date": "2026-08-09",
+      "title": "摩尔线程：2026上半年营收17.36亿元，已超2025全年",
+      "intro": "8月9日，国产GPU龙头摩尔线程（688795.SH）发布《2026年半年度报告》。2026年上半年，公司实现营收17.36亿元，同比大幅增长147.42%，已超2025年全年营收；毛利总额达9...",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimtchp3465077.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "381bbc5da908f5f42f894f645b8813c5",
+      "time": "1786256015",
+      "date": "2026-08-09",
+      "title": "视频|俞敏洪：如果我不是创始人的话，我也早跑出去了",
+      "intro": "",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimswyr8935303.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "17b008f65c6c52809376d28edc0bf1a7",
+      "time": "1786251114",
+      "date": "2026-08-09",
+      "title": "上线不到24小时，苹果删除“Apple智能接入千问”支持文档",
+      "intro": "新浪科技讯 8月9日午间消息，昨日，一篇名为《在 Mac 上配合 Apple 智能使用千问》的支持文档现身苹果官网 Mac 简体中文使用手册...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/2026-08-09/doc-inimswyr3498858.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2c93743d41d5ce6b4884820b53cf527b",
+      "time": "1786235124",
+      "date": "2026-08-09",
+      "title": "小米汽车：澎程 N90 Max 四门可选智能电动门，支持开门杀预警和避障",
+      "intro": "IT之家 8 月 9 日消息，小米汽车昨晚发布答网友问（第 272 集），对于小米澎程的车门设计、对坐模式等进行了详解。据官方介绍，小米澎程全系后门都可实现近 90 度开合。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-10/doc-inimsnkv3642674.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f514eef0ede65b20105bf8bf5fbbdbc3",
+      "time": "1786232284",
+      "date": "2026-08-09",
+      "title": "中国电视7月出货185万台：海信、小米、创维包揽前三 索尼等外资垫底",
+      "intro": "快科技8月9日消息，今日，洛图科技发布2026年7月中国电视市场品牌出货数据。数据显示，2026年7月，中国电视市场品牌整机出货量为185.0万台，同比微降0.5%...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-10/doc-inimsnkv3613470.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    }
+  ],
+  "market_data": {
+    "indices": [],
+    "topSectors": [],
+    "bottomSectors": [],
+    "_isWeekend": true,
+    "_date": "2026-08-09"
+  }
+}

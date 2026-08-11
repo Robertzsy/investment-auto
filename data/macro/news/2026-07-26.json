@@ -1,0 +1,3162 @@
+{
+  "period": "daily",
+  "window": {
+    "start": 1784995200,
+    "end": 1785081599,
+    "startDate": "2026-07-26",
+    "endDate": "2026-07-26"
+  },
+  "collected_at": "2026-07-27T03:06:57.246Z",
+  "stats": {
+    "total": 170,
+    "high": 19,
+    "medium": 126,
+    "low": 25,
+    "categories": {
+      "地缘政治": 14,
+      "科技前沿": 32,
+      "货币政策": 2,
+      "国际财经": 10,
+      "大宗商品": 9,
+      "宏观数据": 1,
+      "行业动态": 19,
+      "监管动态": 12,
+      "其他": 94
+    },
+    "sectors": {
+      "新能源": 7,
+      "人工智能": 19,
+      "交通运输": 5,
+      "国防军工": 1,
+      "半导体": 7,
+      "金融": 8,
+      "新能源汽车": 1,
+      "电力": 3,
+      "有色金属": 4,
+      "通信": 3,
+      "医药生物": 3,
+      "食品饮料": 2,
+      "房地产": 1
+    }
+  },
+  "news": [
+    {
+      "id": "e1f7ab92924533e8ca799cd70c3a6207",
+      "time": "1785073653",
+      "date": "2026-07-26",
+      "title": "美称暂停对伊朗军事打击 为谈判留出空间",
+      "intro": "央视记者当地时间7月26日获悉，美国常驻联合国代表迈克尔·华尔兹当天表示，为给外交谈判留出更多空间，美国总统特朗普已暂停对伊朗的军事打击。",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-26/doc-inikekzt3340038.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "49a936dbc8ae5aa719ec25b76cee0f04",
+      "time": "1785071520",
+      "date": "2026-07-26",
+      "title": "001258，8天涨幅翻倍！多家公司，紧急提示风险！",
+      "intro": "7月23日、7月24日，顺钠股份(000533)、立新能源(001258)、中电鑫龙(002298)等多只股票连续两个交易日收盘价格涨幅偏离值累计超过20%...",
+      "summary": "",
+      "source": "证券时报网",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymx3502742.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源"
+      ],
+      "importance": "high",
+      "tags": [
+        "新能源"
+      ]
+    },
+    {
+      "id": "22a3693be0ef57df423d195d9741dec5",
+      "time": "1785069418",
+      "date": "2026-07-26",
+      "title": "美伊战争油价波动的不对称冲击及其影响",
+      "intro": "战争对油价的不对称冲击，必然会影响到美国等相关国家的战争可持续性及其决策。 在2023年2月14日《第一财经日报》刊发的《土耳其地震加剧欧洲能源供给长期困局》一文中...",
+      "summary": "",
+      "source": "一财网",
+      "url": "https://finance.sina.com.cn/roll/2026-07-26/doc-inikcucw8685410.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "bc82627d2fc6289872c170ef452cf53e",
+      "time": "1785059596",
+      "date": "2026-07-26",
+      "title": "“不上不下”，国际金价4000美元横盘，“超级央行周”能否打破僵局？",
+      "intro": "现货黄金连续五周在4000美元/盎司附近窄幅震荡，市场正聚焦于下周美联储议息会议以判断加息预期走向 现货黄金已连续五周在4000美元/盎司附近反复拉锯。",
+      "summary": "",
+      "source": "一财网",
+      "url": "https://finance.sina.com.cn/roll/2026-07-26/doc-inikcpwf0444352.shtml",
+      "channel": "international",
+      "categories": [
+        "货币政策",
+        "国际财经",
+        "大宗商品"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "加息",
+        "央行",
+        "美联储"
+      ]
+    },
+    {
+      "id": "93e178be284b2ee7ddb7cff8cc33e3c6",
+      "time": "1785080747",
+      "date": "2026-07-26",
+      "title": "以总理：此次访美旨在了解美总统对伊朗问题的想法",
+      "intro": " 当地时间26日，以色列总理内塔尼亚胡在接受采访时表示，以色列与伊朗的冲突只有在伊朗现政权倒台或被彻底削弱到被迫放弃其核计划时才会结束。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/7x24/2026-07-26/doc-inikeetz0828245.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "241994ac6e166f09da81aa1427fc70f2",
+      "time": "1785080396",
+      "date": "2026-07-26",
+      "title": "西部经济半年报：青海固投暴跌32.2%，陕西进出口狂飙93.7%",
+      "intro": "2026年7月16日-7月24日，西部12省区市陆续交出了2026年上半年的成绩单。四川的GDP为3.36万亿元，按不变价格计算，同比增长4.8%。",
+      "summary": "",
+      "source": "黄桷树财经",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikeets8552010.shtml",
+      "channel": "market",
+      "categories": [
+        "宏观数据"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "GDP"
+      ]
+    },
+    {
+      "id": "f99eb0c0c7b3ab07205f0113ea128e2a",
+      "time": "1785077820",
+      "date": "2026-07-26",
+      "title": "8月，A股修复可期",
+      "intro": "7月初以来，在AI退潮、美伊冲突再起等因素扰动下，主要大盘指数都承压不小，二季度大涨近90%的电子行业更是在7月回调近30%。 那站在当下...",
+      "summary": "",
+      "source": "中信证券",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikeets8568187.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治",
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "high",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "4240c28ec4fc7cc5078f4aa6c6764942",
+      "time": "1785065787",
+      "date": "2026-07-26",
+      "title": "跨境电商 SHEIN 希音通过港交所上市聆讯",
+      "intro": "IT之家 7 月 26 日消息，今日，希音国际控股有限公司更新聆讯后资料集，意味着该公司港交所 IPO 通过聆讯。IT之家注意到，中国证监会国际合作司于 7 月 10 日发布关于...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-27/doc-inikcuef0939252.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "52f3b3db520463ccabb24d8b63780f75",
+      "time": "1785056892",
+      "date": "2026-07-26",
+      "title": "美国连续第二晚暂停袭击伊朗 红海紧张局势升级",
+      "intro": " 美国已连续第二晚暂停针对伊朗的打击行动。与此同时，也门胡塞武装与沙特阿拉伯之间的小规模冲突升级，令全球能源运输要道红海南部附近的紧张局势进一步加剧。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikcpvy8676049.shtml",
+      "channel": "international",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "c7c39c93fb2171ca09a0f605007fea0a",
+      "time": "1785054443",
+      "date": "2026-07-26",
+      "title": "PTA：地缘冲突持续，供需延续去库",
+      "intro": "来源：华安期货投研 投资策略建议：TA609震荡偏强运行 本周国内PTA期货市场继续上涨，截至本周五，华东地区PTA现货价为6195元/吨，相较上周五上涨270元/吨...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/future/fmnews/2026-07-26/doc-inikevrk8453370.shtml",
+      "channel": "international",
+      "categories": [
+        "地缘政治",
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "c49a1ee595fe7343ee14969caf89eb46",
+      "time": "1785049047",
+      "date": "2026-07-26",
+      "title": "美伊释放缓和信号 据悉均有意恢复临时停火协议",
+      "intro": "持续近两周、烈度不断升级的美军对伊朗空袭行动现已暂停，多方同步推进外交斡旋，力图阻止冲突演变为全面战争。 这场起伏不定的美伊冲突将于下周二满五个月...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikciqm0997250.shtml",
+      "channel": "international",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "95274492678bf8866f5529279f87d435",
+      "time": "1785044510",
+      "date": "2026-07-26",
+      "title": "美国暂停对伊朗夜间打击 胡塞武装与沙特冲突升级",
+      "intro": " 随着美国暂停近两周来对伊朗的夜间打击，胡塞武装与沙特阿拉伯之间的冲突加剧，引发外界对美国总统唐纳德·特朗普战争策略的新一轮质疑。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikcchm0579966.shtml",
+      "channel": "international",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "0d9047c35cfd5c0cf8c96609c10c78b3",
+      "time": "1785033439",
+      "date": "2026-07-26",
+      "title": "因弹药短缺等隐患 特朗普暂缓对伊朗实施大规模军事升级行动",
+      "intro": "特朗普总统至少暂时搁置了大幅升级美军对伊朗军事打击的计划。政府高层尤为担忧，战事升级会令五角大楼本就库存不足的“爱国者”反导拦截弹及中东地区其他防空弹药出现危险短...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-07-26/doc-inikawyh8771492.shtml",
+      "channel": "international",
+      "categories": [
+        "地缘政治",
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "bfdc107699e261622aab247c2ec269d5",
+      "time": "1785031469",
+      "date": "2026-07-26",
+      "title": "沙特原油出口仅剩一条关键通道 分析师预警红海危机风险",
+      "intro": "自美伊战争爆发以来，沙特将原油出口重心转移至本国红海沿岸港口，以此绕开霍尔木兹海峡，经由曼德海峡向亚洲客户运油。但眼下胡塞武装持续发动袭击...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-07-26/doc-inikawym3810866.shtml",
+      "channel": "international",
+      "categories": [
+        "大宗商品",
+        "地缘政治"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "6a90a015e04357e2db4ae311202c92fe",
+      "time": "1785029424",
+      "date": "2026-07-26",
+      "title": "澳大利亚总理：将直接向特朗普就新关税提出交涉",
+      "intro": "澳大利亚总理安东尼・阿尔巴尼斯表示，美方宣布新关税一事，他将直接向特朗普总统提出交涉，并称这些关税毫无依据。 周日，阿尔巴尼斯在接受采访时被问及此事...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikawyr0996231.shtml",
+      "channel": "international",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "5867627d53cc519a682664e8d0c9cba0",
+      "time": "1785023061",
+      "date": "2026-07-26",
+      "title": "伊拉克将与叙利亚签署石油管道建设协议",
+      "intro": "官方声明显示，伊拉克将和叙利亚签署管道建设协议，修建管线连接国内油田产区，经地中海向全球市场出口原油。 伊拉克内阁发布声明称，内阁已授权巴士拉石油公司总经理...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikassk8756261.shtml",
+      "channel": "international",
+      "categories": [
+        "大宗商品"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "2aa0d068bc88db42ffe7cd1c97733a85",
+      "time": "1785006040",
+      "date": "2026-07-26",
+      "title": "特朗普：如果不100%满足我们对伊朗的要求，战争将以全力度重启",
+      "intro": " 美国总统特朗普周六在接受法国媒体采访时表示，若无法拿到美方想要的全部条件，他“完全有可能”重启针对伊朗的全面战争。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/7x24/2026-07-26/doc-inikahaq8829535.shtml",
+      "channel": "international",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "fad031317eda263e077bfcfba01744c7",
+      "time": "1785005533",
+      "date": "2026-07-26",
+      "title": "伊朗近半年原油创收超180亿美元，完成年度预算六成收入",
+      "intro": " 伊朗石油部长穆赫森·帕克内贾德表示，自2月28日战事爆发以来，伊朗石油销售收入达115亿美元；停火阶段石油销售额为65亿美元。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/7x24/2026-07-26/doc-inikahaq8824673.shtml",
+      "channel": "international",
+      "categories": [
+        "国际财经",
+        "大宗商品"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "47b7c08106c3369a0b6bca675477632b",
+      "time": "1785000624",
+      "date": "2026-07-26",
+      "title": "伊朗：过去15天伊朗摧毁中东多地的美军战机、爱国者防空系统、雷达站及各类军事基础设施",
+      "intro": " 伊朗革命卫队发言人侯赛因·穆赫比于周六称，过去15天里，伊朗发动的打击行动摧毁了中东多地的美军战机、爱国者防空系统、雷达站及各类军事基础设施。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/7x24/2026-07-26/doc-iniizzuz1178369.shtml",
+      "channel": "international",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [
+        "国防军工"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "f935af610c8c0ad64585fa4e5f8376ac",
+      "time": "1785066875",
+      "date": "2026-07-26",
+      "title": "伊朗称就霍尔木兹海峡航运管理与阿曼会谈有进展",
+      "intro": "新华社德黑兰7月26日电（记者陈霄 沙达提）据伊朗迈赫尔通讯社26日报道，伊朗外交部发言人巴加埃表示，伊朗近日就霍尔木兹海峡安全航运管理与阿曼举行副外长级会谈...",
+      "summary": "",
+      "source": "新华社",
+      "url": "https://finance.sina.com.cn/stock/marketresearch/2026-07-26/doc-inikcucw8660548.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f0e0ff71bc9ea7f5b8676f247c7a1723",
+      "time": "1785079261",
+      "date": "2026-07-26",
+      "title": "三家公司筹划易主，周一停牌",
+      "intro": "聚焦一： 三家公司筹划控制权变更事项 27日起停牌 普联软件：公司于2026年7月24日收到控股股东、实际控制人蔺国强、王虎的通知，获悉其正在筹划公司控制权变更相关事宜...",
+      "summary": "",
+      "source": "上海证券报",
+      "url": "https://finance.sina.com.cn/stock/marketresearch/2026-07-26/doc-inikeetz0813766.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9313a8eafa51582e84892fba59091a18",
+      "time": "1785077128",
+      "date": "2026-07-26",
+      "title": "国际资本瞄准中国人工智能",
+      "intro": "全球科技股震荡之际，国际资金开始买入中国资产。例如：华尔街知名投资人迈克尔·巴里在社交平台上唱多港股，并增持中国电商龙头京东；韩国投资者在A股...",
+      "summary": "",
+      "source": "上海证券报",
+      "url": "https://finance.sina.com.cn/roll/2026-07-26/doc-inikcync0921290.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "c2c5fa976dd67c77afb899832ae284a1",
+      "time": "1785075124",
+      "date": "2026-07-26",
+      "title": "突然，加倍做空！华尔街“大空头”，再出手！AI“狼来了”，这次是真的吗？",
+      "intro": "“大空头”大举做空。 以电影《大空头》原型闻名的投资者迈克尔·伯里再度加码做空英伟达、美光科技和费城半导体指数ETF，并维持特斯拉...",
+      "summary": "",
+      "source": "券商中国",
+      "url": "https://finance.sina.com.cn/stock/zqgd/2026-07-26/doc-inikcymz0298198.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "半导体"
+      ]
+    },
+    {
+      "id": "7045aacc49882076c173baaa2b361366",
+      "time": "1785072960",
+      "date": "2026-07-26",
+      "title": "不惧震荡！超550亿元资金入市抄底",
+      "intro": "在7月20日至7月24日的震荡行情中，股票型ETF净流入超550亿元，宽基ETF担当“吸金主力”。不过，此前热度非常高的半导体主题ETF则迎来新变化，资金由此前单边大幅净流入...",
+      "summary": "",
+      "source": "上海证券报",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikcync0875422.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体"
+      ],
+      "importance": "medium",
+      "tags": [
+        "半导体"
+      ]
+    },
+    {
+      "id": "071bf547065fb1974e0feb51ecf37fdd",
+      "time": "1785068911",
+      "date": "2026-07-26",
+      "title": "储能“一芯难求”，阳光电源投资欣旺达",
+      "intro": "记者 潘俊田7月24日晚，欣旺达（300207.SZ）发布《关于子公司欣旺达动力科技股份有限公司增资扩股的公告》（下称《公告》）。阳光电源股份有限公司...",
+      "summary": "",
+      "source": "经济观察报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymx3478327.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源"
+      ],
+      "importance": "medium",
+      "tags": [
+        "储能"
+      ]
+    },
+    {
+      "id": "4a2640420fb18d73a9881c3d028487b4",
+      "time": "1785068515",
+      "date": "2026-07-26",
+      "title": "借壳传闻终结！智元从30万到10亿营收仅用三年，转身冲刺港股",
+      "intro": "这股上市热潮背后与追赶政策红利以及对人形机器人未来竞争的焦虑有关。 今年以来，智元创新（上海）科技股份有限公司（以下简称“智元”）上市的传闻持续发酵。",
+      "summary": "",
+      "source": "一财网",
+      "url": "https://finance.sina.com.cn/roll/2026-07-26/doc-inikcuec0379353.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "b5a8b9911af2a3e39d21fab77d22533d",
+      "time": "1785067620",
+      "date": "2026-07-26",
+      "title": "上纬新材子公司启元新创落户上海 计划每年推不少于2款消费级机器人",
+      "intro": "近日，上纬新材全资子公司启元新创作为上海市人工智能重点项目，正式签约落户浦东张江机器人谷，计划打造最大消费级机器人企业的研发创新...",
+      "summary": "",
+      "source": "界面",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcuef0956472.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "473c6f2ef98c3d25d6edf9d6bc5c9e34",
+      "time": "1785081020",
+      "date": "2026-07-26",
+      "title": "以色列批准给予加沙国际稳定部队人员豁免权",
+      "intro": "一名以色列官员透露，由总理内塔尼亚胡主持的以色列安全内阁于周日通过决议，同意授予计划进驻加沙的国际稳定部队人员法律豁免权。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/7x24/2026-07-26/doc-inikeets8549412.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9fd7e24f4a3562dba720938ada2dd4db",
+      "time": "1785080816",
+      "date": "2026-07-26",
+      "title": "伊朗议员痛批美方违约，呼吁放弃对美谈判、强硬反击",
+      "intro": "一名伊朗议员表示，德黑兰应当撕毁这份美伊谅解备忘录，称美方违反了协议的全部条款。伊朗议会工业与矿业委员会议员穆斯塔法·塔赫里称：“这份谅解备忘录里没有一条条款是美...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/7x24/2026-07-26/doc-inikeetz0829139.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "22b5d62931770fecc6bc854d36e5edb3",
+      "time": "1785079415",
+      "date": "2026-07-26",
+      "title": "黄仁勋马斯克看好中国大模型黄仁勋力挺中国AI模型",
+      "intro": "来源：@央视财经微博【#黄仁勋马斯克看好中国大模型##黄仁勋力挺中国AI模型#】央视财经消息，近日，英伟达CEO黄仁勋与特斯拉CEO马斯克分别在不同场合接受采访时...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/wbstock/2026-07-26/doc-inikeetv3423755.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "大模型",
+        "AI"
+      ]
+    },
+    {
+      "id": "4856c4826fec483874243cb61129d326",
+      "time": "1785078480",
+      "date": "2026-07-26",
+      "title": "港股年内回购规模已超1000亿港元",
+      "intro": "今年以来，港股上市公司密集发起回购。Wind数据显示，截至7月26日，年内有293家港股上市公司发起回购，累计回购股份75.16亿股，回购金额合计1007.36亿港元...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/stock/hkstock/2026-07-26/doc-inikeetv3427761.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c75f1d77bb7adc42114d6372c5985a3c",
+      "time": "1785078480",
+      "date": "2026-07-26",
+      "title": "期货经纪业务竞争应告别“价格战”",
+      "intro": "■王宁 近日，多家期货公司纷纷调降交易手续费，部分公司甚至已降至成本线附近。 期货经纪业务是期货公司的基础性业务，手续费收入占比较高。",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-26/doc-inikeetv3420022.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0a543f384f5d038016eaaebeeb8b5f01",
+      "time": "1785078480",
+      "date": "2026-07-26",
+      "title": "为更好匹配银行体系短期流动性需求 中国人民银行将开展21000亿元隔夜逆回购操作",
+      "intro": "本报记者 刘琪 为更好匹配银行体系短期流动性需求，中国人民银行日前发布公开市场业务公告称，将在7月29日至7月31日、8月3日开展隔夜逆回购操作，采用固定利率...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-26/doc-inikeetx0202294.shtml",
+      "channel": "market2",
+      "categories": [
+        "货币政策"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": [
+        "逆回购"
+      ]
+    },
+    {
+      "id": "6e1053caf8501f5da94e1a5ef9d56bad",
+      "time": "1785078480",
+      "date": "2026-07-26",
+      "title": "中国银行间市场交易商协会：今年上半年银行间市场民企债券融资“量增、面扩、价降”",
+      "intro": "本报记者 杨洁 7月24日，中国银行间市场交易商协会（以下简称“交易商协会”）发布消息称，2026年，交易商协会坚决贯彻落实党中央、国务院关于“继续下大气力解决民营企业融资...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-26/doc-inikeetx0202270.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3f3b34a8a794d4b2c4d005caca466830",
+      "time": "1785077391",
+      "date": "2026-07-26",
+      "title": "长汽转债回售公告落地：市价远高于回售价",
+      "intro": "7月26日，长城汽车公告确认“长汽转债”有条件回售条款正式生效，回售价格为100.27元/张，申报期为7月30日至8月5日。这是投资者在正股年内大跌27.65%之下的保本退出通道...",
+      "summary": "",
+      "source": "读创财经",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymu8646969.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0a00214e85e1265585349d7d671e2a59",
+      "time": "1785077340",
+      "date": "2026-07-26",
+      "title": "中信金融资产广州鸿珺项目入选创新案例 债权归集23.96亿元",
+      "intro": "观点网讯：近日，在中共广州市委金融委员会办公室指导下，大湾区特殊资产赋能服务平台与大湾区特殊资产研究院公布“2025年度广州特殊资产管理新模式改革创新案例”名单...",
+      "summary": "",
+      "source": "观点地产网",
+      "url": "https://finance.sina.com.cn/stock/estate/integration/2026-07-26/doc-inikeetv3411094.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f8e4f795df3c0b9efca0fe104e4e23be",
+      "time": "1785077220",
+      "date": "2026-07-26",
+      "title": "顺丰与峰飞航空签署低空物流协议 聚焦海上能源设施运维",
+      "intro": "观点网讯：7月22日，顺丰联合峰飞航空科技正式签署低空物流合作框架协议。双方聚焦海上能源设施运维、大件物流、海岛及远海运输等应用场景...",
+      "summary": "",
+      "source": "观点地产网",
+      "url": "https://finance.sina.com.cn/stock/estate/integration/2026-07-26/doc-inikcymu8641577.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "81c081928d8edc932817bc68b57b6431",
+      "time": "1785076755",
+      "date": "2026-07-26",
+      "title": "英伟达锁定SK海力士内存供应，作为5000亿美元AI交易的一部分",
+      "intro": "英伟达表示，它已锁定韩国SK海力士的AI内存供应，这家芯片制造商正试图为其先进处理器和系统锁定关键组件。 英伟达表示，这项于周五晚在旧金山宣布的协议在数年内可能价值5...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikcymu8633935.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "芯片"
+      ]
+    },
+    {
+      "id": "d0329b30ae0682d2b4d77ddb6c46ea82",
+      "time": "1785076740",
+      "date": "2026-07-26",
+      "title": "月之暗面Kimi K3庆功喊出“冲上月球” 瑞银称投资者视为第二个“DeepSeek时刻”",
+      "intro": "观点网讯：7月26日，月之暗面Kimi K3发布后，中国大模型再次成为市场关注焦点。瑞银证券中国互联网行业分析师熊玮在7月24日瑞银AI行业展望媒体分享会上表示...",
+      "summary": "",
+      "source": "观点地产网",
+      "url": "https://finance.sina.com.cn/stock/estate/integration/2026-07-26/doc-inikcync0923638.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "大模型",
+        "AI"
+      ]
+    },
+    {
+      "id": "11acaa3dceb6132026ac8f6904a04be8",
+      "time": "1785076651",
+      "date": "2026-07-26",
+      "title": "从硅谷到华盛顿，科技界突然痴迷于AI中的一个概念：蒸馏",
+      "intro": "今年早些时候，谷歌AI负责人杰夫·迪恩在一个播客中讨论了一个在当时科技圈以外几乎无人谈论的概念：蒸馏。 在谈论谷歌AI模型的开发时，迪恩表示...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikcymu8632289.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "bcae46179bb090df4e7bc63246141ebc",
+      "time": "1785075725",
+      "date": "2026-07-26",
+      "title": "车险理赔进入“分钟级”时代，保险业快速理赔助力灾后重建",
+      "intro": "7月26日凌晨3时50分，今年第12号台风“红霞”以强台风级在惠州惠东县平海镇登陆，成为今年以来登陆我国的最强台风，中心附近最大风力达14级。",
+      "summary": "",
+      "source": "羊城晚报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymz0301549.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "6a231a661e92c6f274154652e94ed80e",
+      "time": "1785075420",
+      "date": "2026-07-26",
+      "title": "【国泰海通非银刘欣琦团队】非银仍然大幅欠配，风格切换下推荐非银板块",
+      "intro": "非银一周观点本周二季度公募基金持仓数据出炉 ，非银整体仍处于显著欠配状态。其中券商板块受益于市场交投活跃、科创项目跟投红利，公募持仓比例环比提升...",
+      "summary": "",
+      "source": "欣琦看金融",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikerir3273422.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "505d1616795205d17352d68172bc6f22",
+      "time": "1785075200",
+      "date": "2026-07-26",
+      "title": "英国新任首相伯纳姆：准备在必要时直言批评特朗普",
+      "intro": " 英国新任首相伯纳姆表示，他愿意在必要时直言批评美国总统特朗普，以捍卫英国的国家利益，这为他任内关键的跨大西洋关系定下了基调。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikcymx3520886.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "83c751c8ada4ab6a374f06fd20fb12bd",
+      "time": "1785075060",
+      "date": "2026-07-26",
+      "title": "WAIC 2026落幕：具身与智算并列核心 机器人精度达0.2μm级",
+      "intro": "观点网讯：7月17日至20日，第八届世界人工智能大会（WAIC 2026）在上海举办。本届大会展览面积突破10万平方米，汇聚全球1100余家企业...",
+      "summary": "",
+      "source": "观点地产网",
+      "url": "https://finance.sina.com.cn/stock/estate/integration/2026-07-26/doc-inikcymx3522529.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "0fb2b3d7135e11c2434b833675fbe7a6",
+      "time": "1785074220",
+      "date": "2026-07-26",
+      "title": "中汽股份：截至2026年7月20日公司股东人数为25089户",
+      "intro": "证券日报网讯 7月26日，中汽股份在互动平台回答投资者提问时表示，截至2026年7月20日公司股东人数为25089户。（文章来源：证券日报）",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymz0296782.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "53909960b5aa215c7d3bd1689b172e7f",
+      "time": "1785074220",
+      "date": "2026-07-26",
+      "title": "中汽股份：宁波试验场项目由宁波前湾新区下属宁波海创汽车科技有限公司出资投建",
+      "intro": "证券日报网7月26日讯 ，中汽股份在接受调研时表示，宁波试验场项目由宁波前湾新区下属宁波海创汽车科技有限公司出资投建，公司通过增资扩股参股宁波前湾新区欣湾智能技术服...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymx3520036.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "75eea830da67654e03f39658f1c6c679",
+      "time": "1785074220",
+      "date": "2026-07-26",
+      "title": "中汽股份：公司毛利率与营收规模高度正相关",
+      "intro": "证券日报网7月26日讯 ，中汽股份在接受调研时表示，公司毛利率与营收规模高度正相关。随着二期试验场产能持续释放、营收稳步增长，公司整体毛利率有望呈上行趋势...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcync0897831.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c51c7f273f05b3ff5fce7eab22b0512f",
+      "time": "1785074220",
+      "date": "2026-07-26",
+      "title": "中汽股份：盐城二期试验场是目前世界领先的智能网联大型综合封闭测试场地",
+      "intro": "证券日报网7月26日讯 ，中汽股份在接受调研时表示，盐城二期试验场是目前世界领先的智能网联大型综合封闭测试场地，能够涵盖智能网联汽车及自动驾驶能力测试的全部场景要求...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymz0296787.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源汽车"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "8d49159b63cdbb5fe566d923ce252dda",
+      "time": "1785074220",
+      "date": "2026-07-26",
+      "title": "中汽股份：公司业务模式主要是与客户签订框架合同 客户根据测试需求下达试验订单",
+      "intro": "证券日报网7月26日讯 ，中汽股份在接受调研时表示，公司业务模式主要是与客户签订框架合同，客户根据测试需求下达试验订单。基于以上模式，公司收费模式分两种情况...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymu8615835.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "fbab3c4d45c29f4607b8a39dbb95908b",
+      "time": "1785074220",
+      "date": "2026-07-26",
+      "title": "中汽股份：公司二季度经营数据尚未披露，已预约8月22日披露",
+      "intro": "证券日报网7月26日讯 ，中汽股份在接受调研时表示，公司二季度经营数据尚未披露，已预约8月22日披露，具体数据详见后期披露的定期报告。（文章来源：证券日报）",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymu8615881.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f45a17d45c3a20be5a3ee26ed0eb6514",
+      "time": "1785073213",
+      "date": "2026-07-26",
+      "title": "Shein获得港交所批准在香港上市",
+      "intro": "Shein Global Holdings Ltd．提交了听证会后上市申请文件与香港交易所合作。 高盛、摩根士丹利和摩根大通是联合赞助商。 1月至3月营业收入为2.58亿美元，而去年同期为3...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikcymz0282105.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e20abee66ab29fd082a8479b2c312fa2",
+      "time": "1785072995",
+      "date": "2026-07-26",
+      "title": "收缩清零！中小银行理财“大撤退”，加速向代销模式转型",
+      "intro": "来源：北京商报 净值化浪潮推进至2026年中，一边是中小银行阵营集体收缩、加速出清自营理财；另一边，持牌理财公司存续规模持续扩容，稳稳占据市场主导地位。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-26/doc-inikcymx3503276.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1220399210fdfaaa0036b2c3a7c64466",
+      "time": "1785072692",
+      "date": "2026-07-26",
+      "title": "朗姿股份CEO申东日离婚：前妻分得9亿 去年公司高位减持若羽臣 套现超5亿",
+      "intro": "来源：雷递 雷递网 雷建平 7月27日 朗姿股份有限公司（股票简称： 朗姿股份，股票代码： 002612）日前发布公告，宣布公司控股股东申东日与翁洁女士解除了婚姻关系...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcymu8593041.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "004f0398ef1e7858813773fd089fe8b5",
+      "time": "1785072605",
+      "date": "2026-07-26",
+      "title": "大熊猫！机器人！APEC嘉宾解锁成都多面魅力｜霁月在现场",
+      "intro": "（来源：封面新闻）7月26日，APEC数字周数字经济指导组嘉宾实地参访成都大熊猫繁育研究基地和成都卡诺普机器人技术股份有限公司，实地感受中国数字经济的发展活力。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/t/2026-07-26/doc-inikcymu8589441.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "44a3b1a8972f9c5f5e1799de7c04ccd2",
+      "time": "1785072547",
+      "date": "2026-07-26",
+      "title": "山西汾酒：2025年度每股派发现金红利6.56元",
+      "intro": "新京报贝壳财经讯 7月26日，山西汾酒公告称，公司2025年年度权益分派方案已获股东会审议通过，以总股本1219964222股为基数，每股派发现金红利6.56元(含税)...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymx3512864.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1627d913e0f428f4464f50c4cb689ffd",
+      "time": "1785071264",
+      "date": "2026-07-26",
+      "title": "张坤、邓晓峰、冯柳、裘国根、范妍、王克玉等多位基金经理调研海康威视！",
+      "intro": "上海莱士重点机构：嘉实基金：孙晓晖天弘基金：齐震调研摘要：SR604为全球首创的非因子血友病药物，仅在血管破损处产生凝血酶后起效，在完好血管中保持静默...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymx3505194.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c5a162d16fa35f5913a68d1a8d6cfad4",
+      "time": "1785071011",
+      "date": "2026-07-26",
+      "title": "4000万！光伏龙头联手国资，成立新能源公司",
+      "intro": "企查查股权穿透显示，该公司由正泰电器旗下浙江正泰新能源开发有限公司、龙泉市国资控股有限公司共同持股。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymx3504074.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源"
+      ],
+      "importance": "medium",
+      "tags": [
+        "光伏",
+        "新能源"
+      ]
+    },
+    {
+      "id": "7fd30ea5f8446a37192dc4223f459bdd",
+      "time": "1785070683",
+      "date": "2026-07-26",
+      "title": "腾势D9重返第一！6月MPV销量榜",
+      "intro": "最新月度MPV销量榜出炉了！据乘联分会公布的数据显示，6月国内MPV零售总量仅7.4万辆，同比下滑23.4%，30万级高端新能源MPV竞争白热化，市场结构性分化极强...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikcymx3492343.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源"
+      ],
+      "importance": "medium",
+      "tags": [
+        "新能源"
+      ]
+    },
+    {
+      "id": "2f8d2d83565ba253f33f66f5eae64f2c",
+      "time": "1785070666",
+      "date": "2026-07-26",
+      "title": "奔驰回应CLA L停产传闻：仍在生产，销量稳定",
+      "intro": "据德国媒体MBPassion（专注于梅赛德斯奔驰及AMG品牌的‌德国汽车垂直媒体）报道，奔驰转为中国市场打造的CLA L已暂停生产。针对相关报道...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikcymx3507398.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0954849f01f7d8680b7e34f268837a35",
+      "time": "1785069524",
+      "date": "2026-07-26",
+      "title": "47股融资净偿还额超过5亿元！胜宏科技、德明利、佰维存储排名前三",
+      "intro": "据数据宝，近一周(7月17日至23日)，A股融资余额持续下降，最新为26888.61亿元。A股融资资金持续呈现净偿还态势，金额合计1447.8亿元。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymu8557072.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "18122408d033ddb3e2ae0feea1e28e1a",
+      "time": "1785069260",
+      "date": "2026-07-26",
+      "title": "合同负债从131亿跌至46亿，股东套现10亿！  捷佳伟创频频陷入业绩失守的困境",
+      "intro": "（来源：预见能源） 光伏设备龙头捷佳伟创业绩大跌，静待行业出清复苏。 7月17日晚间，捷佳伟创披露2026年半年度业绩预告。上半年归母净利润预计3.62亿元至4.9亿元...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/roll/2026-07-26/doc-inikcync0842423.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源"
+      ],
+      "importance": "medium",
+      "tags": [
+        "光伏"
+      ]
+    },
+    {
+      "id": "1fdf86d167a30ec152164eb2409cd97e",
+      "time": "1785069129",
+      "date": "2026-07-26",
+      "title": "“肥胖专病－医疗机构标准化体重综合管理服务体系建设项目”启动",
+      "intro": "本报讯(记者张敏)7月26日，由内分泌代谢科肥胖诊疗联盟牵头的“肥胖专病-医疗机构标准化体重综合管理服务体系建设项目”在南京正式启动。",
+      "summary": "",
+      "source": "证券日报网",
+      "url": "https://finance.sina.com.cn/stock/relnews/hk/2026-07-26/doc-inikcymz0284073.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "a4eeeaca78e7ac488f998a89f5e34388",
+      "time": "1785068940",
+      "date": "2026-07-26",
+      "title": "湖北能源：截至2026年6月末公司水电累计完成发电量85.51亿千瓦时",
+      "intro": "证券日报网7月26日讯 ，湖北能源在接受调研时表示，2026年上半年清江流域来水较同期显著偏丰，带动公司水电发电量大幅增长。截至2026年6月末，公司水电累计完成发电量85...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcync0843057.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "电力"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "72cbef8dd71755e10082531142abf572",
+      "time": "1785068940",
+      "date": "2026-07-26",
+      "title": "湖北能源：公司上半年燃煤采购均价同比略有增长",
+      "intro": "证券日报网7月26日讯 ，湖北能源在接受调研时表示，受国际局势和国内近期煤矿事故影响，2026年上半年国内燃煤价格呈震荡上行态势。",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymz0259143.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "6e0fbe50348723582387fb2f6647537f",
+      "time": "1785068580",
+      "date": "2026-07-26",
+      "title": "共同实控人分道扬镳，奥精医疗变为“无主”状态",
+      "intro": "在崔菡、胡刚夫妇联手罢免母亲黄晚兰董事职务议案被否决后，奥精医疗（688613）的共同实控人最终分道扬镳。公司7月24日晚间披露的公告显示，奥精医疗变更为无实控人状态...",
+      "summary": "",
+      "source": "北京商报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcync0848313.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "04b4aba0b1206b9006e8e4c020245311",
+      "time": "1785068400",
+      "date": "2026-07-26",
+      "title": "【光大固收·信用】信用利差数据库_20260724",
+      "intro": "本订阅号中所涉及的证券研究信息由光大证券固收研究团队编写，仅面向光大证券专业投资者客户，用作新媒体形势下研究信息和研究观点的沟通交流。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikcymu8605342.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3ad284e013540385a850049cba3629cd",
+      "time": "1785068237",
+      "date": "2026-07-26",
+      "title": "宁德时代计划大额回购，26H1国内新型储能新增65GWh【电新周报20260726】",
+      "intro": "行业观点概要■ 本周（20260720-20260724）板块行情电力设备与新能源板块：本周上涨2.71%，涨跌幅排名第4，强于上证指数。本周锂电池指数涨幅最大...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymx3480043.shtml",
+      "channel": "market",
+      "categories": [
+        "大宗商品",
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源",
+        "有色金属",
+        "电力",
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": [
+        "储能",
+        "新能源",
+        "锂电池"
+      ]
+    },
+    {
+      "id": "aa37bfcdc08eb24b30d3fc5eeed444bd",
+      "time": "1785067813",
+      "date": "2026-07-26",
+      "title": "世界首例！8艘拖轮集结，只为护送这位“重量级选手”",
+      "intro": "近日山东港口青岛港轮驳公司8艘拖轮协同配合圆满完成世界首例极限斜向浮装作业将装载卡塔尔NFPS项目天然气田组块的甲板驳船“海洋石油229”浮装至半潜船“新光华”轮NFPS项目是...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikcymu8568627.shtml",
+      "channel": "market",
+      "categories": [
+        "大宗商品"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c1ffd8dcadba4cb61aab70b17eaf0ca9",
+      "time": "1785067748",
+      "date": "2026-07-26",
+      "title": "受益全球能源绿色转型加速等 深市电力设备企业上半年业绩亮眼",
+      "intro": "在全球能源结构绿色低碳转型加速推进与新型电力系统加快构建的背景下，电力设备行业市场需求旺盛，产业链公司业绩景气度不断走高。",
+      "summary": "",
+      "source": "证券日报网",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcucw8668529.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [
+        "电力"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1e039aca11e1bc46af628a0f3e63b998",
+      "time": "1785067306",
+      "date": "2026-07-26",
+      "title": "抄底要慢，逃顶要快",
+      "intro": "（来源：谭谈研究）今天我以一句祖训开头：超底要慢，逃顶要快。熊市的时候，不要觉得便宜就买，这个时候还要关注情绪和流动性，恐慌之下没有多少人是理性的。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikcucw8670294.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "6e4430d19049f508d7508a809f5d758c",
+      "time": "1785067220",
+      "date": "2026-07-26",
+      "title": "【抢权配售】玉禾田发行“15亿”可转债，7月29日配债分析！",
+      "intro": "玉禾转债（123277）：正股玉禾田，公司所属一级题材板块是环保。核心概念题材是PPP模式、无人机、无人驾驶、垃圾分类、医废处理、机器人概念、人形机器人。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcuef0948263.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "fc563bd1d3f757bd3f24e70e04283613",
+      "time": "1785067200",
+      "date": "2026-07-26",
+      "title": "猴子价格涨疯了，20万一只还抢不到？可是峨眉山上不是超级多吗？",
+      "intro": "作者： 闰然编辑：江江新媒体编辑：张婉莹视觉：诺言眼下，医药圈最抢手的，不是什么新药，也不是任何高端设备，而是一只猴子。猴子有多紧俏呢？",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/roll/2026-07-26/doc-inikcucw8667493.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "医药生物"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "6afeef547e8b1a1857c9caf8d1f40a84",
+      "time": "1785066900",
+      "date": "2026-07-26",
+      "title": "【华源金属】多空交织下锡价高位震荡，需求淡季锑价持续新低——小金属双周报",
+      "intro": "（来源：华源金属 华源有色金属与新材料）核心观点稀土：稀土氧化物价格震荡。近两周，氧化镨钕下跌1.15%至75.7万元/吨，氧化镝下跌0.70%至141万元/吨，氧化铽下跌1...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikekzt3382953.shtml",
+      "channel": "market",
+      "categories": [
+        "大宗商品"
+      ],
+      "sectors": [
+        "有色金属"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "69d03c53bc8d2229f828cb898c83a631",
+      "time": "1785066900",
+      "date": "2026-07-26",
+      "title": "【华源金属】国内库存持续去化，铜价回升——有色金属 大宗金属周报",
+      "intro": "（来源：华源金属 华源有色金属与新材料）投资要点➢铜：国内库存持续去化，铜价回升，重点关注下周FOMC会议。本周伦铜/沪铜/美铜涨跌幅分别为+1.53%/+1.16%/+1.10%。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikekzq8543912.shtml",
+      "channel": "market",
+      "categories": [
+        "大宗商品",
+        "行业动态"
+      ],
+      "sectors": [
+        "有色金属"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "a48f3228e00aed1271bc89a59709ca57",
+      "time": "1785066273",
+      "date": "2026-07-26",
+      "title": "四年三换帅，老牌中药企业董事长提前2年离场，明星产品双黄连口服液等产品“产销双降”，公司营收下滑",
+      "intro": " 四年三换帅，老牌中药企业董事长提前2年离场；明星产品双黄连口服液等产品“产销双降”，公司营收下滑，控制权变更悬而未决",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcucw8654873.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "医药生物"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3624dbfa16d08205d36849deb0ff8cde",
+      "time": "1785066075",
+      "date": "2026-07-26",
+      "title": "出海折戟！英国市场全面停摆销量惨淡，创维汽车国内也卖不动了？",
+      "intro": "双线溃败、愿景落空创维汽车陷入发展困局曾喊出十年跻身全球电动车第一阵营、2030年年销百万辆宏伟目标，立志成为“汽车行业传音”的创维汽车...",
+      "summary": "",
+      "source": "经理人",
+      "url": "https://finance.sina.com.cn/stock/relnews/hk/2026-07-26/doc-inikcuec0384821.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "67780ef24b9569482d60b7db34b3da18",
+      "time": "1785064860",
+      "date": "2026-07-26",
+      "title": "【国盛量化】强势板块疲态初显",
+      "intro": "1.市场走势分析Market Index本周（7.20-7.24），大盘横盘震荡，上证指数全周收涨1.33%。在此背景下，建材确认日线级别下跌。当下...",
+      "summary": "",
+      "source": "留富兵法",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikerit0045330.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c6823b6b4476e5cfead124a709a62e7f",
+      "time": "1785064440",
+      "date": "2026-07-26",
+      "title": "中信建投：市场W型筑底 AI仍是中长期增长主线",
+      "intro": "观点网讯：7月26日，中信建投证券发布策略周思考报告《W型筑底，市场“震荡再平衡”》，认为市场短期仍将围绕“震荡再平衡”展开，指数预计有望延续W型底部构筑过程。",
+      "summary": "",
+      "source": "观点地产网",
+      "url": "https://finance.sina.com.cn/stock/estate/integration/2026-07-26/doc-inikcucw8632909.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "ac8d591ceb405a33c33330bb2b905579",
+      "time": "1785059613",
+      "date": "2026-07-26",
+      "title": "7天6板！刚刚，百亿牛股提示风险！",
+      "intro": "来源：资本秘闻 立新能源称股价存在快速回调、大幅震荡风险。 7月26日晚间，股价大涨的立新能源发布公告称，近期公司股价波动主要受市场资金炒作...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcpwi0991579.shtml",
+      "channel": "international",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源"
+      ],
+      "importance": "medium",
+      "tags": [
+        "新能源"
+      ]
+    },
+    {
+      "id": "c0a2b35e29cdf92415595b10be042ed5",
+      "time": "1785056400",
+      "date": "2026-07-26",
+      "title": "10亿易主！小巨人接盘小巨人",
+      "intro": "来源： 野马财经 作者：贾紫聪 编辑：高岩 一年两度转让控制权。 一家刚做完股份制改革、2025年净利润仅1.48亿元的新材料企业，竟然拿出10...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcpvy8675982.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3e6f71d79c1d4530efba9267aca88d24",
+      "time": "1785056400",
+      "date": "2026-07-26",
+      "title": "携程垄断被重罚51.79亿，梁建章还要忙着做人口学家吗？",
+      "intro": "来源：野马财经 携程又双叒叕被罚了！ 7月25日，市场监管总局依法对携程集团（9961.HK）滥用市场支配地位实施垄断行为作出行政处罚，罚没款合计51.79亿元。",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcpwi0956773.shtml",
+      "channel": "international",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "bb14b430e89abdad6f5f2c6bd42563f3",
+      "time": "1785054443",
+      "date": "2026-07-26",
+      "title": "饲料养殖：猪价偏弱运行",
+      "intro": "来源：华安期货投研 生猪：猪价偏弱运行 摘要： ➢ 高温影响需求 核心观点：本周全国生猪出栏均价10.78元/公斤，环比回落0.39元/公斤、降幅3.49%，同比大幅走低24.35%...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/future/fmnews/2026-07-26/doc-inikevrt0739164.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "30acfccf6d9de40d05a6104225007d0d",
+      "time": "1785054443",
+      "date": "2026-07-26",
+      "title": "PVC：资金兑现与估值修复并存 PVC震荡向上",
+      "intro": "来源：华安期货投研 影响因素：宏观引导的弱势品种估值得到修复后与资金博弈兑现并存，短期内仍保持向上节奏 ① 钢联数据显示本周PVC整体开工负荷率67.44%，环比+2.7%...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/future/fmnews/2026-07-26/doc-inikevrt0738484.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "491cb02a3eba737015c8006b945d60d9",
+      "time": "1785054443",
+      "date": "2026-07-26",
+      "title": "油脂粕类：能源带动，油脂走高",
+      "intro": "来源：华安期货投研 油脂：能源带动，油脂走高 核心观点： 豆油：近期在美豆产区天气题材以及出口需求较好的题材下，CBOT大豆大幅走高。",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/future/fmnews/2026-07-26/doc-inikevrk8456385.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "933faf82a294c93182f75d37fadc0e98",
+      "time": "1785054443",
+      "date": "2026-07-26",
+      "title": "纸浆：产能出清如期而至，反弹空间受限于弱现实",
+      "intro": "来源：华安期货投研 主要因素： 1、产能出清如期而至，加拿大BC省发生森林山火叠加Canfor永久关停旗下浆厂。但量级有限，不改宽松格局。",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/future/fmnews/2026-07-26/doc-inikevrk8454318.shtml",
+      "channel": "international",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1f30c331a501b88c47b309acbffe26df",
+      "time": "1785054443",
+      "date": "2026-07-26",
+      "title": "棉花：短期缺乏明显单边驱动",
+      "intro": "来源：华安期货投研 ◼ 周度核心逻辑： ➢ 储备棉轮出工作于本周正式启动，市场拍储积极性较高。当前市场矛盾在于抛储对供应端的增量与新疆高温造成的单产下降预期之间的博弈...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/future/fmnews/2026-07-26/doc-inikevrr0008423.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "90fd7f19c06a936a915d721b63993f0e",
+      "time": "1785053623",
+      "date": "2026-07-26",
+      "title": "沈南鹏捐资 3 亿元，上海交大红杉书院揭牌成立",
+      "intro": "IT之家 7 月 26 日消息，上海交通大学今日宣布，上海交大红杉书院正式揭牌成立，面向国家战略需求，深化基础学科，拔尖创新人才培养改革。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-26/doc-inikcpwi0924020.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e9024f8dc21846f1f0568582155cc39d",
+      "time": "1785049200",
+      "date": "2026-07-26",
+      "title": "博瑞传播中报预亏，投资收益减少叠加减值计提",
+      "intro": "来源：证券之星 扣非后净利润“两连亏”的博瑞传播（600880.SH）业绩承压态势未改。公司近日发布的业绩预告显示，预计2026年上半年业绩同比由盈转亏...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcpwf0401358.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "cf151038b6099552fd964c139b6ed18f",
+      "time": "1785049200",
+      "date": "2026-07-26",
+      "title": "负债率73%！翠微股份双主业失血，上半年减亏靠“外援”",
+      "intro": "来源：证券之星 7月中旬，翠微股份发布了半年度业绩预亏公告，预计今年上半年实现归母净利润亏损6500万元至8000万元，与上年同期相比预计减亏1.23亿元到1.38亿元。",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcpwc3623959.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "16cd130b08996237a0a0de7766760ec6",
+      "time": "1785049200",
+      "date": "2026-07-26",
+      "title": "终端需求疲软，维信诺上半年亏损加剧，高负债困局难解",
+      "intro": "来源：证券之星 2026年半年度业绩预告显示，维信诺（002387.SZ）预计归母净利润亏损金额为14.02亿元至19.7亿元，同比亏损扩大32%-85.5%。",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcpwi0923435.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ea4e05b79b38f565a08f8a1580296ae3",
+      "time": "1785045096",
+      "date": "2026-07-26",
+      "title": "伯纳姆：如有必要将公开批评特朗普 将英国利益置于一切之上",
+      "intro": " 安迪・伯纳姆就任首相后首次接受专访，他表示，若确有必要，自己会公开批评唐纳德・特朗普，把捍卫英国国家利益置于一切之上。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikciqf3678004.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "47c7339bed898e9961b9edad4a51de7f",
+      "time": "1785041791",
+      "date": "2026-07-26",
+      "title": "新规落地前夕集中抄底 韩国散户单日狂买4500亿半导体杠杆ETF",
+      "intro": "数据显示，24日韩国散户单日大举买入14只个股杠杆型交易所交易基金（ETF），单日净买入规模约4500亿韩元。而在此前7月21日至23日连续三个交易日内...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikcche8752002.shtml",
+      "channel": "international",
+      "categories": [
+        "监管动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体"
+      ],
+      "importance": "medium",
+      "tags": [
+        "半导体"
+      ]
+    },
+    {
+      "id": "acc2e3501653dd313cb9029844030e68",
+      "time": "1785041627",
+      "date": "2026-07-26",
+      "title": "三星李在镕与OpenAI据悉磋商人工智能与半导体领域合作方案",
+      "intro": "三星电子会长李在镕与OpenAI首席执行官山姆・奥特曼于旧金山OpenAI总部会面，磋商人工智能与半导体领域合作方案。 OpenAI 26日对外公布，当地时间25日上午...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikcchp1031851.shtml",
+      "channel": "international",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "人工智能",
+        "半导体"
+      ]
+    },
+    {
+      "id": "fcd268255abe236fc54e033d4050466d",
+      "time": "1785039542",
+      "date": "2026-07-26",
+      "title": "郑义宣：现代汽车正突破传统汽车制造边界",
+      "intro": " 韩国现代汽车集团会长郑义宣提出实体人工智能发展愿景：从汽车、机器人等各类设备智能化起步，最终实现整座城市一体化智能运营。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikcchp1002367.shtml",
+      "channel": "international",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "1f55623a4642eeea628eee2bdacd7737",
+      "time": "1785039327",
+      "date": "2026-07-26",
+      "title": "极氪回应“境外车机网络受限”：上线跨境守护功能入口，车主可完成自助解锁",
+      "intro": "新浪科技讯 7月26日中午消息，近日有车主因车辆长期定位在境外区域，触发车企后台风控机制，车机影音娱乐等智能功能被临时限制，引发广泛讨论。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-07-26/doc-inikcche8718048.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "7672b61af2644a37f6951f80c9e29b7b",
+      "time": "1785036608",
+      "date": "2026-07-26",
+      "title": "国际清算银行：韩元实际有效汇率跌至2009年以来最低",
+      "intro": "周日公布的数据显示，受美元整体持续走强影响，6月韩元实际有效汇率跌至17年多以来新低。 国际清算银行（BIS）数据显示，6月韩元实际有效汇率（REER）报82.99...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikawym3858551.shtml",
+      "channel": "international",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "b414f90ea31770fe0edc2452440b6346",
+      "time": "1785034729",
+      "date": "2026-07-26",
+      "title": "韩国养老金7月首度净买入KOSPI成分股 为今年首次",
+      "intro": " 韩国交易所周日披露股市数据，韩国股市最大机构投资者之一——国民年金公团等养老金资金，本月转为韩国综合股价指数（KOSPI）股票净买方，系今年以来首次。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikawym3842786.shtml",
+      "channel": "international",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2fb1a00ad2b543e8e1b4207f807337c7",
+      "time": "1785034337",
+      "date": "2026-07-26",
+      "title": "ChatGPT可详尽输出生物武器制作教程 企业仅封禁提问账号",
+      "intro": "去年夏天OpenAI升级旗下聊天大模型性能后，全球数百名用户向其询问生物武器与剧毒制剂的制作、投放方法。 在缺乏美国联邦层面硬性管控的前提下，该模型会详尽作答...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-07-26/doc-inikawyp0616264.shtml",
+      "channel": "international",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "大模型"
+      ]
+    },
+    {
+      "id": "2d5cb9dea0a638a48b16e3b40769f8d5",
+      "time": "1785034197",
+      "date": "2026-07-26",
+      "title": "李在明：韩美完全有能力共同孵化全球的创新巨头",
+      "intro": "正在美国出访的韩国总统李在明于当地时间25日会见硅谷风投企业，开展招商引资外交。李在明呼吁美方投资韩国本土创投与初创企业，他表示：“若两国优势结合...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikawyh8783198.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0b6cda98f158e07838cb8347bb080f61",
+      "time": "1785034016",
+      "date": "2026-07-26",
+      "title": "月之暗面Kimi K3庆功照流出，张予彤疑现身，喊出“冲上月球”口号",
+      "intro": " 新浪科技讯 7月26日上午消息，据报道，在经历过去一段时间月之暗面Kimi K3发布引发的广泛关注后，月之暗面于本周五在北京的一个酒吧举行了庆功活动。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-07-26/doc-inikawyp0613198.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "acf39a008d047ee859747b0214ed6e3e",
+      "time": "1785032629",
+      "date": "2026-07-26",
+      "title": "泽连斯基下周到访华盛顿与特朗普会晤 将出席格雷厄姆葬礼",
+      "intro": "白宫一名官员于周六证实，乌克兰总统弗拉基米尔・泽连斯基将于下周二前往白宫，与美国总统唐纳德・特朗普举行会晤。 一名乌克兰官员透露...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikawyr1042706.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "26612b456029824a1d09474a17925be6",
+      "time": "1785030644",
+      "date": "2026-07-26",
+      "title": "泰和小贷建议委任栢淳为新任核数师",
+      "intro": " 泰和小贷（01915）发布公告，待即将召开及举行的股东特别大会上通过相关决议案后，天健国际会计师事务所有限公司免除担任公司核数师。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyh8733314.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5cdf032eb8c8f6d9799aa05af465f49d",
+      "time": "1785030555",
+      "date": "2026-07-26",
+      "title": "英国防大臣欲修复英美关系 提议联合美国护航霍尔木兹海峡",
+      "intro": " 英国新任国防大臣韦斯・斯特里廷正着力修复英美特殊关系，提出两国携手打通霍尔木兹海峡航道，并承诺推进英军全面现代化改造。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikawym3802268.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ba0b3516a63a53fa34d5b4423aff5250",
+      "time": "1785030539",
+      "date": "2026-07-26",
+      "title": "卓越教育集团发盈喜 预期中期净利润约1.6亿至1.8亿元同比增长约5.6%至18.8%",
+      "intro": "卓越教育集团（03978）发布公告，预期本集团于截至2026年6月30日止6个月（报告期）内的收入介于人民币10亿元至人民币11亿之间，同比增长约9.0%至19.9%，净利润介于人民币1...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyr1013740.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "8988b22ef27a7af6015374083d59e042",
+      "time": "1785030492",
+      "date": "2026-07-26",
+      "title": "中国中冶于7月24日斥资1999.54万元回购744.94万股A股",
+      "intro": "中国中冶（01618）发布公告，于2026年7月24日，该公司斥资245.2万港元回购159.2万股股份，每股回购价1.53-1.56港元。于2026年7月24日，该公司斥资人民币1999...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyh8731037.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2465bfb07c669fd53d7ad3cf20e902e4",
+      "time": "1785030457",
+      "date": "2026-07-26",
+      "title": "朝聚眼科于7月24日斥资约39.58万港元回购15万股",
+      "intro": "朝聚眼科（02219）发布公告，于2026年7月24日该公司斥资约39.58万港元回购15万股，回购价格为每股2.60至2.65港元。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyh8730544.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ab0ea40e47b9f1ea91e5fe8122ed21d6",
+      "time": "1785030420",
+      "date": "2026-07-26",
+      "title": "中国旭阳集团于7月24日斥资97.5万港元回购50万股",
+      "intro": "中国旭阳集团（01907）发布公告，于2026年7月24日斥资97.5万港元回购50万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyp0577695.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "7364b9555ee1832d2f262154ca7ed5f9",
+      "time": "1785030366",
+      "date": "2026-07-26",
+      "title": "创科实业于7月24日斥资411.74万港元回购3.2万股",
+      "intro": "创科实业（00669）发布公告，于2026年7月24日，该公司斥资411.74万港元回购3.2万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyh8728927.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "7300de220e9bc655d7ed5137c4ae8978",
+      "time": "1785030332",
+      "date": "2026-07-26",
+      "title": "万维智能科技因股份合并而削减13.37亿股股份",
+      "intro": " 万维智能科技（00209）发布公告，本公司股本中每10股每股面值0.01港元的已发行及未发行普通股合并为1股每股面值为0.10港元的合并股份而削减13.37亿股股份。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawym3799806.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "30c716116766b2e7036898925a15afbf",
+      "time": "1785030287",
+      "date": "2026-07-26",
+      "title": "EPS创健科技根据买卖协议发行6025.24万股代价股份",
+      "intro": "EPS创健科技（03860）发布公告，于2026年7月24日，该公司根据2023年3月28日签订的买卖协议发行6025.24万股代价股份。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyr1009715.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c83c56f0192397ff2faa435ca85cb621",
+      "time": "1785030245",
+      "date": "2026-07-26",
+      "title": "喆丽控股发盈喜 预期上半年净溢利约1830万美元同比增长约30%",
+      "intro": " 喆丽控股（02209）发布公告，本集团预期于截至2026年6月30日止6个月取得净溢利约1830万美元（往期：1410万美元），较往期增长约30.0%。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawym3798935.shtml",
+      "channel": "international",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9ee4869b32afb18b658a3f33ff74a832",
+      "time": "1785030060",
+      "date": "2026-07-26",
+      "title": "宝济药业-B于7月24日斥资199.42万港元回购11.52万股",
+      "intro": "宝济药业-B（02659）发布公告，于2026年7月24日，该公司斥资199.42万港元回购11.52万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyp0573934.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "886180ec224f2701ba11e0c210c772a0",
+      "time": "1785030015",
+      "date": "2026-07-26",
+      "title": "集信国控发盈喜 预期中期净利润约410万至470万元同比增加约117%至149%",
+      "intro": "集信国控（08629）发布公告，本集团预期于截至2026年6月30日止6个月取得净利润约人民币410万元至人民币470万元，较2025年同期的净利润约人民币189万元增加约117%至149%。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawym3796602.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0329db62b333197d47113c3e75944ded",
+      "time": "1785029966",
+      "date": "2026-07-26",
+      "title": "海螺水泥于7月24日斥资1400.38万港元回购78万股",
+      "intro": "海螺水泥（00914）发布公告，于2026年7月24日，该公司斥资1400.38万港元回购78万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyh8722768.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "14bf9f54ca98dd311525ed8e2a03dfe4",
+      "time": "1785029929",
+      "date": "2026-07-26",
+      "title": "汇聚科技于7月24日根据股份计划发行10.4万股",
+      "intro": "汇聚科技（01729）发布公告，于2026年7月24日，该公司根据股份计划发行10.4万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyp0572604.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "71e6bb4fa2178d5e5572b999af695beb",
+      "time": "1785029897",
+      "date": "2026-07-26",
+      "title": "中远海控于7月24日斥资2300.53万元回购150万股A股",
+      "intro": "中远海控（01919）发布公告，于2026年7月24日，该公司斥资2300.53万元回购150万股A股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyr1003709.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e29951272439be9de5b1c014c35053f4",
+      "time": "1785029860",
+      "date": "2026-07-26",
+      "title": "亿腾嘉和于7月24日斥资37.26万港元回购20万股",
+      "intro": "亿腾嘉和（06998）发布公告，于2026年7月24日，该公司斥资37.26万港元回购20万股股份，每股回购价1.83-1.88港元。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyp0571961.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c44946c61722562823a2688c181c5cb8",
+      "time": "1785029825",
+      "date": "2026-07-26",
+      "title": "海天味业于7月24日耗资约1744.4万元回购约48.19万股A股",
+      "intro": "海天味业（03288）公布，2026年7月24日耗资约1744.4万元回购约48.19万股A股股份。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyh8720618.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "16387656d64f4b942cac2f79ab5b1442",
+      "time": "1785029821",
+      "date": "2026-07-26",
+      "title": "KFM金德：暠瀚云与金德配件苏州订立委托制造协议",
+      "intro": " KFM金德（03816）发布公告，于2026年7月24日，暠瀚云与金德配件苏州订立委托制造协议，金德配件苏州同意于委托制造协议期限内制造及供应产品，而暠瀚云同意购买产品。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyh8720575.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "67855ae356478f1dfae00b19dc081301",
+      "time": "1785029722",
+      "date": "2026-07-26",
+      "title": "极智嘉-W于7月24日斥资833.32万港元回购90万股",
+      "intro": "极智嘉-W（02590）发布公告，于2026年7月24日，该公司斥资833.32万港元回购90万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawym3793476.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2969c34064a0cc0d30567d2f59508e47",
+      "time": "1785029641",
+      "date": "2026-07-26",
+      "title": "碧桂园服务于7月24日斥资110.2万港元回购20万股",
+      "intro": "碧桂园服务（06098）发布公告，于2026年7月24日，该公司斥资110.2万港元回购20万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawym3792543.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "7db280ca3ea260cf7f5b984adaf0c5a2",
+      "time": "1785029466",
+      "date": "2026-07-26",
+      "title": "韩国5月旅游收支连续第三个月实现顺差",
+      "intro": "韩国官方周日发布数据显示，受入境外国游客数量增长拉动，韩国5月旅游收支连续第三个月录得顺差。 韩国观光公社数据显示，5月旅游收支顺差额达2.205亿美元，去年同期则为8...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-07-26/doc-inikawyh8714844.shtml",
+      "channel": "international",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d92fecc2adb5b96b2c8449562a6b39ac",
+      "time": "1785029318",
+      "date": "2026-07-26",
+      "title": "中国金融投资管理授出本金金额为890万元贷款",
+      "intro": "中国金融投资管理（00605）发布公告，于2026年7月24日，本公司控制的全资附属公司深圳领达小贷（作为贷款人）与客户GH（作为借款人）订立贷款协议...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyh8712973.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "a8411b2129997aa8c54e1acc84513a23",
+      "time": "1785029266",
+      "date": "2026-07-26",
+      "title": "永升服务于7月24日斥资35万港元回购20万股",
+      "intro": "永升服务（01995）发布公告，于2026年7月24日斥资35万港元回购20万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyr0994332.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5ef1dd2b8ee4c09cbafe55d97a9e4f19",
+      "time": "1785029226",
+      "date": "2026-07-26",
+      "title": "顺丰控股于7月24日耗资约1424.95万港元回购43.54万股",
+      "intro": "顺丰控股（06936）公布，2026年7月24日耗资约1424.95万港元回购43.54万股股份。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyp0565392.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c0c0e362f462185fa28be4030674e4da",
+      "time": "1785029190",
+      "date": "2026-07-26",
+      "title": "固生堂于7月24日斥资约220.85万港元回购7.78万股",
+      "intro": "固生堂（02273）发布公告，于2026年7月24日该公司斥资约220.85万港元回购7.78万股，回购价格为每股28.08至29.00港元。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyp0565185.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3ab04bb166d61c008102a0039adab280",
+      "time": "1785029153",
+      "date": "2026-07-26",
+      "title": "中国石油化工股份于7月24日斥资518.4万元回购100万股A股",
+      "intro": "中国石油化工股份（00386）发布公告，于2026年7月24日斥资518.4万元回购100万股A股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyp0564744.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "23da5ab295f97a2a2c2fc60545e7413d",
+      "time": "1785029108",
+      "date": "2026-07-26",
+      "title": "海尔智家于7月24日斥资4228.8万元回购194万股A股",
+      "intro": "海尔智家（06690）发布公告，于2026年7月24日，该公司斥资4228.8万元回购194万股A股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawym3787489.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3257e03e21b50618a8447e8cb4713ea9",
+      "time": "1785029078",
+      "date": "2026-07-26",
+      "title": "复星医药：DM1001制剂获临床试验批准",
+      "intro": "复星医药（02196）发布公告，近日，上海复星医药（集团）股份有限公司（以下简称“本公司”）控股子公司复星万邦（江苏）医药集团有限公司（以下简称“复星万邦”）收到国家药...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyr0992109.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "医药生物"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "b5de4167fdfc48d473d66e6197df48d1",
+      "time": "1785029028",
+      "date": "2026-07-26",
+      "title": "蒙牛乳业于7月24日斥资180万港元回购10万股",
+      "intro": "蒙牛乳业（02319）发布公告，于2026年7月24日斥资180万港元回购10万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawym3786980.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "食品饮料"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ababf87716485dc40d9654d5a7fe73bb",
+      "time": "1785028991",
+      "date": "2026-07-26",
+      "title": "梧桐国际预期中期股东应占综合溢利同比大幅飙升约600%至约7.6亿港元",
+      "intro": "梧桐国际（00613）发布公告，预期集团截至2026年6月30日止六个月取得公司股东应占未经审核综合溢利约7.6亿港元，而2025年6月30日止六个月则约为1.08亿港元...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawym3786545.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "66dff74315af7255d3065bb8a40c560b",
+      "time": "1785028931",
+      "date": "2026-07-26",
+      "title": "京东方精电：受托人根据股份奖励计划购买合共100万股",
+      "intro": "京东方精电（00710）发布公告，由2026年7月20日至2026年7月24日期间，受托人根据股份奖励计划及信托契约的条款和条件从市场购买合共100万股股份以备以上及未来股份奖励计划...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawyp0562702.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d4452577023954ce6c4371e5ff01fbb6",
+      "time": "1785028880",
+      "date": "2026-07-26",
+      "title": "三环集团于7月24日斥资1.01亿元回购100.57万股A股",
+      "intro": "三环集团（06951）发布公告，于2026年7月24日，该公司斥资1.01亿元回购100.57万股A股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikawym3785446.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1e28ce4fb8727bc495652c477038e8e5",
+      "time": "1785028719",
+      "date": "2026-07-26",
+      "title": "韩国政府正在研讨综合不动产税改革方案",
+      "intro": " 韩国政府正在研讨综合不动产税改革方案，计划以基础扣除标准、高价豪宅划分线两大核心界限，推出分三档差异化税负的“三级分层征税方案”。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/tob/2026-07-26/doc-inikawyr0987775.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ba4a203f225df979cae2a1692496383c",
+      "time": "1785028557",
+      "date": "2026-07-26",
+      "title": "SK海力士二季度营业利润预计达64.1万亿韩元",
+      "intro": "一份行业分析报告周日指出，受人工智能催生半导体超级景气周期带动，叠加SK海力士在高带宽内存（HBM）市场的龙头地位加持，该公司今年第二季度营业利润有望创下64...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikassp3912939.shtml",
+      "channel": "international",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "人工智能",
+        "半导体"
+      ]
+    },
+    {
+      "id": "5195c57a132ccbad5a6ce06664fda852",
+      "time": "1785028182",
+      "date": "2026-07-26",
+      "title": "华润燃气于7月24日斥资1894.8万港元回购118.76万股",
+      "intro": "华润燃气（01193）发布公告，于2026年7月24日斥资1894.8万港元回购118.76万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikasst1110933.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5a072000d654c08eb93110fdf1d67985",
+      "time": "1785028130",
+      "date": "2026-07-26",
+      "title": "首程控股于7月24日斥资572.72万港元回购340万股",
+      "intro": "首程控股（00697）发布公告，于2026年7月24日斥资572.72万港元回购340万股。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-07-26/doc-inikassr0685086.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ffd6e1e8707f7f612c8a112c7febb96b",
+      "time": "1785027512",
+      "date": "2026-07-26",
+      "title": "李在明：人工智能时代为韩国带来全新机遇",
+      "intro": " 韩国总统李在明周六表示，人工智能时代的到来给韩国带来全新机遇，他承诺推动韩国从产业追赶者蜕变为全球行业领军国家。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikassp3902128.shtml",
+      "channel": "international",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "d15b445b545f649836433191a3715677",
+      "time": "1785027015",
+      "date": "2026-07-26",
+      "title": "福特汽车召回超50万辆烈马越野车 发动机舱线束存在短路起火隐患",
+      "intro": " 福特周四发布公告，本次召回涵盖2021至2026款共565691辆福特烈马及烈马猛禽车型。车企预估约1%车辆存在线束故障，目前暂未收到该缺陷引发事故或人员受伤的相关报告。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikassr0674273.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "eacb6cc359e99cf957c143cd0b3c5cec",
+      "time": "1785024189",
+      "date": "2026-07-26",
+      "title": "消息人士：霍尔木兹海峡相关外交谈判取得进展",
+      "intro": "两名地区消息人士透露，阿曼与伊朗围绕重开霍尔木兹海峡及双方该区域内各自领海水道的谈判取得进展。两名消息人士表示，谈判局势整体向好...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikassr0646055.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "b59ae91dc195a4c7b5ae22e1812c6a8a",
+      "time": "1785023538",
+      "date": "2026-07-26",
+      "title": "巴西拒签美官员 认定美方意图干涉本国大选",
+      "intro": " 巴西拒签两名美国国务院高级官员签证。特朗普政府原计划派遣二人于10月4日总统大选前赴巴西，核查巴西选举体系的公正性与可信度。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-26/doc-inikassk8762948.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "95417a2645e68efe6689bd25b71032a0",
+      "time": "1785022333",
+      "date": "2026-07-26",
+      "title": "中国有潜力成为机器人行业领导者",
+      "intro": "（来源：南方都市报） 2026年5月14日，2026全球人工智能终端展上展示的众擎T800全尺寸高动态通用机器人。 IC供图 7月16日，众擎URKL全球人形机器人售卖爆米花。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/t/2026-07-26/doc-inikassr0630614.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "2230022272c0dd4a270a7672930ffcc3",
+      "time": "1785022330",
+      "date": "2026-07-26",
+      "title": "Debian项目发起议案，讨论是否允许AI大模型参与开发",
+      "intro": "（来源：IT之家） IT之家 7 月 26 日消息，Debian 项目开发者本周（7 月 24 日）发起议案，讨论未来是否允许 AI 大语言模型（LLM）开发 Debian。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/t/2026-07-26/doc-inikassp3853816.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "大模型"
+      ]
+    },
+    {
+      "id": "f96d30d20ad0c1e8b263c080650743ab",
+      "time": "1785008644",
+      "date": "2026-07-26",
+      "title": "马斯克旗下Boring Company洽谈新一轮融资 估值200亿美元",
+      "intro": " 据知情人士透露，马斯克的隧道企业Boring Company正洽谈一轮新融资，投后估值预计达200亿美元，计划募资规模约40亿美元。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/7x24/2026-07-26/doc-inikahax1137552.shtml",
+      "channel": "international",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "68f2159b70f218879377761a0c81402f",
+      "time": "1785005908",
+      "date": "2026-07-26",
+      "title": "伊朗官方驳斥美方伤亡通报，称打击已致200美军丧生",
+      "intro": " 伊朗革命卫队发言人称，自美伊谅解备忘录遭美方撕毁后，驻中东美军阵亡人数已超200人。这位发言人表示，美方发布的伤亡通报完全虚假。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/7x24/2026-07-26/doc-inikahax1110588.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ac8f175f83d788c22bee93a8f8224742",
+      "time": "1785079261",
+      "date": "2026-07-26",
+      "title": "通过港交所上市聆讯，希音离IPO又近了",
+      "intro": " 7月26日，希音（SHEIN）更新聆讯后资料集，意味着希音港股IPO已通过港交所聆讯，赴港上市进程提速。若顺利挂牌，或将成为2026年港股最大的跨境电商IPO。",
+      "summary": "",
+      "source": "上海证券报",
+      "url": "https://finance.sina.com.cn/stock/marketresearch/2026-07-26/doc-inikeetx0197631.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "6b8544c90359cd010fb87f2d8b6eba1f",
+      "time": "1785075787",
+      "date": "2026-07-26",
+      "title": "跌破市值“红线”！301139拉响退市预警",
+      "intro": "7月26日晚，*ST元道（301139）公告称，7月24日，公司股票收盘价为2.39元/股，收盘市值为2.91亿元，首次出现股票收盘市值低于3亿元。",
+      "summary": "",
+      "source": "上海证券报·中国证券网",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymz0309833.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "cad531e73f7a5b296b1a7af8e1e76a96",
+      "time": "1785070266",
+      "date": "2026-07-26",
+      "title": "10派65.6元！千亿白酒龙头，即将分红",
+      "intro": "千亿白酒龙头股，约80亿元现金分红即将落地。 7月26日晚，山西汾酒（600809）公告，公司2025年年度权益分派方案已获股东会审议通过，以总股本12.2亿股为基数...",
+      "summary": "",
+      "source": "证券时报",
+      "url": "https://finance.sina.com.cn/stock/marketresearch/2026-07-26/doc-inikcymx3485673.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "食品饮料"
+      ],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "8a503031a71f22d7709ea7f3b0065336",
+      "time": "1785070260",
+      "date": "2026-07-26",
+      "title": "301139，拉响退市警报！",
+      "intro": "*ST元道市值首次跌破3亿元。 7月24日， *ST元道（301139）继续走弱，截至当天收盘，该股报收2.39元/股，下跌0.17元，跌幅6.64%。",
+      "summary": "",
+      "source": "证券时报",
+      "url": "https://finance.sina.com.cn/wm/2026-07-26/doc-inikcync0848559.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "40de80e9d62571743401e1641c82ef99",
+      "time": "1785074880",
+      "date": "2026-07-26",
+      "title": "【东吴电新】宁德时代2026年中报点评：出货高增业绩稳健，回购彰显龙头信心",
+      "intro": "买入（维持）盈利预测与估值投资要点26Q2业绩符合我们预期、回购彰显信心。公司26H1营收2769亿元，同比+55%，归母净利432.8亿元，同比+42%，扣非净利390.1亿元，同比+43%...",
+      "summary": "",
+      "source": "新兴产业汇",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcync0898544.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "c979bb37e303c1fc31b241298ecde1ca",
+      "time": "1785072692",
+      "date": "2026-07-26",
+      "title": "SHEIN通过上市聆讯：年营收418亿美元 IDG与红杉是股东 将成今年港股最大跨境电商IPO",
+      "intro": "来源：雷递 雷递网 雷建平 7月26日 希音（SHEIN）今日通过上市聆讯，准备在港交所上市。希音两周前获IPO备案，拿到上市的钥匙。 若顺利在港交所挂牌...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/newstock/2026-07-26/doc-inikcymz0285830.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "802908c54b44f8f3fdee24bea666948b",
+      "time": "1785071648",
+      "date": "2026-07-26",
+      "title": "10派65.6元！A股又现大手笔分红",
+      "intro": "7月26日晚，山西汾酒公告称，公司2025年年度权益分派方案已获股东会审议通过，以总股本1219964222股为基数，每10股派发现金红利65．6元（含税），共计派发现金红利约80...",
+      "summary": "",
+      "source": "中国证券报",
+      "url": "https://finance.sina.com.cn/stock/marketresearch/2026-07-26/doc-inikcymu8580353.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "233762e23f9e38ef7c7b0accff124bc2",
+      "time": "1785071370",
+      "date": "2026-07-26",
+      "title": "2连板顺钠股份：股票交易异常波动",
+      "intro": "新京报贝壳财经讯 7月26日，顺钠股份公告称，公司股票连续两个交易日收盘价格涨幅偏离值累计达22.71%，属于股票交易异常波动。公司依托在变压器及配电设备领域的长期技术积...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcymx3503995.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "3085d4525bf2e71c117e672dc1bbfae7",
+      "time": "1785068580",
+      "date": "2026-07-26",
+      "title": "长鑫科技明日上市，打新收益引关注",
+      "intro": "科创板史上最大IPO即将“登场”！根据安排，7月27日，国产DRAM龙头企业长鑫科技(688825)将鸣锣上市，公司上市首日的打新收益情况也成为投资者关注的焦点。",
+      "summary": "",
+      "source": "北京商报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcuef0965030.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "65037de7dabbf224abd2f9500ef19e12",
+      "time": "1785065599",
+      "date": "2026-07-26",
+      "title": "希音披露聆讯后资料集：2025年营收418亿美元，业务覆盖约160个市场",
+      "intro": "7月26日晚间消息，希音（SHEIN）向港交所披露聆讯后资料集。若顺利挂牌，将成为2026年港股最大的跨境电商IPO。2025年，希音实现总收入418亿美元...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-07-26/doc-inikcucz3580149.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "cab24c40ac1b74bb06a7caf680f36c88",
+      "time": "1785064920",
+      "date": "2026-07-26",
+      "title": "斥资不超20亿元！小市值算力租赁概念股子公司拟采购服务器及配套设备为客户提供算力服务|盘后公告集锦",
+      "intro": "今日聚焦【亿田智能：子公司拟不超20亿元采购服务器及配套设备为客户提供算力服务】亿田智能(300911.SZ)公告称，公司全资子公司甘肃亿算拟向多家供应商采购服务器及配套设...",
+      "summary": "",
+      "source": "财联社",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-07-26/doc-inikcuec0355938.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "通信"
+      ],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "47988f08517219f127a2354ed2a1c431",
+      "time": "1785059613",
+      "date": "2026-07-26",
+      "title": "总市值低于3亿！*ST元道提示终止上市风险！",
+      "intro": "来源：资本秘闻 7月26日晚间，*ST元道披露公告称，公司股票可能存在因市值低于3亿元被终止上市的风险。 公告显示，7月24日，公司股票收盘价为2.39元/股，收盘市值为2...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcpwi0992333.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "73e76fd3d7b5c93c3eff8232823fd404",
+      "time": "1785057690",
+      "date": "2026-07-26",
+      "title": "云豹智能冲刺IPO，三年亏损近25亿，9成以上收入依赖腾讯",
+      "intro": "来源：尺度商业 文 | 董武英 编辑 | 刘振涛 近年来，随着AI的迅速发展，市场对AI硬件的关注逐渐从算力芯片转向存储再到内外部传输速度...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcpvy8685542.shtml",
+      "channel": "international",
+      "categories": [
+        "监管动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能",
+        "通信"
+      ],
+      "importance": "low",
+      "tags": [
+        "AI",
+        "芯片"
+      ]
+    },
+    {
+      "id": "d88875260607f47577e53f23ebeb1668",
+      "time": "1785057235",
+      "date": "2026-07-26",
+      "title": "市值首次跌破3亿元！301139提示可能“被终止上市”风险",
+      "intro": " 7月24日，*ST元道（301139）继续走弱。截至当天收盘，*ST元道报2.39元/股，下跌0.17元，跌幅6.64%。伴随股价进一步下跌，*ST元道的总市值也跌破3亿元，至2.91亿元。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/s/2026-07-26/doc-inikcpwi0964053.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "49726a9854a7db6df0e2a46237fadc81",
+      "time": "1785028058",
+      "date": "2026-07-26",
+      "title": "中银国际：五矿资源重申“买入”评级 目标价调整至10.93港元",
+      "intro": "中银国际发布研报称，得益于Las Bambas和Dugald River矿山的强劲表现，五矿资源（01208） 2026年第二季度的铜、锌总产量分别按季增长7%和10%。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikasst1109069.shtml",
+      "channel": "international",
+      "categories": [
+        "大宗商品"
+      ],
+      "sectors": [
+        "有色金属"
+      ],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "3664301d561b462c650c74cad32609bb",
+      "time": "1785027979",
+      "date": "2026-07-26",
+      "title": "花旗：吉利汽车重申“买入”评级 目标价维持30港元",
+      "intro": "花旗发布研报称，重申吉利汽车（00175）“买入”评级，目标价维持30港元。 该行称，吉利已与福特签署协议，收购其位于西班牙华伦西亚已闲置的Body3厂房34%股权，涉资2...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikassr0683008.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "房地产"
+      ],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "b4fcd35eb42911949212a752976c1392",
+      "time": "1785027882",
+      "date": "2026-07-26",
+      "title": "瑞银：中国再保险升至“买入”评级 目标价上调至1.75港元",
+      "intro": "瑞银发布研报称，将中国再保险（01508） 投资评级由“中性”上调至“买入”，目标价由1.7港元上调至1.75港元，预测该公司上半年税后净利润将同比增长10%至69亿元人民币...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikassr0682116.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "d31a860b3fea9956a6a7085a5f093e80",
+      "time": "1785027816",
+      "date": "2026-07-26",
+      "title": "里昂：国泰航空升至“跑赢大市”评级 目标价上调至16.40港元",
+      "intro": " 里昂发布研报称，将国泰航空（00293）目标市账率倍数由1.41倍上调至1.61倍，目标价由13.5港元上调至16.4港元，评级由“持有”上调至“跑赢大市”。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikasst1105430.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "fc9e41f69d76516933ba26200ccc6152",
+      "time": "1785027735",
+      "date": "2026-07-26",
+      "title": "瑞银：周大福维持“买入”评级 目标价上升至16.50港元",
+      "intro": "瑞银发布研报称，将周大福（01929）2027至2029财年每股盈利预测上调0.1%，以反映近期毛利率压力与潜在对冲收益，目标价由16港元上调至16.5港元，维持“买入”评级。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikasst1104108.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "acc76d4168ae59974b3d49969bab8f0f",
+      "time": "1785027674",
+      "date": "2026-07-26",
+      "title": "里昂：周大福维持“持有”评级 目标价10.70港元",
+      "intro": "里昂发布研报称，周大福（01929）截至今年6月底止2027财年首季零售销售及同店销售增长保持韧性，内地及港澳市场零售值分别同比增长10.7%及44.8%，同店销售增长分别为19...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikassp3903379.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "9e79cf50bf5c8a0999e290e6ef09b88c",
+      "time": "1785027613",
+      "date": "2026-07-26",
+      "title": "大摩：威高股份目标价降至4.5港元 续予“与大市同步”评级",
+      "intro": "摩根士丹利发布研报称，将威高股份（01066） 026至28年的收入预测下调1至2%，以反映常规耗材业务持续面对带量采购（VBP）及竞争的逆风，以及近期政策对骨科业务的影响...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikassp3902843.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "b86b2e8b79de8e0a60932ddd2516bad0",
+      "time": "1785027560",
+      "date": "2026-07-26",
+      "title": "花旗：东方甄选重申“买入”评级 目标价维持33港元",
+      "intro": " 花旗发布研报称，目前重申东方甄选（01797）“买入”评级，目标价维持33港元。花旗表示正等待公司于8月21日公布的经审计业绩，届时将重新检视财务模型。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikassk8819930.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "502359f4551c2a5c10cec22cd025a542",
+      "time": "1785027456",
+      "date": "2026-07-26",
+      "title": "高盛：MiniMax-W重申“买入”评级 目标价860港元",
+      "intro": "高盛发布研报称，MiniMax-W（00100）的多模态策略为其关键差异化优势，H3模型已进入推出前最后阶段，预期即将面世，相信会对多模态行业格局带来深远影响...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikassp3901649.shtml",
+      "channel": "international",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "af7fa67977d3df07bae38cff7c492ac1",
+      "time": "1785027391",
+      "date": "2026-07-26",
+      "title": "里昂：联想集团重申“跑赢大市”评级 目标价维持36港元",
+      "intro": "里昂发布研报称，重申联想集团（00992）“跑赢大市”评级，目标价维持在36港元，并指其为中国科技板块的首选股票。 超微（SMCI.US）...",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikassp3901122.shtml",
+      "channel": "international",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "4d7d2addf94366e63637e90037755777",
+      "time": "1785027289",
+      "date": "2026-07-26",
+      "title": "小摩：首予英矽智能及晶泰控股“增持”评级",
+      "intro": "摩根大通发布研报称，首次覆盖英矽智能（03696） 及晶泰控股（02228）这两间中国人工智能新药研发（AIDD）公司，均予“增持”评级。",
+      "summary": "",
+      "source": "新浪港股",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkgg/2026-07-26/doc-inikassr0676893.shtml",
+      "channel": "international",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "low",
+      "tags": [
+        "人工智能",
+        "AI"
+      ]
+    }
+  ],
+  "market_data": {
+    "indices": [],
+    "topSectors": [],
+    "bottomSectors": [],
+    "_isWeekend": true,
+    "_date": "2026-07-26"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "period": "weekly",
+  "window": {
+    "start": 1783872000,
+    "end": 1784476799,
+    "startDate": "2026-07-13",
+    "endDate": "2026-07-19"
+  },
+  "collected_at": "2026-07-25T13:49:26.611Z",
+  "stats": {
+    "total": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "categories": {},
+    "sectors": {}
+  },
+  "news": [],
+  "market_data": {
+    "indices": [],
+    "topSectors": [],
+    "bottomSectors": []
+  }
+}

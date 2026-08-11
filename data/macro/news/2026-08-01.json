@@ -1,0 +1,3108 @@
+{
+  "period": "daily",
+  "window": {
+    "start": 1785513600,
+    "end": 1785599999,
+    "startDate": "2026-08-01",
+    "endDate": "2026-08-01"
+  },
+  "collected_at": "2026-08-02T08:15:29.573Z",
+  "stats": {
+    "total": 167,
+    "high": 38,
+    "medium": 116,
+    "low": 13,
+    "categories": {
+      "其他": 86,
+      "财政政策": 4,
+      "监管动态": 13,
+      "宏观数据": 3,
+      "行业动态": 11,
+      "货币政策": 6,
+      "国际财经": 34,
+      "地缘政治": 11,
+      "科技前沿": 21,
+      "大宗商品": 6
+    },
+    "sectors": {
+      "金融": 18,
+      "交通运输": 5,
+      "医药生物": 1,
+      "人工智能": 20,
+      "有色金属": 2,
+      "国防军工": 1,
+      "新能源汽车": 1,
+      "食品饮料": 5,
+      "房地产": 2,
+      "通信": 2,
+      "消费电子": 1,
+      "半导体": 2
+    }
+  },
+  "news": [
+    {
+      "id": "e791e1c129771c95ba4386c469d41481",
+      "time": "1785536269",
+      "date": "2026-08-01",
+      "title": "伊朗警告打击美以能源基础设施",
+      "intro": " 总台记者当地时间8月1日获悉，针对美国方面有关美国和以色列可能对伊朗基础设施发动袭击的消息，一名伊朗高级安全官员称，类似消息属“无稽之谈”。",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikufhk9052729.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "ebf12e14840312748ac9bd65c56775b0",
+      "time": "1785533331",
+      "date": "2026-08-01",
+      "title": "美官员称特朗普已下令对伊朗发动新一轮袭击",
+      "intro": " 央视记者当地时间7月31日获悉，美国官员表示，美国总统特朗普已下令对伊朗发动新一轮袭击，目的是迫使德黑兰方面投降。相关行动最早可能于本周末开始，并持续数天。",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktyyn9144639.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "25eb72f1caf656549015fb805cf49830",
+      "time": "1785585264",
+      "date": "2026-08-01",
+      "title": "四部门发文：严禁金融机构向股东利益输送，严查“靠金融吃金融”",
+      "intro": "21世纪经济报道 记者郭聪聪 7月31日，金融监管总局、中国人民银行、中国证监会、财政部联合发布《关于健全金融机构治理的实施意见》（金发〔2026〕4号）（下称《实施意见》...",
+      "summary": "",
+      "source": "21世纪经济报道",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvhuc3755986.shtml",
+      "channel": "international",
+      "categories": [
+        "财政政策",
+        "监管动态"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "b1556fb341fe22b9ab4b64da62bd6b37",
+      "time": "1785583320",
+      "date": "2026-08-01",
+      "title": "8700亿强平！韩国狂欢后剩“一地鸡毛”",
+      "intro": " 7月，韩国股市经历了最惨烈的一个月。韩国综合指数截至至7月30日跌幅高达34%，市值蒸发超过2473万亿韩元（约12万亿元）——这一数字几乎相当于韩国去年全年的GDP。",
+      "summary": "",
+      "source": "21世纪经济报道",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvhtw8798662.shtml",
+      "channel": "market",
+      "categories": [
+        "宏观数据"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "GDP"
+      ]
+    },
+    {
+      "id": "1c9fd22ea873bf8a64d833d6e7afc80c",
+      "time": "1785571286",
+      "date": "2026-08-01",
+      "title": "金融机构治理顶层新规重磅落地：差异化监管、搭防火墙、终身问责多管齐下",
+      "intro": " 针对金融行业存在的大股东无序干预、股权乱象、高管履职失范等治理顽疾，一份覆盖银行、证券、保险全业态的重磅机构治理顶层监管政策正式落地。",
+      "summary": "",
+      "source": "第一财经",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvamy8824864.shtml",
+      "channel": "international",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "0f2ad0d5b07cde80722203bd343be0e1",
+      "time": "1785569870",
+      "date": "2026-08-01",
+      "title": "涉财务造假，保健品第一股，将被ST",
+      "intro": " 7月31日晚，交大昂立（600530，股价4.99元，市值38.67亿元）披露，公司于当日收到中国证监会上海监管局（下简称上海证监局）下发的《行政处罚事先告知书》。",
+      "summary": "",
+      "source": "每日经济新闻",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikvanf3782818.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "dac7207f9bb330be3577adcae46c0474",
+      "time": "1785567720",
+      "date": "2026-08-01",
+      "title": "因涉嫌违反账户实名制规定，湘财证券、国盛证券被证监会立案",
+      "intro": "两家券商同日因涉嫌违反账户实名制相关规定被证监会立案。 7月31日晚间，湘财股份有限公司（下称“湘财股份”，600095）和国盛证券股份有限公司（下称“国盛证券”...",
+      "summary": "",
+      "source": "澎湃新闻",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikuwea8925322.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "597611baf5947bc552d43061d31c57ac",
+      "time": "1785555399",
+      "date": "2026-08-01",
+      "title": "韩股去杠杆：38天跌掉韩国一年GDP，122亿元资金被强平！学者怒批：盲目“美国化”",
+      "intro": "每经记者|高涵岳楚鹏每经编辑|王嘉琦 17.91%，韩国KOSPI指数创下历史最大单日涨幅！ 30%，SK海力士涨停！ 7月31日，韩国股市在跌跌不休后，迎来反弹。",
+      "summary": "",
+      "source": "每日经济新闻",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikurwe8950433.shtml",
+      "channel": "market",
+      "categories": [
+        "宏观数据"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "GDP"
+      ]
+    },
+    {
+      "id": "e424438cd48b411472b1c182b9db3176",
+      "time": "1785540206",
+      "date": "2026-08-01",
+      "title": "美联储“三鹰”释疑为何赞成加息，美债收益率飙升沃什还能扛多久？",
+      "intro": "提前加息能否防止高通胀在经济中固化。 当地时间周五，本周美联储货币政策会议上三位投反对票的公开市场委员会（FOMC）票委相继公开阐述他们反对继续保持利率不变的理由。...",
+      "summary": "",
+      "source": "一财网",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikufhk9063963.shtml",
+      "channel": "market",
+      "categories": [
+        "货币政策",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "加息",
+        "美联储"
+      ]
+    },
+    {
+      "id": "36f87994345a16dd039c491d15381f8d",
+      "time": "1785524444",
+      "date": "2026-08-01",
+      "title": "四部门联合发布22条措施，健全金融机构治理 严禁金融机构向股东及其关联方输送利益",
+      "intro": "◎记者 韩宋辉 金融监管总局、中国人民银行、中国证监会、财政部近日联合发布《关于健全金融机构治理的实施意见》（下称“意见”），从改进股东治理...",
+      "summary": "",
+      "source": "上海证券报",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-iniktusv4229524.shtml",
+      "channel": "market",
+      "categories": [
+        "财政政策",
+        "监管动态"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "4181404615f37264a8a2095264948d02",
+      "time": "1785585027",
+      "date": "2026-08-01",
+      "title": "证监会集中披露，7家券商收罚单",
+      "intro": "监管再度强化投行中介机构“看门人”责任，一批券商投行业务违规罚单集中落地。 7月31日，证监会官网一次性公示9份投行业务监管决定书...",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvhuf0536844.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态",
+        "行业动态"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "a10ef78d0c749e1b97d5994e3516a121",
+      "time": "1785575526",
+      "date": "2026-08-01",
+      "title": "邮政通报快递送到你床上事件：已对涉事网点立案调查，将依法作处罚",
+      "intro": "8月1日下午消息，今日，“送到你床上涉事邮政快递点被查”相关话题登上热搜。据广东一女子发帖反映，其要求中国邮政快递员送货上门...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/china/gncj/2026-08-01/doc-inikvani0605557.shtml",
+      "channel": "international",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "c4d806a3616b9ab19efa93c9244ab538",
+      "time": "1785570480",
+      "date": "2026-08-01",
+      "title": "3611户立案、59亿查补税款，直击医械企业“开票乱象”",
+      "intro": "财经杂志 以整治发票变造虚开为突破口，推动医疗器械行业加力纠治“带金销售” 文|《财经》记者 凌馨 编辑 | 王小 2026年7月28日，国家税务总局在国务院新闻办新闻发布会上披...",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/wm/2026-08-01/doc-inikvanc0433323.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态",
+        "行业动态"
+      ],
+      "sectors": [
+        "医药生物"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "eb7497f649fef719fddd3bffa4a0cfea",
+      "time": "1785565001",
+      "date": "2026-08-01",
+      "title": "达利欧重大判断：教科书式AI资产泡沫正在酝酿，80年一次“大周期”进入尾声",
+      "intro": "全球最大对冲基金桥水创始人瑞·达利欧（Ray Dalio）近日发出警告：典型的AI资产泡沫特征已经显现，叠加内部债务危机与外部地缘冲突...",
+      "summary": "",
+      "source": "智通财经APP",
+      "url": "https://finance.sina.com.cn/stock/hkstock/hkstocknews/2026-08-01/doc-inikuwem0661508.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "high",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "1f0fad735885162d2de0943cdf1c624e",
+      "time": "1785564588",
+      "date": "2026-08-01",
+      "title": "五大公募首席解读政治局会议：政策加大逆周期调节，资本市场重在提升韧性和信心",
+      "intro": " 【导读】“加大逆周期调节力度”“综合运用并适时调整货币政策工具”“提升资本市场韧性和信心”．．．．．．政治局会议重磅定调，五位公募首席解读来了",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/2026-08-01/doc-inikuwea8911566.shtml",
+      "channel": "market",
+      "categories": [
+        "货币政策"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "0b3ab5aa8e9bea3efee9baac84259b85",
+      "time": "1785562255",
+      "date": "2026-08-01",
+      "title": "印度央行：印度引资举措吸引超400亿美元外资",
+      "intro": " 印度积极吸引海外资本，自6月以来已引入资金超400亿美元，充实印度央行外汇储备。当前国际原油价格走高，印度政策制定者正借此稳定卢比汇率。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-inikuwea8876588.shtml",
+      "channel": "market",
+      "categories": [
+        "货币政策",
+        "宏观数据",
+        "国际财经",
+        "大宗商品"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "央行"
+      ]
+    },
+    {
+      "id": "37cae8acb8189a23323cbd71463625b0",
+      "time": "1785553430",
+      "date": "2026-08-01",
+      "title": "朱少醒加仓！新一批业绩大幅增长公司名单出炉！",
+      "intro": "文 |尚扬 本周，A股上演了热闹的“跷跷板”行情，硬科技与传统防御板块你来我往，震荡拉扯十分激烈。长鑫科技登陆科创板点燃科技热情，美联储偏鹰信号又引发资金出逃...",
+      "summary": "",
+      "source": "证券市场周刊",
+      "url": "https://finance.sina.com.cn/stock/marketresearch/2026-08-01/doc-inikurwp0721330.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经",
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "美联储"
+      ]
+    },
+    {
+      "id": "ed2cd9eb98e3811a324fc3e5e1f18d5e",
+      "time": "1785550933",
+      "date": "2026-08-01",
+      "title": "伊朗冲突推高各类商品价格：啤酒、涂料、炸薯条等消费品涨价",
+      "intro": "霍尔木兹海峡持续封锁带来的冲击，已经远超燃油价格，开始直接影响美国民众日常开支。多家企业表示，为对冲大宗商品与物流运费上涨压力，将上调炸薯条、啤酒、涂料...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-inikumqp4039289.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治",
+        "行业动态"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "b4e29f9f5046af83e219696a03de25c8",
+      "time": "1785545159",
+      "date": "2026-08-01",
+      "title": "美联储三名持异议官员表态：抗击通胀威胁需要加息",
+      "intro": "美联储周三投票维持利率不变，三名投反对票的官员警示，拖延对抗通胀，未来或将被迫实施更加激进的政策。 克利夫兰联储主席贝丝·哈马克周五发布声明表示：“高通胀持续的时...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-inikumqm0583766.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "加息",
+        "美联储"
+      ]
+    },
+    {
+      "id": "ed755593edd2aeac819fcbb4897cfa3d",
+      "time": "1785540212",
+      "date": "2026-08-01",
+      "title": "历史性干预 金融时报称美国政府周五抛欧元来买日元",
+      "intro": " 英国《金融时报》援引不具名知情人士报道称，美国财政部周五对日元汇兑市场实施了干预，也是近30年来东京和华盛顿首次通过直接买入日元的方式联手撑日本货币。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-inikufht0861829.shtml",
+      "channel": "market",
+      "categories": [
+        "财政政策",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "22f9c6ed1622e1797779fd13c12828f1",
+      "time": "1785537954",
+      "date": "2026-08-01",
+      "title": "报道：日本连续第二日干预汇市买入日元",
+      "intro": "日经报道称，日本政府和日本央行周五连续第二日干预汇市买入日元。 报道称，日本当局周五通过一系列操作进行了干预。 日经援引多位市场参与者报道称...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-inikufht0847679.shtml",
+      "channel": "market",
+      "categories": [
+        "货币政策",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "央行"
+      ]
+    },
+    {
+      "id": "f9094d4937edfd148d9d8e16f67ca99a",
+      "time": "1785535924",
+      "date": "2026-08-01",
+      "title": "CFTC：美联储决议前 交易员美元看涨押注升至2014年以来最高",
+      "intro": "美国商品期货交易委员会（CFTC）周五公布的数据显示，截至7月28日当周，非商业交易员的美元看涨押注增至492.3亿美元，为2014年以来最高水平。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyv0965076.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "美联储"
+      ]
+    },
+    {
+      "id": "fbd07100f294546c140b8fdfcf504c82",
+      "time": "1785535743",
+      "date": "2026-08-01",
+      "title": "大宗商品综述：油价上涨 铜价微跌 金价下挫",
+      "intro": "交易员权衡持续发酵的全球冲突，以及从波斯湾到黑海地区的供应威胁之际，原油录得3月份以来最大单月涨幅。铜价录得月度上涨，因为冶炼厂原材料短缺加剧了全球供应前景担忧...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyr0765341.shtml",
+      "channel": "market",
+      "categories": [
+        "大宗商品",
+        "地缘政治"
+      ],
+      "sectors": [
+        "有色金属"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "f63a2dc3124e7f618f1d9bf385ec5a3c",
+      "time": "1785535207",
+      "date": "2026-08-01",
+      "title": "8月1日外盘头条：特朗普称正对伊朗谈判代表失去信心 沃什考虑减少美联储会议次数 美石油巨头Q2利润激增",
+      "intro": "全球财经媒体昨夜今晨共同关注的头条新闻主要有： 1、特朗普称正对伊朗谈判代表失去信心 中东战事恐持续 2、沃什考虑减少美联储会议次数 3、Alphabet...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyt4178485.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "美联储"
+      ]
+    },
+    {
+      "id": "44dcac4dd30a8a30e2fc9514ca787883",
+      "time": "1785533730",
+      "date": "2026-08-01",
+      "title": "原油：油价录得3月份以来最大单月涨幅 伊朗战事持续发酵",
+      "intro": "交易员权衡持续发酵的全球冲突，以及从波斯湾到黑海地区的供应威胁之际，原油录得3月份以来最大单月涨幅。 布伦特交投最活跃的期货合约结算价上涨1.2%...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyv0949261.shtml",
+      "channel": "market",
+      "categories": [
+        "大宗商品",
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "ff8c466c718afe584d216112c2675c89",
+      "time": "1785533640",
+      "date": "2026-08-01",
+      "title": "报道：特朗普下令最早本周末对伊朗发动打击",
+      "intro": "周五报道称，美国总统唐纳德·特朗普已下令美军最早于本周末对伊朗发动新一轮袭击。 该报援引未具名美国官员的话称，这些打击旨在迫使德黑兰投降。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyt4166510.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "2af0f5f7a89a072ed9c90d2a8c9c6ae1",
+      "time": "1785533034",
+      "date": "2026-08-01",
+      "title": "沃什考虑减少美联储会议次数",
+      "intro": "据周五报道，美联储主席凯文·沃什在考虑减少美联储定期政策会议的频率。 报道还表示，沃什在本周联邦公开市场委员会（FOMC）会议上提出了调整会议频率的提议。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyr0741208.shtml",
+      "channel": "market",
+      "categories": [
+        "货币政策",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "美联储"
+      ]
+    },
+    {
+      "id": "9572c5358feeca110649d2e83ac7891c",
+      "time": "1785530248",
+      "date": "2026-08-01",
+      "title": "美国债市：美债承压下跌 欧债抛售叠加油价上涨",
+      "intro": "美国国债在早盘承压走低，油价上涨和欧洲债券收益率攀升加剧了美债跌势。期权市场需求也助长了债市看空情绪，9月到期的10年期美债看跌期权持续受到青睐...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyr0715855.shtml",
+      "channel": "market",
+      "categories": [
+        "财政政策",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "75b254f43245e830069873601df24ba0",
+      "time": "1785525731",
+      "date": "2026-08-01",
+      "title": "供应链传奇人物蒂姆-库克终于遇上难题——苹果的内存危机",
+      "intro": "苹果正面临因人工智能热潮而加剧的零部件短缺问题，公司正在紧急寻求解决方案 苹果股价周五交易中暴跌10%。 在苹果近三十年的职业生涯中...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktusv4239087.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "high",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "f17264f1311189e8fc4cb58123f28090",
+      "time": "1785525382",
+      "date": "2026-08-01",
+      "title": "加拿大政府批准安大略省北部大型镍矿项目，系渥太华推进重大项目建设的一部分",
+      "intro": " 加拿大政府已批准开发一个有望成为西方世界最大镍矿的项目，这是渥太华加快重大项目审批、以期提振经济并应对美国关税压力举措的一部分。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktusv4236633.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [
+        "有色金属"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "0c9101730e28c46f83c4b30afddf82b5",
+      "time": "1785525121",
+      "date": "2026-08-01",
+      "title": "沃什领导下的美联储未能坚持良好货币政策的原则",
+      "intro": "债券投资者不明白，美联储主席凯文·沃什关于恢复价格稳定的承诺，与利率政策上的不作为如何能并行不悖。 美联储主席凯文·沃什在货币政策上的含糊其辞...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktust0793288.shtml",
+      "channel": "market",
+      "categories": [
+        "货币政策",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "美联储"
+      ]
+    },
+    {
+      "id": "4e10c06fb05bee20afa9bd4ff4e984d6",
+      "time": "1785524932",
+      "date": "2026-08-01",
+      "title": "特朗普称美国“尚未同意”授予乌克兰“爱国者”导弹生产许可",
+      "intro": " 美国总统唐纳德·特朗普周五表示，美国“尚未同意”授予乌克兰生产“爱国者”导弹系统的许可，这显然是在基辅对抗俄罗斯战争的首要优先事项上出尔反尔。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktust0791117.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [
+        "国防军工"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "51f98c90c6e506744698239a13e37ebb",
+      "time": "1785524549",
+      "date": "2026-08-01",
+      "title": "分析：市场听到的是鸽派沃什，但他自己的话却暗示可能加息",
+      "intro": "美联储主席凯文·沃什周三言论的普遍解读是，他将对通胀采取宽松态度。据此推高债券收益率的投资者应当谨慎。 仔细审视他的措辞，沃什可能并不像外界普遍认为的那样鸽派。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktusq9183348.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "加息",
+        "美联储"
+      ]
+    },
+    {
+      "id": "80c4ef43e7564329b1f9d3e3284b64b7",
+      "time": "1785522741",
+      "date": "2026-08-01",
+      "title": "特朗普称正对伊朗谈判代表失去信心 中东战事恐持续",
+      "intro": " 美国总统唐纳德·特朗普表示，他正对伊朗谈判代表失去信心。这一最新表态显示，中东再度爆发的武装冲突可能会拖延下去。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyr0712631.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "ef272808681a09e8c01298f23ef3f1bd",
+      "time": "1785515296",
+      "date": "2026-08-01",
+      "title": "中东战争推高油价 美石油巨头埃克森美孚与雪佛龙Q2盈利达265亿美元",
+      "intro": "受特朗普政府对伊朗开战推高原油与汽油价格影响，埃克森美孚与雪佛龙二季度合计盈利达到265亿美元。 美国两大石油巨头于周五公布这笔巨额暴利，投资者对此一片欢欣...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqkv0819040.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经",
+        "大宗商品",
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "47e93ea814831b3cca0a908a1b7b971c",
+      "time": "1785513815",
+      "date": "2026-08-01",
+      "title": "特朗普：伊朗处境糟糕 在谈判中不诚实",
+      "intro": "美国总统特朗普表示，伊朗在谈判中“非常不诚实”。 特朗普在戴维营举行的内阁会议上表示，伊朗的情况“非常糟糕”并且在战争中“处境艰难”。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqkv0803167.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "9be06474e8714a6d282ee30c23eb785d",
+      "time": "1785513600",
+      "date": "2026-08-01",
+      "title": "加息交易降温 美元指数震荡",
+      "intro": "● 本报记者 葛瑶 美元近期再度转弱。7月28日至30日，美元指数连续三个交易日下跌，累计跌逾1.5%，并失守100点关口。7月31日，美元指数小幅反弹，盘中重新站上100点关口...",
+      "summary": "",
+      "source": "中国证券报-中证网",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikufhr4057475.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": [
+        "加息"
+      ]
+    },
+    {
+      "id": "1d054f25843f025020a7648ba0c47a9e",
+      "time": "1785513600",
+      "date": "2026-08-01",
+      "title": "2025年地方养老基金投资收益率5.76% 社保基金会：坚定看好中国经济发展前景",
+      "intro": "● 本报记者 昝秀丽 全国社会保障基金理事会8月1日发布的《基本养老保险基金受托运营年度报告（2025年度）》显示，地方养老基金2025年投资收益额1420.71亿元，投资收益率5...",
+      "summary": "",
+      "source": "中国证券报-中证网",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikufhr4057453.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "530ff596aa9136c5683d7b0d686b82b3",
+      "time": "1785599516",
+      "date": "2026-08-01",
+      "title": "美政府建议中东地区美国公民做好撤离准备",
+      "intro": " 当地时间8月1日，美国国务院向身处中东地区的美国公民发出广泛安全警告，建议他们“考虑离开当地，或做好在局势升级时迅速撤离的准备”。",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikvtiv0248630.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "87d47cb4c7502c0582d4c97080d31c49",
+      "time": "1785599037",
+      "date": "2026-08-01",
+      "title": "美军称已部署一架重型运输直升机至中东地区",
+      "intro": "当地时间8月1日，美国中央司令部表示，一架美国陆军CH-47“支奴干”运输直升机准备在中东地区降落。 据悉，CH-47“支奴干”是一款重型运输直升机...",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikvtiz5752599.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f92868b898651cad0f2d388e9df565da",
+      "time": "1785581819",
+      "date": "2026-08-01",
+      "title": "美财长“小纸条”是意外曝光还是故意放风？",
+      "intro": " 7月31日，路透社发布了一张当日拍摄于戴维营美国内阁会议上的照片。照片显示，美国财长贝森特的桌签下，有一份手写的“待办事项”：购入价值50亿至100亿美元的日元。",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikvhtw8788983.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "30baf6213cd0558e2b2e317c808ad45b",
+      "time": "1785549540",
+      "date": "2026-08-01",
+      "title": "持之以恒推进全面从严治党 推动经济持续向新向优向好发展",
+      "intro": "央视网消息（焦点访谈）：中共中央政治局7月30日召开会议，决定今年10月在北京召开中国共产党第二十届中央委员会第五次全体会议，主要议程是...",
+      "summary": "",
+      "source": "央视新闻客户端",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikumqr0816045.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d2c34d01df741729ab333d533b41a594",
+      "time": "1785530599",
+      "date": "2026-08-01",
+      "title": "美中央司令部：已改变30艘商船航行路线",
+      "intro": "△霍尔木兹海峡（资料图）当地时间7月31日，美国中央司令部表示，截至当天，中央司令部已改变30艘商船的航行路线，使2艘船只失去行动能力，并登船检查2艘...",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktyyv0934017.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "97c4459dcaf6e47eaa1d4555d5b47726",
+      "time": "1785529973",
+      "date": "2026-08-01",
+      "title": "胡塞武装宣布继续封锁沙特船只 已使8艘油轮改道",
+      "intro": "△也门胡塞武装发言人叶海亚（资料图）当地时间7月31日，也门胡塞武装发言人叶海亚在社交媒体发文称，在巩固“以封锁回应封锁”方针、并落实对沙特实施海上禁运措施的框架下...",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktyyn9128641.shtml",
+      "channel": "market",
+      "categories": [
+        "地缘政治"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "86b1cb31d6421900dfedb68d4fc8a3b7",
+      "time": "1785521553",
+      "date": "2026-08-01",
+      "title": "美军一架F-35隐形战机发生事故并起火 飞行员弹射",
+      "intro": "央视记者当地时间7月31日获悉，美国加州圣迭戈米拉玛海军陆战队航空站基地一架美军F-35隐形战斗机当日发生事故并起火，现场升起大量黑烟。",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktusq9188924.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d71131d5bb4abb10f2274a9188a3c5dc",
+      "time": "1785520720",
+      "date": "2026-08-01",
+      "title": "意法德多国采取措施 应对西班牙飞地移民危机",
+      "intro": "当地时间7月31日，西班牙内政部表示，自本轮移民危机开始以来，共有5万名非法移民进入该国飞地休达，其中4.83万人已自愿返回摩洛哥，目前仍有不足2000人滞留当地。",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktusq9197313.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "b11a10bc7270c236e14bafa378061bec",
+      "time": "1785515039",
+      "date": "2026-08-01",
+      "title": "特朗普否认允许乌克兰生产“爱国者”拦截弹",
+      "intro": "△特朗普（资料图）当地时间7月31日，美国总统特朗普在内阁会议上对媒体表示，美国并未同意由乌克兰生产“爱国者”防空系统拦截弹。",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktusq9197324.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "aa1817370134fef53f52ddd7ee8529e6",
+      "time": "1785514306",
+      "date": "2026-08-01",
+      "title": "伊朗称已关闭霍尔木兹海峡 美中央司令部否认",
+      "intro": "当地时间7月31日，美军中央司令部表示，“伊朗政府再次声称已关闭霍尔木兹海峡，这是不实的消息”。美军中央司令部称，“霍尔木兹海峡对于商船通行依然保持开放。",
+      "summary": "",
+      "source": "央视",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktqkx4291424.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1d0a685c1e8316dd5ad289c3838bd7cb",
+      "time": "1785587023",
+      "date": "2026-08-01",
+      "title": "一家新设公司、两笔神秘借款、三个关键角色：亚太实业“摘帽”迷局",
+      "intro": "每经记者|彭斐吴泽鹏每经编辑|陈俊杰 2026年6月1日，“*ST亚太”摘帽，更名“亚太实业”（000691.SZ）。这家被退市风险警示压了一年多的公司...",
+      "summary": "",
+      "source": "每日经济新闻",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvnzx0293129.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "bb968999a986c202e328fbbe17b1eddc",
+      "time": "1785581686",
+      "date": "2026-08-01",
+      "title": "4天夭折！因凡蒂诺对国际足联的“资本化狂想曲”输在哪里？",
+      "intro": "这份“有违祖训”的提案不仅冲击了各国足联的短期利益，也引起了全球足坛对资本化、透明度和公平性的强烈质疑。 在巨大的反对声浪下...",
+      "summary": "",
+      "source": "一财网",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvhuf0521592.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "bef71db256715592dac23d7da8a98580",
+      "time": "1785581599",
+      "date": "2026-08-01",
+      "title": "科创板7月深度回调背后：券商跟投高额浮盈明显缩水",
+      "intro": "每经记者|王海慜每经编辑|赵云 刚过去的7月份，科创板遭遇了一轮深度调整，也直接压缩了券商跟投收益，此前年内的高额跟投浮盈出现快速缩水。",
+      "summary": "",
+      "source": "每日经济新闻",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvhtw8782515.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5f11a876d70418c103159d31edcc9ff6",
+      "time": "1785578147",
+      "date": "2026-08-01",
+      "title": "新势力车企7月销量分化加剧：10万、3万及其他",
+      "intro": "竞争格局加速分化。 8月1日，多家造车新势力相继交出7月成绩单，新势力市场的分化趋势进一步加剧。 7月是传统的销售淡季，但零跑汽车单月销量破10万辆...",
+      "summary": "",
+      "source": "一财网",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvhtz0358605.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "新能源汽车"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "4d3ce0ea527c16fd0ea34c5be6a1310c",
+      "time": "1785572520",
+      "date": "2026-08-01",
+      "title": "ChinaJoy“AI含量”拉满，但AI游戏爆款仍是悬念",
+      "intro": "界面新闻记者 | 程璐界面新闻编辑 | 文姝琪 一位独立开发者，5天时间，只花了十几块钱的API调用费，做出一款推理游戏。 这款名为《积案拂尘》的游戏拿下了BOOOMJam游戏创作...",
+      "summary": "",
+      "source": "界面",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikvamy8835630.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "8e78a108bc8f9fe8f588a75d4560eead",
+      "time": "1785570240",
+      "date": "2026-08-01",
+      "title": "7月主力净流出前20股：兆易创新遭抛售近400亿元居首",
+      "intro": " 7月市场行情突变，受外围因素影响，多个指数出现明显回撤，创业板指与科创50承压明显。许多科创股告别此前急速拉升行情，开启大幅下跌通道，主力资金获利兑现意愿强烈。",
+      "summary": "",
+      "source": "21世纪经济报道",
+      "url": "https://finance.sina.com.cn/stock/bxjj/2026-08-01/doc-inikvamy8818984.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9d467db2831ff3c04411182d8e3a9dff",
+      "time": "1785570026",
+      "date": "2026-08-01",
+      "title": "白酒开盖后二次塑封售卖？山东红太阳酒业集团：系终端商店误销售",
+      "intro": "8月1日，山东红太阳酒业集团发布声明称，公司至今未接到“苏先生”的正式投诉、更不存在其所谓的“联系厂家维权未果”。案涉白酒系终端商店误销售的已经开盖的白酒...",
+      "summary": "",
+      "source": "界面",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikvanf3782888.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "食品饮料"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "b71ff854aba4b24ec35a06be46f3d923",
+      "time": "1785569870",
+      "date": "2026-08-01",
+      "title": "几十元每月上百G，大流量卡“大撤退”！不少人连夜抢购，谁在为“增量不增收”买单？",
+      "intro": "“下个月就全部下架了”“8月起部分套餐不能激活了”⋯⋯7月的最后几天，线上大流量卡将于8月下架的消息在线上经销商和消费者之间传递。",
+      "summary": "",
+      "source": "每日经济新闻",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikvanf3783566.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3593fef88d81ba92177206d9ce6db387",
+      "time": "1785561000",
+      "date": "2026-08-01",
+      "title": "个人贷款成本上限相差4倍！广东银行陆续公示个人贷款综合成本",
+      "intro": "南方财经见习记者孙月 苏磊 记者王达毓 8月1日，由国家金融监督管理总局、中国人民银行联合印发的《个人贷款业务明示综合融资成本规定》（以下简称《规定》）正式施行...",
+      "summary": "",
+      "source": "21世纪经济报道",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikuwei3858048.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "fd7e2b3e8a88dce4d10715da08172462",
+      "time": "1785558757",
+      "date": "2026-08-01",
+      "title": "摩根士丹利邢自强：AI投资“半场休息”，下半场逻辑已变",
+      "intro": "“本轮A股出现的波动，是全球AI科技共振的一个缩影，并非源于A股自身或国内经济基本面突然出现拐点性变化。”在7月30日举行的媒体沟通会上...",
+      "summary": "",
+      "source": "澎湃新闻",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikurwp0752604.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "17ec0a86414df0e86c0f4a3881d8598a",
+      "time": "1785557932",
+      "date": "2026-08-01",
+      "title": "透明化VS看不懂，银行理财业绩“换锚”后的AB面",
+      "intro": "透明化VS看不懂，银行理财业绩“换锚”后的AB面 银行理财产品的业绩展示方式迎来新变化。 近期，包括中邮理财、民生理财、华夏理财和兴银理财在内的多家理财公司密集发布公告...",
+      "summary": "",
+      "source": "21世纪经济报道",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikurwe8971904.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1e71866f551e0e0c8611352b99d57f64",
+      "time": "1785557700",
+      "date": "2026-08-01",
+      "title": "近20万亿科技巨头，股价飙涨！云计算概念，机构抄底这些股",
+      "intro": "云计算已从传统IT基础设施，升级为人工智能业务运行的核心支撑底座。 亚马逊云业务增速超市场预期 美国当地时间7月30日，亚马逊公布2026年第二季度财报...",
+      "summary": "",
+      "source": "证券时报",
+      "url": "https://finance.sina.com.cn/stock/zqgd/2026-08-01/doc-inikurwp0745841.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "da76eb3720f91dfb8eaa18c16aebfa2e",
+      "time": "1785557624",
+      "date": "2026-08-01",
+      "title": "敢跌就敢买！7月超4600亿元资金借道ETF进场扫货，这些板块最被看好（附名单）",
+      "intro": " 7月A股主要指数集体收跌，整体呈现震荡调整的走势。双创指数均跌超20%，深成指、中证500等跌超15%，上证50指数跌幅较小。",
+      "summary": "",
+      "source": "每日经济新闻",
+      "url": "https://finance.sina.com.cn/money/fund/2026-08-01/doc-inikuwea8913677.shtml",
+      "channel": "market2",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "af5ec7c2383b32c7a4671266c4ac31a3",
+      "time": "1785553266",
+      "date": "2026-08-01",
+      "title": "长鑫科技LPDDR6接近研发验证尾声",
+      "intro": "业内已经在加速向LPDDR6迭代。 8月1日，行业人士向第一财经记者透露，长鑫存储的LPDDR6（第六代低功耗双倍数据速率内存标准）已接近研发验证尾声，这是量产前的重要一步。",
+      "summary": "",
+      "source": "一财网",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikurwi0534425.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d962799768856e092972ba6a58796db2",
+      "time": "1785550407",
+      "date": "2026-08-01",
+      "title": "券商收到通知！交易所行情接入，重要调整！影响多大？",
+      "intro": "交易所交易行情接入方式迎来重要调整。 据了解，多家券商近期已陆续收到通知，交易所托管机房内交易行情接入方式将统一由局域网切换为广域网...",
+      "summary": "",
+      "source": "券商中国",
+      "url": "https://finance.sina.com.cn/stock/zqgd/2026-08-01/doc-inikumqp4036713.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [
+        "金融",
+        "房地产"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "aa796bf0aa4df5460c914b2dd94edafc",
+      "time": "1785546329",
+      "date": "2026-08-01",
+      "title": "22座省会城市半年成绩单出炉，合肥增速居首",
+      "intro": "记者丨于长洹 编辑丨李果，丁海利 截至7月31日，27座省会城市中，除福州、太原、哈尔滨、呼和浩特和兰州外，其余22座城市已公布上半年经济数据。",
+      "summary": "",
+      "source": "21世纪经济报道",
+      "url": "https://finance.sina.com.cn/china/2026-08-01/doc-inikumqm0602091.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "052f211614c6f2a02b17d6ba2a6221c5",
+      "time": "1785542280",
+      "date": "2026-08-01",
+      "title": "7月最牛股，停牌！下周37股面临解禁（附股）",
+      "intro": "下一周解禁市值233.69亿元。 7月31日晚间，爱丽家居（603221）公告称，因公司股票自2026年7月21日至7月31日连续9个交易日涨停，累计涨幅达135.77%...",
+      "summary": "",
+      "source": "证券时报",
+      "url": "https://finance.sina.com.cn/stock/zqgd/2026-08-01/doc-inikufhk9083307.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "7c69d78fe6670706eedfaed79eb6410a",
+      "time": "1785524446",
+      "date": "2026-08-01",
+      "title": "市值最高突破4万亿元 长鑫科技引发跨领域卖方研究热潮",
+      "intro": "◎记者 徐蔚 上市第5个交易日，国产存储龙头长鑫科技盘中涨幅一度超过14%，股价最高触及60.60元/股，总市值首次突破4万亿元，稳坐A股总市值头把交椅。",
+      "summary": "",
+      "source": "上海证券报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-08-01/doc-iniktusx1011533.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "841b36bae4c4e835c6924d59bee4534d",
+      "time": "1785524446",
+      "date": "2026-08-01",
+      "title": "37只配置型基金待发 满足求稳资金需求",
+      "intro": "◎记者 朱妍 随着市场波动加剧，追求稳健收益的资金不断涌向配置型产品。数据显示，今年7月成立的FOF、二级债基数量达近百只，在新成立基金中占比近七成...",
+      "summary": "",
+      "source": "上海证券报",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-iniktust0785767.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ec521faa6dc872f65d2a9ab9840ba4d4",
+      "time": "1785518158",
+      "date": "2026-08-01",
+      "title": "港股食品饮料板块极致分化 暴涨数倍与沦为“仙股”并存",
+      "intro": "证券时报记者 钟恬 近期，港股食品饮料板块极致分化。一边是细分零食赛道新股上演暴涨神话，齐云山食品上市不足一个月股价飙升逾七倍...",
+      "summary": "",
+      "source": "证券时报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktqks9245985.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [
+        "食品饮料"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "598b62974092eebabbfd6ed152ffec14",
+      "time": "1785518156",
+      "date": "2026-08-01",
+      "title": "资金再平衡驱动 港股7月领涨全球",
+      "intro": "证券时报记者 胡华雄 王军 与全球其他股票市场相比，近期的港股市场显得尤为强势。今年7月，港股市场最具代表性的指数——恒生指数累计上涨13.13%，在全球主要股指中领先。",
+      "summary": "",
+      "source": "证券时报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktqkv0849614.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5ca069577a2cfb8b4f56f55a9817333c",
+      "time": "1785518156",
+      "date": "2026-08-01",
+      "title": "超170家机构调研中际旭创 光模块业务仍是关注焦点",
+      "intro": "证券时报记者 聂英好 本周（7月27日—31日）A股共计78家上市公司接受机构调研。约半数机构调研的公司本周股价上涨，其中传智教育周内实现4连板，累计涨46...",
+      "summary": "",
+      "source": "证券时报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktqkv0849608.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1f74d9d30fe6ab697c8298dfd6edb10f",
+      "time": "1785598324",
+      "date": "2026-08-01",
+      "title": "特朗普社交帖文开启付费抢先服务，月费十万美元引法律争议",
+      "intro": "美国总统特朗普在社交媒体发布的帖文将于周六开启付费服务。其旗下“真实社交”平台将向愿意支付费用的华尔街交易商提供帖文抢先阅览权限。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/7x24/2026-08-01/doc-inikvtis8634086.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0d15c374e10f0e34dcd3b4f671a977ff",
+      "time": "1785594858",
+      "date": "2026-08-01",
+      "title": "腾讯游戏\"AI全家桶\"亮相ChinaJoy 2026",
+      "intro": "新浪科技讯 8月1日晚间消息，近日，ChinaJoy展会开幕。 今年腾讯游戏展台，分为“游戏IP特展”、“AI游戏展区”以及“AI产品展区”三大区域。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/chanjing/gsnews/2026-08-01/doc-inikvtiv0214627.shtml",
+      "channel": "international",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "24106b1a9059e57015be662e33baca1a",
+      "time": "1785594202",
+      "date": "2026-08-01",
+      "title": "巨人网络ChinaJoy展台融入非遗傩戏元素",
+      "intro": "新浪科技讯 8月1日晚间消息，近日，ChinaJoy展会开幕。 巨人网络携旗下多款游戏亮相2026 ChinaJoy，参展阵容涵盖《超自然行动组》《征途》全系...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/chanjing/gsnews/2026-08-01/doc-inikvtiv0210598.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0851f43aceb626c0a25aa172e09df7fd",
+      "time": "1785593753",
+      "date": "2026-08-01",
+      "title": "Unity 亮相2026 ChinaJoy，展示AI全链路游戏增长解决方案",
+      "intro": "新浪科技讯 8月1日晚间消息，近日，ChinaJoy展会开幕。 Unity 广告业务部门 Unity Grow 集中展示以 AI 为核心的全链路游戏增长解决方案。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/chanjing/gsnews/2026-08-01/doc-inikvnzz3660235.shtml",
+      "channel": "international",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "5f4204612382f035383b1b79bba59766",
+      "time": "1785593579",
+      "date": "2026-08-01",
+      "title": "腾讯游戏《猫仙札》亮相2026 ChinaJoy，深度引入AI智能体，玩家可自由对话",
+      "intro": "新浪科技讯 8月1 日下午消息 本届ChinaJoy展会上，腾讯游戏携首款AI女性向叙事向RPG《猫仙札》亮相。据了解，《猫仙札》通过深度引入AI智能体，并结合多种休闲游戏...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/chanjing/gsnews/2026-08-01/doc-inikvnzz3659642.shtml",
+      "channel": "international",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "2ba5f80510969d5caab4ebd3c8bb8cfd",
+      "time": "1785593439",
+      "date": "2026-08-01",
+      "title": "REDMI K100 Pro系列定档8月11日，全新配色“赤霞珠红”ChinaJoy首秀",
+      "intro": "新浪科技讯 8月1日晚间消息，近日，ChinaJoy展会开幕。展会现场，REDMI正式宣布：REDMI K100 Pro系列提档至8月11日发布，REDMI K100 Pro...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/chanjing/gsnews/2026-08-01/doc-inikvpac0440999.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "887df3b053550adccd2d958fc749b72d",
+      "time": "1785591987",
+      "date": "2026-08-01",
+      "title": "半年报增速放缓，两大王牌告别高增长，东鹏饮料急需下一个支点",
+      "intro": "华夏时报 记者周梦婷 北京报道 东鹏饮料的业绩增速正持续放缓。2026年7月30日发布的半年报显示，上半年公司实现营收124.43亿元，同比增长15.89%；净利润28.67亿元...",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvnzu8726066.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "食品饮料"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "8fc66998c9206463b7235c870769c8f5",
+      "time": "1785591540",
+      "date": "2026-08-01",
+      "title": "7月上市新股盘点：首日平均涨幅286%，最高单签盈利近10万元",
+      "intro": "来源：财联社 财联社8月1日讯（编辑梓隆），7月，A股市场累计迎来14只新股上市，较6月的10只增加4只。至此，年内新股上市总数已达85只，月均接近12只。",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvnzu8723132.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "b44ae6576f60a990fcde89b225a4bf2b",
+      "time": "1785591000",
+      "date": "2026-08-01",
+      "title": "累计质押7.31亿股！华林证券控股股东密集融资，钱去哪了？",
+      "intro": "作者 |付影 来源 | 独角金融 一纸华林证券（002945.SZ）的股权质押公告，揭开控股股东深圳市立业集团持续质押的冰山一角。 7月31日，华林证券披露...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/stock/bxjj/2026-08-01/doc-inikvnzz3659590.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f9ebacdbf6ea36a671c1aa402438cb6f",
+      "time": "1785587890",
+      "date": "2026-08-01",
+      "title": "首批理财公司上半年成绩单出炉，含权类产品大增",
+      "intro": "7月31日，平安理财、杭银理财披露上半年理财业务报告，加上此前已披露上半年业绩的浦银理财、苏银理财、青银理财、浙银理财，首批理财公司交出上半年业绩答卷。",
+      "summary": "",
+      "source": "中国证券报-中证网",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikvnzu8698967.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "8331fe2530ecb53c6b1953157c9546bd",
+      "time": "1785587890",
+      "date": "2026-08-01",
+      "title": "5年期大额存单，1.6%！工行今日重启发行",
+      "intro": " 8月1日，中国证券报记者查询工商银行APP发现，该行今日起重新上架5年期大额存单，本次发行的两期产品年利率分别为1.60%和1.55%。",
+      "summary": "",
+      "source": "中国证券报-中证网",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikvpac0419966.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "4812c99b41dd60df8ee032623f422a94",
+      "time": "1785584733",
+      "date": "2026-08-01",
+      "title": "中宠兽与日本尼普洛达成全面战略合作",
+      "intro": "2026年8月1日，中宠兽经济发展（上海）有限公司（以下简称‘中宠兽’）与日本尼普洛株式会社（NIPRO）正式签署长期战略合作框架协议。",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/china/gncj/2026-08-01/doc-inikvhtz0408042.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3a030251cf182a402cf80926e4e1f5c7",
+      "time": "1785582208",
+      "date": "2026-08-01",
+      "title": "从 CDM 到 巴黎协定6.4 条：方法学这二十年，卷出了什么",
+      "intro": "新方法学获批之际，一个亲历者讲讲当年“卷王”CDM 的兴衰，和一张旧账本 联合国《巴黎协定》6.4 条机制监督机构，刚刚批准了一个新的可再生能源并网发电方法学：A6...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/china/gncj/2026-08-01/doc-inikvhuc3740867.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "4b5da0073e7052c45f540f822d9fc53c",
+      "time": "1785581305",
+      "date": "2026-08-01",
+      "title": "阶梯医疗：植入式脑机接口取得重要进展，已帮多位高位截瘫者重返职场",
+      "intro": "新浪科技讯 8月1日晚间消息，上海阶梯医疗科技有限公司（下称“阶梯医疗”）宣布，公司自主研发的微创植入式脑机接口技术帮助多名高位截瘫患者顺利从事电商物流协调...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/china/gncj/2026-08-01/doc-inikvhtw8780133.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9d0a1656c71366cb91f28a953db10d47",
+      "time": "1785580200",
+      "date": "2026-08-01",
+      "title": "高盛：7月砸穿拥挤交易，美股牛市没断但更难做了",
+      "intro": "华尔街见闻 7月美股指数表面稳如泰山，底层却遭遇惊心动魄的仓位大血洗。最拥挤的AI与动量交易惨遭去杠杆重锤，市场逻辑正从“狂热叙事”回归“真实回报”。",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/money/forex/forexroll/2026-08-01/doc-inikvhtz0375685.shtml",
+      "channel": "international",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "2942843a0fd373cec0850669adc56fb9",
+      "time": "1785577385",
+      "date": "2026-08-01",
+      "title": "OpenAI新模型Astra传闻升温：长时程Agent或成AI资本市场新叙事",
+      "intro": "在GPT-5.6系列模型降价后，OpenAI又传出新一代模型动向。 据The Information报道，OpenAI正准备推出一个暂定名为“Astra”的新模型系列...",
+      "summary": "",
+      "source": "智通财经APP",
+      "url": "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-08-01/doc-inikvhuc3709840.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "f449e9f3b35683ae43c63922a006789a",
+      "time": "1785572633",
+      "date": "2026-08-01",
+      "title": "多次仰拍裙底？ 国民动画《喜羊羊》新作频繁“擦边”，网友称违背儿童IP基调，回应称将合理优化",
+      "intro": "文 丨 《BUG》栏目 周文猛 21年前爆火全网的国民动画《喜羊羊与灰太狼》，正因新作创作设定陷入空前的“擦边”争议中。 近日，《喜羊羊与灰太狼之破界山海诀》上线播出...",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/china/gncj/2026-08-01/doc-inikvani0583669.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0dcb8b3e7d674ed4751a27de84a3d5b6",
+      "time": "1785572186",
+      "date": "2026-08-01",
+      "title": "阿里巴巴集团主席蔡崇信离婚：无出售阿里股份计划，职务不受影响",
+      "intro": "（来源：澎湃新闻） 8月1日消息，据报道，现年62岁的阿里巴巴集团主席、NBA篮网队及WNBA自由人队老板蔡崇信（JoeTsai）与妻子吴明华（ClaraWuTsai）宣布结束长达近30年的婚...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/t/2026-08-01/doc-inikvanf3799483.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9208475c8883d4b096719483adc7272d",
+      "time": "1785571800",
+      "date": "2026-08-01",
+      "title": "四大行陆续上架5年期大额存单，均为20万元起存",
+      "intro": "据央视财经消息，记者今天注意到，工商银行App显示已经上架两款5年期大额存单产品。该两款产品的起存点均为20万元起存，一款年利率为1.6%，另一款为1.55%...",
+      "summary": "",
+      "source": "新京报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikvanc0432862.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "23dcd25f6ebd7647a1d9df3ba387ad4d",
+      "time": "1785571260",
+      "date": "2026-08-01",
+      "title": "1,6-己二胺商品报价动态（2026-08-01）",
+      "intro": "生意社08月01日讯交易商品牌/产地交货地最新报价1，6-己二胺 160KG/桶，99.9%山东卓裕化工有限公司上海英威达山东省23000元/吨 （文章来源：生意社）",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/future/nyzx/2026-08-01/doc-inikvhtz0356120.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "430e9f795dc7fcf7ef0ce7f0bd014a45",
+      "time": "1785571260",
+      "date": "2026-08-01",
+      "title": "对甲基氯苄商品报价动态（2026-08-01）",
+      "intro": "生意社08月01日讯交易商品牌/产地交货地最新报价对甲基氯苄 纯度99%以上山东谦诚新材料有限公司国产山东省/聊城市20000元/吨 （文章来源：生意社）",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/future/nyzx/2026-08-01/doc-inikvhuf0493229.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ca7ffcb2fe4f7a8c487be41c9ee94b20",
+      "time": "1785571260",
+      "date": "2026-08-01",
+      "title": "乙二醛水溶液商品报价动态（2026-08-01）",
+      "intro": "生意社08月01日讯交易商品牌/产地交货地最新报价乙二醛水溶液 含量40%，包装250kg/桶山东卓裕化工有限公司金沂蒙山东省3600元/吨 （文章来源：生意社）",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/future/nyzx/2026-08-01/doc-inikvhtw8752465.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e657eea65477517ddd3310346c111082",
+      "time": "1785571260",
+      "date": "2026-08-01",
+      "title": "邻硝基乙苯商品报价动态（2026-08-01）",
+      "intro": "生意社08月01日讯交易商品牌/产地交货地最新报价邻硝基乙苯 含量99%山东谦诚新材料有限公司国产山东省/聊城市23元/千克 （文章来源：生意社）",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/future/nyzx/2026-08-01/doc-inikvhuc3711259.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ce965032dd0fdee41a426481b23f8ce7",
+      "time": "1785570587",
+      "date": "2026-08-01",
+      "title": "《喜羊羊与灰太狼》发文：相关动作和镜头的设计初衷并不存在主观刻意设置不当指向或引发观众不适联想的意图",
+      "intro": "8月1日，《喜羊羊与灰太狼》官方微博发文回应近期争议。全文如下： 致所有《喜羊羊与灰太狼》的观众朋友们： 感谢大家陪伴羊狼一起走过21年。",
+      "summary": "",
+      "source": "新京报",
+      "url": "https://finance.sina.com.cn/wm/2026-08-01/doc-inikvanc0423459.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "01542c7ee0c0897cb06738f546c14566",
+      "time": "1785569809",
+      "date": "2026-08-01",
+      "title": "蔡崇信离婚，影响几何？",
+      "intro": "《福布斯》截至2026年7月31日对蔡崇信个人净资产的实时估值约为125亿美元（约合844亿人民币）。 作者 | 徐赐豪 又一富豪婚变。 《科创板日报》记者今日获悉...",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikvani0561496.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "98a835f5391024a87a420179060aa0b2",
+      "time": "1785566881",
+      "date": "2026-08-01",
+      "title": "《凡人修仙传》推出XR体验环节，现场大量观众排队等待",
+      "intro": "新浪科技讯 8月1日下午消息，近日，2026 ChinaJoy举办。 在骁龙主题馆，骁龙与万维猫动画联手打造出《凡人修仙传》的沉浸式体验环节。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-01/doc-inikuwem0670546.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e69fff71706526d183b4daa7d5c9e9f7",
+      "time": "1785566432",
+      "date": "2026-08-01",
+      "title": "骁龙携第二代智能指环亮相2026 ChinaJoy",
+      "intro": "新浪科技讯 8月1日下午消息 2026 ChinaJoy展会现场，骁龙主题馆带来了第二代智能指环的首秀。新浪科技在现场看到，通过搭载骁龙平台的AR眼镜...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-01/doc-inikuwei3885948.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "8d44cd3900e0c5ce284d331fb7b16364",
+      "time": "1785565769",
+      "date": "2026-08-01",
+      "title": "四大行集齐！工商银行今日重启5年期大额存单发行，最高1.6%的一致定价意味着什么？",
+      "intro": " 今日上午，财联社记者登陆工商银行APP发现，工行今日起已经正式重启5年期大额存单的发行，两款产品年化分别为1.60%和1.55%。",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikuwei3883388.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3ab576924ca2d04019e8ccf9f0b61270",
+      "time": "1785564000",
+      "date": "2026-08-01",
+      "title": "便宜90%！美国企业偷偷换上中国大模型",
+      "intro": "（来源：陈俊明 中新经纬） 7月，美股芯片股跳水式暴跌迅速蔓延至韩国、日本等资本市场。韩国三星电子、SK集团与英伟达等美企签下近万亿美元的大单未能提振市场...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/china/gncj/2026-08-01/doc-inikuwea8892783.shtml",
+      "channel": "international",
+      "categories": [
+        "国际财经",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "大模型",
+        "芯片"
+      ]
+    },
+    {
+      "id": "0d8c9c0bdec2419486a8f4fd8f8572dd",
+      "time": "1785561993",
+      "date": "2026-08-01",
+      "title": "保时捷全球利润大涨33.9％，中国经销商却在关门闭店，谁在为“质大于量”买单？",
+      "intro": "华夏时报 本报（chinatimes.net.cn）记者刘杰 于建平 北京报道 7月29日，保时捷发布上半年财报。财报显示，保时捷营业利润同比增长33.9%至13.48亿欧元...",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikuwem0644281.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "fadbbd092ff3bfafcc3d78ae393fafec",
+      "time": "1785561960",
+      "date": "2026-08-01",
+      "title": "美日联手干预，美元周线砸出年内最大窟窿，日元空头正在经历一场屠杀",
+      "intro": "汇通财经APP讯——本周外汇市场回顾：周五收线，美元指数定格在99.788，周线录得1.69%的跌幅。这不是一次温和的回调，而是自1月底以来最猛烈的一轮单周抛售。",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/money/forex/hbfx/2026-08-01/doc-inikuwem0642654.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2aacce295b052b3c5f6786455715a3a8",
+      "time": "1785561299",
+      "date": "2026-08-01",
+      "title": "视频|散户精准套在山顶！东吴双动力一月跌近50%，从业绩前十沦为亏损冠军",
+      "intro": "",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/money/fund/2026-08-01/doc-inikuwei3855800.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "a9ce32c390d7a8935f7701de4a1c2b6b",
+      "time": "1785558059",
+      "date": "2026-08-01",
+      "title": "美国或出手支撑日元汇率，考虑购入价值50亿至100亿美元的日元",
+      "intro": "据路透社今天（8月1日）报道，一张于当地时间7月31日上午11点33分拍摄于戴维营美国内阁会议上的照片显示，美国财长贝森特的记事本上有一份“待办事项”清单...",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikurwe8974452.shtml",
+      "channel": "market2",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3c586046890f730fb8049fbe5968e386",
+      "time": "1785557910",
+      "date": "2026-08-01",
+      "title": "8月1日起“明白纸”替代“糊涂账” 多家银行标明贷款利率上限",
+      "intro": "8月1日起“明白纸”替代“糊涂账” 多家银行标明贷款利率上限 8月1日，《个人贷款业务明示综合融资成本规定》（以下简称《规定》）正式施行...",
+      "summary": "",
+      "source": "新京报",
+      "url": "https://finance.sina.com.cn/roll/2026-08-01/doc-inikurwe8971576.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "59b592f13b497194b5e30517675da7c3",
+      "time": "1785557160",
+      "date": "2026-08-01",
+      "title": "个人贷款新规今起施行 借钱需要注意什么？",
+      "intro": "经济日报 据工商银行、农业银行、中国银行、建设银行、邮储银行、交通银行等六大国有银行消息，根据《个人贷款业务明示综合融资成本规定》（金规〔2026〕2号）等相关要求...",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/china/gncj/2026-08-01/doc-inikurwp0743223.shtml",
+      "channel": "international",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "865d377b403232360a2bbadb3f1fb7bf",
+      "time": "1785556712",
+      "date": "2026-08-01",
+      "title": "老凤祥与《仙剑奇侠传》达成合作，携新品亮相2026 ChinaJoy",
+      "intro": " 8月1日消息，2026 ChinaJoy展会现场，老凤祥官宣与国民经典国风IP《仙剑奇侠传》达成深度联名合作，正式开启东方黄金珠宝品牌与经典国风仙侠IP的长期战略合作。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-01/doc-inikurwe8960051.shtml",
+      "channel": "industry",
+      "categories": [
+        "大宗商品"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e95861e9970e07f23d90e62cddff5001",
+      "time": "1785554248",
+      "date": "2026-08-01",
+      "title": "英国海军：周五阿曼附近海域一艘油轮遭弹体击中",
+      "intro": "英国海上贸易行动办公室收到报告，周五发生一起事故，一艘油轮被弹体击中。 公告显示，事发地点位于阿曼利马东北方向 11 海里处。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-inikurwi0541722.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9deed65b29b9e76c4eec274db86e16aa",
+      "time": "1785548426",
+      "date": "2026-08-01",
+      "title": "盒马拟出售旗下烘培公司55%股权 交易对价1.3亿元",
+      "intro": "新浪科技讯 8月1日上午消息，近日，“奶油第一股”海融科技发布公告，公司拟使用自有资金1.3亿元收购糖盒食品（昆山）有限公司（以下简称“糖盒食品”）55%股权。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-01/doc-inikumqm0620881.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "食品饮料"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "51d5812e18f2eab9dcd855959993dec4",
+      "time": "1785548407",
+      "date": "2026-08-01",
+      "title": "诺安基金换帅：夏宇接替李强出任董事长",
+      "intro": "8月1日，诺安基金发布公告称，公司董事长（法定代表人）由李强先生变更为夏宇先生。诺安基金表示，董事长履新属正常人事调整，不影响公司整体战略方向及旗下产品正常运作。...",
+      "summary": "",
+      "source": "新浪基金",
+      "url": "https://finance.sina.com.cn/money/fund/2026-08-01/doc-inikumqh9013270.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e57d5b0119ec491d03f17a29ee353e81",
+      "time": "1785547496",
+      "date": "2026-08-01",
+      "title": "11.81亿元！社保基金第一重仓方向曝光！",
+      "intro": "本报记者 田鹏 随着A股上市公司半年报披露工作有序推进，全国社保基金的调仓路径与持仓布局变化逐步清晰。据Wind数据统计，截至7月31日记者发稿...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/money/fund/2026-08-01/doc-inikumqh9007219.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2e6b9e5135f66689cdf56b78811b8512",
+      "time": "1785547099",
+      "date": "2026-08-01",
+      "title": "云幕智造携多款人形机器人亮相2026 ChinaJoy",
+      "intro": " 新浪科技讯 8月 1 日上午消息 在第二十三届ChinaJoy展会上，云幕智造携“YMBot H型 IP高仿真底盘皮肤人形机器人”和“YMBot 坐姿皮肤人形机器人”亮相。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-01/doc-inikumqp4006829.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d3caf8d61ac62ad430f5215d4981324e",
+      "time": "1785546558",
+      "date": "2026-08-01",
+      "title": "知情人士：OpenAI或将推迟至明年启动上市",
+      "intro": "点燃全球AI热潮的OpenAI，已经被竞争对手Anthropic赶超。如今，这家企业正奋力谋求翻盘。 OpenAI旗舰消费产品ChatGPT增长显著放缓。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-inikumqh8993740.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "c3ebd36ce495a48a5e88d588fb6748af",
+      "time": "1785545643",
+      "date": "2026-08-01",
+      "title": "五粮液普五八代五连阴 白酒大单品总价跌回近十天低点",
+      "intro": "新浪财经“酒价内参”过去24小时收集的数据显示，中国白酒市场主要大单品的终端零售总价8月1日低位微跌。如果主要单品各取一瓶整体打包售卖，今日总售价为9871元...",
+      "summary": "",
+      "source": "酒业内参",
+      "url": "https://finance.sina.com.cn/chanjing/jync/2026-08-01/doc-inikumqr0775820.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "食品饮料"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "8a3e756bc51b6064f310a1321c115635",
+      "time": "1785545433",
+      "date": "2026-08-01",
+      "title": "日元受干预行动提振上涨 消息称美日两国同步进场买入日元",
+      "intro": "周五美日两国当局持续出手托举日元，日元兑美元、欧元汇率涨幅均超1%。 知情人士透露，日本当局周五在纽约交易时段进场买日元、卖美元。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-inikumqh8982740.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9ca5ca5e444361d5c5d011e50537529d",
+      "time": "1785545262",
+      "date": "2026-08-01",
+      "title": "蔡崇信宣布离婚：和平分手，不涉及任何出售阿里巴巴股份的计划",
+      "intro": " 新浪科技讯 8月1日上午消息，据外媒报道，蔡崇信先生与吴明华女士决定友好地结束婚姻关系。这一决定由双方基于彼此尊重共同作出，未来双方将继续保持牢固的伙伴关系。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-01/doc-inikumqm0584817.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ddcae76d092b82d9cc762a7b052a1164",
+      "time": "1785543734",
+      "date": "2026-08-01",
+      "title": "雀巢咖啡1+2生椰拿铁新品上市，樊振东亮相助力焕新",
+      "intro": "8月1日，近日，雀巢咖啡1+2生椰拿铁新品上市发布会在北京举行。 当天，雀巢咖啡品牌代言人、中国乒乓球奥运冠军樊振东出席活动，共同参与“敲椰”上市仪式...",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/tob/2026-08-01/doc-inikufhp0700251.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "71d5a73facb6dade57822d0a4366b74d",
+      "time": "1785543617",
+      "date": "2026-08-01",
+      "title": "视频|“1.5万元机票仅退432元”最新进展：天价退票费全额退还了",
+      "intro": "",
+      "summary": "",
+      "source": "新华网",
+      "url": "https://finance.sina.com.cn/stock/2026-08-01/doc-inikufhr4106482.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2d08cce5c0740383cc7186bb6573cb8f",
+      "time": "1785541803",
+      "date": "2026-08-01",
+      "title": "财报虚假记载！002538、300831，双双被罚！",
+      "intro": "7月31日晚，ST司特（002538）、ST派瑞（300831）因财报虚假记载，双双收到《行政处罚决定书》。 ST司特涉嫌两方面违法 ST司特于7月30日收到安徽证监局出具的《行政处罚决定...",
+      "summary": "",
+      "source": "e公司",
+      "url": "https://finance.sina.com.cn/stock/zqgd/2026-08-01/doc-inikufhk9075941.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "10a86e8f87660420ee2ae3cb55a2007e",
+      "time": "1785541533",
+      "date": "2026-08-01",
+      "title": "OpenAI本周向美国决策者演示新模型系列Astra",
+      "intro": " 媒体援引三名听取过相关计划介绍的人士报道，OpenAI首席执行官Sam Altman本周在华盛顿向政策制定者和监管官员演示了该公司准备发布的新模型系列“Astra”。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-inikufht0870248.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "9119684eb8563728d2cf9e02e0c529c2",
+      "time": "1785540763",
+      "date": "2026-08-01",
+      "title": "霍尔木兹海峡，最新消息",
+      "intro": "伊朗称已关闭霍尔木兹海峡 美中央司令部否认 央视新闻客户端消息，当地时间7月31日，美军中央司令部表示，“伊朗政府再次声称已关闭霍尔木兹海峡，这是不实的消息”。",
+      "summary": "",
+      "source": "中国证券报-中证网",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikufhk9075719.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "47a3f4cfa71ca89c14dcf626670533be",
+      "time": "1785537392",
+      "date": "2026-08-01",
+      "title": "美国四大科技巨头竞逐AI 支出承诺总计超2万亿美元",
+      "intro": "数据中心竞赛中的四大巨头已承诺在未来几年内投入近2.4万亿美元，表明对人工智能基础设施的投资将继续大幅增加。 由于竞相建设数据中心，Alphabet Inc．...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-inikufht0844119.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能",
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "5d8b4d1cd4acc5c33dea7f435543f822",
+      "time": "1785536012",
+      "date": "2026-08-01",
+      "title": "报道：OpenAI发现其他AI智能体突破隔离的证据",
+      "intro": " 援引两名知情人士报道，OpenAI在扩大对Hugging Face遭入侵事件的调查过程中，发现了其他自主智能体突破隔离环境的案例。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyt4183714.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "6e482b5c6882a38d395f5eb7d7c1f092",
+      "time": "1785535738",
+      "date": "2026-08-01",
+      "title": "东兴证券、信达证券半年报亮相 中金公司“三合一”上半年归母净利润或达百亿元量级",
+      "intro": "本报记者于宏 A股上市券商半年报披露拉开帷幕。7月30日晚间，东兴证券、信达证券披露2026年半年报。作为行业重要并购重组案例——中金公司“三合一”中的两家主体，东兴证券...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktyyr0765349.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "da409318a877264430cd6c2a323c1323",
+      "time": "1785535738",
+      "date": "2026-08-01",
+      "title": "宽基ETF7月净流入超3200亿元 科创50、创业板强势吸金",
+      "intro": "本报记者彭衍菘 7月份，宽基ETF（开放式交易型指数基金）成为资金入市的重要通道。 Wind数据显示，截至发稿，7月份以来，全市场宽基ETF合计净流入3269.04亿元...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktyyv0963708.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "72b17349766e96322e9d275749929c28",
+      "time": "1785535730",
+      "date": "2026-08-01",
+      "title": "私募机构7月份密集自购传递信心",
+      "intro": "本报记者昌校宇 7月30日，两家私募机构同时发布自购公告，为近期持续升温的私募机构自购潮再添新例。 具体来看，海南无量私募基金管理有限公司（以下简称“海南无量资本”）...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktyyt4181627.shtml",
+      "channel": "market2",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0b8d4b35f530f5ef8d346740b8fea56e",
+      "time": "1785535728",
+      "date": "2026-08-01",
+      "title": "监管部门全链条严打财务造假 一个月9家公司被罚",
+      "intro": "本报记者郭之宸 近日，江西证监局对渔翁信息技术股份有限公司（以下简称“渔翁信息”）及相关责任人出具行政处罚决定书。经查，因渔翁信息2020年至2023年上半年连续财务造假...",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktyyn9161601.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2c0b99d21644e1234a050141332452fd",
+      "time": "1785535388",
+      "date": "2026-08-01",
+      "title": "新兴市场股市创2008年以来最大涨幅 结束动荡一周",
+      "intro": "新兴市场股市周五创近二十年来最大涨幅，结束了动荡的一周，收窄月度跌幅。韩国基准股指创纪录飙升。 MSCI新兴市场指数周五上涨6.6%，创2008年以来最佳单日表现...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyr0762617.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "fc1a9ae50b3b7862e8a0d4c760d91a35",
+      "time": "1785535142",
+      "date": "2026-08-01",
+      "title": "注销式回购潮涌 A股价值回报沃土渐丰",
+      "intro": "● 本报记者 黄灵灵近期，面对二级市场波动，A股涌现回购小高潮。与以往回购潮不同，今年以来，注销式回购热度攀升。以宁德时代为代表的百亿级注销式回购...",
+      "summary": "",
+      "source": "中国证券报-中证网",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktyyv0962506.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "030fc33ebde5d0b5f2f1697f3b9332a4",
+      "time": "1785533961",
+      "date": "2026-08-01",
+      "title": "美国股市：亚马逊大涨提振AI概念股 三大股指集体上扬",
+      "intro": "受亚马逊业绩强劲推动股价大涨15%影响，人工智能概念股普遍走强，标普500指数周五收高。 标普500指数上涨0.7%，以科技股为主的纳斯达克100指数上涨0.6%。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyr0751440.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "c897d2de21d78c5c52ab3ef112ca9755",
+      "time": "1785533587",
+      "date": "2026-08-01",
+      "title": "《蜘蛛侠：崭新之日》以7200万美元创北美预售票房纪录",
+      "intro": "蜘蛛侠已在票房上大显身手。 索尼与漫威出品的《蜘蛛侠：崭新之日》预售票房达7200万美元，创下好莱坞北美影史新高。此前纪录保持者为2019年的《复仇者联盟4：终局之战》...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyr0747395.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经",
+        "地缘政治"
+      ],
+      "sectors": [
+        "房地产"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9e9a0b00d305e8055376a6c5e8787a41",
+      "time": "1785532820",
+      "date": "2026-08-01",
+      "title": "8月1日美股成交额前20：亚马逊财报强劲股价大涨逾15%",
+      "intro": " 周五美股成交额第1名美光科技收跌5.90%，成交460.56亿美元。该股在本周累计下跌10.63%，在7月份下跌28.70%。不过今年迄今该股仍保有超过180%的涨幅。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktyyt4158961.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c771bc4c9000af5c09e17284e4cc777b",
+      "time": "1785530609",
+      "date": "2026-08-01",
+      "title": "美日协同支撑日元 汇市干预或迎来新常态",
+      "intro": " 美国与日本为支撑疲软日元而展开的协调似乎达到数十年来未有的紧密程度，两国在日均交易额达9.5万亿美元的全球外汇市场中联合击退抛售日元的力量。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyv0925343.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "13943bed5e9ba35837df3d23489de367",
+      "time": "1785530481",
+      "date": "2026-08-01",
+      "title": "日元走强 纽约联储就关键汇率向美国大型银行询价",
+      "intro": "随着市场对日本当局可能再次入市干预的猜测升温，日元周五上涨。 纽约交易时段，日元兑美元和欧元均一度上涨0.9%。两名知情人士称...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyt4142564.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "89e77ce513f72c49baa6c75c62690402",
+      "time": "1785530214",
+      "date": "2026-08-01",
+      "title": "纽约汇市：日元兑美元、欧元及几乎所有其他货币走强",
+      "intro": "日元兑十国集团几乎所有其他货币走强，包括美元和欧元。彭博美元指数周五基本持平。 美元/日元周五一度下跌0.9%，至158.17。周四，市场猜测日本出手干预以提振日元时...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyv0922662.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1c5507cbdc8e6a1fb17475f010cb3d29",
+      "time": "1785529816",
+      "date": "2026-08-01",
+      "title": "8月1日热门中概股多数上涨，阿里巴巴涨5.09%，京东涨2.17%",
+      "intro": "8月1日热门中概股多数上涨，纳斯达克中国金龙指数（HXC）收高1.47%。 上涨个股（按市值从高到低）：台积电涨0.23%，阿里巴巴涨5.09%，拼多多涨1.28%，网易涨1.04%...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktyyr0711145.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "6ee75e4e373a40a30f70cda873adbd93",
+      "time": "1785528615",
+      "date": "2026-08-01",
+      "title": "从巨亏366亿到日赚3亿 长鑫科技是怎么炼成的？",
+      "intro": "本版文章由中经记者吴清采写 编者按/ 7月27日，万众瞩目下，长鑫科技（688825.SH）以49.50元/股的价格跳空高开，较8.66元/股的发行价暴涨471.59%。",
+      "summary": "",
+      "source": "滚动播报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktyyv0915681.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "aa972a2de00a2e5de55290e9d464e023",
+      "time": "1785527931",
+      "date": "2026-08-01",
+      "title": "芝加哥期货交易所9月交割的小麦期货下跌3.8%",
+      "intro": " —— 芝加哥期货交易所周五，9月交割的小麦期货下跌3.8%，至每蒲式耳6.38美元，交易商在当月最后一个交易日选择锁定利润，而非押注乌克兰与俄罗斯之间的持续战事进行交易。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktusx1037313.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f8094b2997b622cd6ca40f097ef457b2",
+      "time": "1785524499",
+      "date": "2026-08-01",
+      "title": "现金缩水、内存成本飙升：科技巨头AI建设代价高昂",
+      "intro": "人工智能热潮持续近四年，全球最大的科技公司仍在为未来做出宏大承诺，但问题在于它们正在此过程中大量消耗现金。根据高盛（Goldman Sachs）的预测...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktust0786335.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "d3ec9d2735cbd949fee5f9e364a88c53",
+      "time": "1785524088",
+      "date": "2026-08-01",
+      "title": "美股尾盘走高，道指涨逾300点，纳指上涨0.9%",
+      "intro": " 北京时间8月1日凌晨，美股周五尾盘走高，道指上涨超过300点，三大股指本周均有望录得涨幅。亚马逊公布乐观财报后股价大涨。苹果重挫近10%。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktusq9178327.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0922f0c5e9c3b648618ba5f35c97bdc2",
+      "time": "1785523900",
+      "date": "2026-08-01",
+      "title": "Comex黄金周五跌1.24%收于4049.10美元 当月上涨0.65%",
+      "intro": "Comex黄金8月交割合约本月每盎司上涨26.20美元，涨幅0.65%，收于4049.10美元。 创2026年2月以来最大单月净涨幅和百分比涨幅。 终结了连续四个月的下跌走势。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktusv4225749.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经",
+        "大宗商品"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f332f2c9b97411cc7f26acb19c811e8c",
+      "time": "1785523516",
+      "date": "2026-08-01",
+      "title": "纽约联储据悉就欧元/日元汇率向美国大型银行询价",
+      "intro": " --两名知情人士称，纽约联储周五要求至少两家美国大型银行提供日元兑欧元报价。由于相关要求非公开，知情人士不愿具名。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktusv4223025.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "676965ec76ebefb0b8dc347799f2d5b9",
+      "time": "1785522020",
+      "date": "2026-08-01",
+      "title": "美国F-35战机在加州海军陆战队航空站附近坠毁",
+      "intro": "据报道称，一架据信为F-35战斗机的军用飞机在Miramar海军陆战队航空站坠毁。 福克斯新闻称，有关坠机的消息约在当地时间上午10点左右开始涌现。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktusx0993117.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "cf3c9de02feddf91303eb18cd1299680",
+      "time": "1785521866",
+      "date": "2026-08-01",
+      "title": "5万移民涌入休达引发边境危机 西班牙称已有超过半数离开",
+      "intro": " 西班牙表示，非法越境进入其位于非洲飞地、与摩洛哥接壤边境的5万名移民中，已有超过半数离开。与此同时，西班牙正面临来自欧洲日益加大的压力，要求其尽快重新掌控局势。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktusv4210049.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "59ecc4b81a2db90e15e01795adad7c3e",
+      "time": "1785521835",
+      "date": "2026-08-01",
+      "title": "梅洛尼：意大利暂停与西班牙的申根协定",
+      "intro": "意大利总理梅洛尼在X平台发文表示，意大利政府已决定暂时中止与西班牙的申根协议。 她表示：“这是一项非常手段，旨在维护国家安全，防止对意大利可能造成的影响。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktusq9153555.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "7d25060b905cf00b377721330b397325",
+      "time": "1785517466",
+      "date": "2026-08-01",
+      "title": "阿申布伦纳如何打造450亿美元AI对冲基金，又在数日之内亏掉绝大部分资产",
+      "intro": "核心要点 前 OpenAI 研究员利奥波德・阿申布伦纳创立的对冲基金 “态势感知”，受半导体股票暴跌、追加保证金通知集中袭来影响，管理资产规模从 450 亿美元缩水至约 100...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqks9238394.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "半导体"
+      ]
+    },
+    {
+      "id": "dc6fa23cc3065fad7336ee2cfdfea55f",
+      "time": "1785517336",
+      "date": "2026-08-01",
+      "title": "SpaceX火箭残骸即将撞月 可为月球撞击研究提供样本",
+      "intro": "一枚约5吨重的SpaceX火箭残骸即将撞上月球。这枚火箭曾将两台月球着陆器送往月球，而本次撞击并非计划内操作。 追踪天体轨道的“冥王星计划”负责人Bill...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqkx4308501.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "4857a5fbb3ce872028d56685490655e1",
+      "time": "1785516847",
+      "date": "2026-08-01",
+      "title": "市场大盘走势平稳，态势洞察对冲基金为何轰然崩盘",
+      "intro": "美股大盘走势异常平稳，但华尔街一只高速成长、重仓人工智能赛道的对冲基金暗流涌动，濒临瓦解。 短短数周内，利奥波德・阿申布伦纳执掌的态势洞察（Situational...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqks9231815.shtml",
+      "channel": "market",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "54d8e4bb9e641a9eebf3ad32c189cc68",
+      "time": "1785516462",
+      "date": "2026-08-01",
+      "title": "明尼苏达遭遇网络攻击 特朗普将其归咎于州长而非伊朗",
+      "intro": " 美国总统唐纳德·特朗普将明尼苏达州多个供水系统遭受网络攻击归咎于与他长期不和的州政府官员，尽管此前有报道称，官员怀疑伊朗参与了这些破坏活动。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqkx4302292.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "64cb414c50b88ebefa30939a743a1aa1",
+      "time": "1785516187",
+      "date": "2026-08-01",
+      "title": "美国纽约州起诉Kalshi 指控其“非法赌博”",
+      "intro": " 美国纽约州于周五对Kalshi提起诉讼，指控其运营的预测市场本质上属于未经牌照许可的非法赌博，核心理由是该平台交易结果更多依赖运气而非个人研判能力。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqks9224993.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2bafe29c8fcf134e0868ca4466da10e6",
+      "time": "1785515995",
+      "date": "2026-08-01",
+      "title": "特朗普称正对伊朗失去信心 指责德黑兰撒谎",
+      "intro": "美国总统特朗普表示，随着美伊谈判持续进行，他正对伊朗失去信心，因为“他们确实会撒谎”。 特朗普在戴维营举行的内阁会议上发表讲话。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqkx4298853.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "19b2d5995bd859f458ab186a6aee48bd",
+      "time": "1785515514",
+      "date": "2026-08-01",
+      "title": "特朗普之子支持的反无人机技术企业计划美股上市",
+      "intro": "由特朗普总统之子埃里克・特朗普投资支持的反无人机技术企业太空之眼公司（Space-Eyes），计划通过与特殊目的收购公司麦金利收购公司（McKinley...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqks9217482.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5fba19d0cb9d5dd9ce7d1ff08259ce9e",
+      "time": "1785514870",
+      "date": "2026-08-01",
+      "title": "特朗普谈伊朗：我们将“狠狠打击”他们",
+      "intro": "美国总统特朗普表示，美国将在未来数周“狠狠打击”伊朗，并重申伊朗不能拥有核武器。 特朗普在戴维营举行的内阁会议上作出上述表态。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqks9210941.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ac19f9f44e7eec2e0adfe57ee470ac2f",
+      "time": "1785514165",
+      "date": "2026-08-01",
+      "title": "美股周五午盘小幅上扬，三大股指本周均有望录得涨幅",
+      "intro": " 北京时间8月1日凌晨，美股周五午盘小幅上扬，三大股指本周均有望录得涨幅。亚马逊公布乐观财报后股价大涨。苹果重挫近10%。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqkx4285110.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5b5d017f64d69d01e3b524d9cb6e576c",
+      "time": "1785514048",
+      "date": "2026-08-01",
+      "title": "纽约州指控卡尔希运营非法赌博业务",
+      "intro": "纽约州总检察长莉蒂夏・詹姆斯提起诉讼，称这家预测交易平台无视本州博彩法规曼哈顿街头的卡尔希广告。 核心摘要 纽约州对预测交易平台卡尔希发起诉讼...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqkx4284329.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "30731e79095a9a0b972b7088eb7f16a7",
+      "time": "1785524446",
+      "date": "2026-08-01",
+      "title": "2026年中期分红方案密集落地 45家公司拟派现逾370亿元",
+      "intro": "◎记者 高志刚 实习生 王子凌 2026年半年报披露渐次展开，A股中期分红密集落地，回馈股东力度持续加码。 Wind数据显示，7月以来已有45家上市公司披露2026年度中期分红方案（...",
+      "summary": "",
+      "source": "上海证券报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-08-01/doc-iniktust0785800.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "8e23b3ded28c5601ff666c406309b5f2",
+      "time": "1785524446",
+      "date": "2026-08-01",
+      "title": "7月收官8月在望 A股市场风格或走向再平衡",
+      "intro": "◎张玮华 记者 李雨琪 A股7月行情正式收官。7月31日，科技股集体上涨带动A股市场震荡反弹。截至收盘，上证指数报3832.26点，涨0.72%；深证成指报13578.93点，涨2...",
+      "summary": "",
+      "source": "上海证券报",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2026-08-01/doc-iniktusq9182140.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "14a254bffda56926d4259d79e1953a83",
+      "time": "1785518156",
+      "date": "2026-08-01",
+      "title": "A股回购增持贷款提速 产业资本看好长期价值",
+      "intro": "证券时报记者 胡华雄 A股市场股票回购增持再贷款工具持续为市场注入活水。进入7月，A股市场出现调整，但上市公司披露的回购增持贷款额度加速放量，单月规模创下年内新高。",
+      "summary": "",
+      "source": "证券时报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktqkv0849630.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "035d9ef0af6965cd11043ef1cc19c866",
+      "time": "1785569802",
+      "date": "2026-08-01",
+      "title": "美日甘预下日元强升：日本动用528亿美元、贝森特“买日元”字条曝光",
+      "intro": "美国与日本联手下，促成日元出现多年贬值以来最显著的反弹之一；日元跌跌不休引发日本的通胀，并波及全球市场。 周五纽约收盘时，日元兑美元汇率报157.40...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-inikvani0561077.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "b9f1cdc782f133d3bdecd4f0126af33a",
+      "time": "1785562482",
+      "date": "2026-08-01",
+      "title": "墨西哥世界杯承办球场运营方：国际足联相关开支拖累盈利",
+      "intro": " 墨西哥城巴诺尔特球场所属企业奥拉马尼公司表示，承办2026年国际足联世界杯墨西哥城赛事产生的各项成本，严重拖累其二季度业绩，并且还将持续对三季度盈利造成负面影响。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-inikuwem0644938.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "44a10ea2516dc7a81bf240cc070864ab",
+      "time": "1785538554",
+      "date": "2026-08-01",
+      "title": "8月1日隔夜要闻：美股收高 亚马逊大涨逾15% 美官员称特朗普已下令对伊朗发动新一轮袭击",
+      "intro": "市场 8月1日收盘：美股收高，亚马逊大涨逾15%，三大股指本周均录得涨幅 8月1日美股成交额前20：亚马逊财报强劲股价大涨逾15% 8月1日热门中概股多数上涨，阿里巴巴涨5.09%...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-inikufhp0654960.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "fb83e68b8830a3d31d14549b9768a8b1",
+      "time": "1785535756",
+      "date": "2026-08-01",
+      "title": "8月5日起国内航线燃油附加费将再度下调",
+      "intro": "本报记者李乔宇 7月31日，《证券日报》记者从机票销售平台飞常准App获悉，飞常准App接到航司通知，自2026年8月5日零时起，调整国内航线旅客运输燃油附加费征收标准。",
+      "summary": "",
+      "source": "证券日报",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-iniktyyr0765536.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "e62405c801c9af85b31800e4994560ea",
+      "time": "1785534067",
+      "date": "2026-08-01",
+      "title": "哥伦比亚广播公司：美国和以色列准备周末轰炸伊朗的能源基础设施",
+      "intro": "哥伦比亚广播公司新闻台援引多个信源报道称，美国和以色正在计划轰炸伊朗的能源基础设施。 报道称，整个周末都可能实施轰炸。 美国和以色列讨论了争取在周一市场开盘前结束...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-01/doc-iniktyyv0952636.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "acd55d84000a5c147b5af7b76eceaafd",
+      "time": "1785528852",
+      "date": "2026-08-01",
+      "title": "Alphabet、亚马逊和微软本周市值合计增加近1.5万亿美元",
+      "intro": " 全球最大的几家科技公司公布财报后，华尔街对人工智能领域的赢家和输家分歧日益加剧。这些公司确认或上调了资本支出预测，表明大规模投资尚未停歇。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktyyv0913333.shtml",
+      "channel": "market",
+      "categories": [
+        "国际财经",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "low",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "38bc3e539671685f932bd063495fa101",
+      "time": "1785528718",
+      "date": "2026-08-01",
+      "title": "8月1日收盘：美股收高，亚马逊大涨逾15%，三大股指本周均录得涨幅",
+      "intro": " 北京时间8月1日凌晨，美股周五收高，三大股指本周均录得涨幅。市场继续关注科技股财报，亚马逊公布乐观财报后股价大涨。苹果重挫。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktyyn9096513.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "2dd7206213cd3b3914254d9ae5b3868d",
+      "time": "1785516341",
+      "date": "2026-08-01",
+      "title": "欧洲股市收窄月度涨幅 诺和诺德与环球音乐重挫",
+      "intro": "受诺和诺德一款试验性药物研究结果不尽人意，以及环球音乐集团业绩令人失望拖累，欧股回吐周五早前涨幅。 斯托克欧洲600指数在伦敦收盘时基本持平。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqkz1083373.shtml",
+      "channel": "market",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "f6e8a66b38aabf7e1406fd41f13308aa",
+      "time": "1785513870",
+      "date": "2026-08-01",
+      "title": "财报前夕，SpaceX股价经历震荡一周",
+      "intro": "SpaceX 股价创下历史新低。IPO 上市后的上涨势头为何戛然而止？ 作者：普拉斯・苏布拉马尼亚姆 随着投资者静待这家新晋上市公司发布首份财报，同时迎来大规模股票解禁...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-01/doc-iniktqkx4282946.shtml",
+      "channel": "market",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "f3d5216185eebf7a51fe3fc426296ab5",
+      "time": "1785513600",
+      "date": "2026-08-01",
+      "title": "A股科技板块全线反攻 机构称调整或接近尾声",
+      "intro": "7月31日，A股迎来7月收官，科技板块全线反攻成为最大亮点。截至收盘，上证指数上涨0.72%，深证成指上涨2.21%，创业板指上涨3.06%，科创50指数盘中一度涨超8%。",
+      "summary": "",
+      "source": "中国证券报-中证网",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-01/doc-inikufhr4057478.shtml",
+      "channel": "market",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    }
+  ],
+  "market_data": {
+    "indices": [],
+    "topSectors": [],
+    "bottomSectors": [],
+    "_isWeekend": true,
+    "_date": "2026-08-01"
+  }
+}

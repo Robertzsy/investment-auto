@@ -1,0 +1,1114 @@
+{
+  "period": "daily",
+  "window": {
+    "start": 1785254400,
+    "end": 1785340799,
+    "startDate": "2026-07-29",
+    "endDate": "2026-07-29"
+  },
+  "collected_at": "2026-07-30T10:21:16.196Z",
+  "stats": {
+    "total": 48,
+    "high": 1,
+    "medium": 42,
+    "low": 5,
+    "categories": {
+      "行业动态": 4,
+      "其他": 25,
+      "国际财经": 5,
+      "科技前沿": 17,
+      "大宗商品": 1,
+      "产业政策": 1,
+      "监管动态": 2
+    },
+    "sectors": {
+      "电力": 1,
+      "通信": 1,
+      "人工智能": 12,
+      "消费电子": 8,
+      "金融": 1,
+      "半导体": 6,
+      "有色金属": 1,
+      "新能源汽车": 1,
+      "交通运输": 1
+    }
+  },
+  "news": [
+    {
+      "id": "ed8d164d5b1c7bcc2cdd27630e27ef9f",
+      "time": "1785322470",
+      "date": "2026-07-29",
+      "title": "奕境曾清林谈智驾小蓝灯将被禁用：真正的智驾不需要靠一盏灯证明",
+      "intro": "快科技7月29日消息，今日，智驾小蓝灯即将禁用的消息引发行业热议。奕境汽车品牌总经理曾清林发文表示，团队已经收到相关紧急通知，并将遵照国家相关要求落实调整。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-07-30/doc-iniknmic0089446.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "1b5ccacad4c99bf3eb0a6d6c616f996c",
+      "time": "1785339245",
+      "date": "2026-07-29",
+      "title": "微信鸿蒙版 App 获 8.0.20.32 邀测升级，新增收藏的网页链接可点击跳转等功能",
+      "intro": "IT之家 7 月 29 日消息，微信鸿蒙版 App 今日开启了 8.0.20.32 (8393745) 版本邀测升级（需收到短信通知后点击链接跳转安装，未收到短信需继续等待）...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknvww9965829.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1d38e6c7b57d8722c6b375229434fa8a",
+      "time": "1785334235",
+      "date": "2026-07-29",
+      "title": "华为全新麒麟CPU公布！性能大增23%：华为史上最轻笔记本首发搭载",
+      "intro": "快科技7月29日消息，华为公布了全新的麒麟CPU，还是一下两款！在今天的鸿蒙电脑新品技术沟通会上，华为正式公布了两款全新的处理器，分别是麒麟X90 Plus和麒麟XE90。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-07-30/doc-iniknvww9934021.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "39763ac4b3c47da827d5c2fc3d224511",
+      "time": "1785333984",
+      "date": "2026-07-29",
+      "title": "极狐阿尔法 T7「凝夜紫」官图发布：华为乾崑加持，小蓝灯上车",
+      "intro": "IT之家 7 月 29 日消息，极狐汽车今日首发了阿尔法 T7 的「凝夜紫」车色官图。根据此前预热，新车有华为乾崑、宁德时代、麦格纳三重加持。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknvxf2440054.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "b54b80f5f228250ee18b704ef2ca1c5d",
+      "time": "1785331324",
+      "date": "2026-07-29",
+      "title": "小米澎程系列实车明日起陆续到店，覆盖全国 146 城 499 家门店",
+      "intro": "IT之家 7 月 29 日消息，小米官方宣布，小米澎程 7 月 30 日起实车陆续到店，覆盖全国 146 城 499 家门店。小米澎程作为小米汽车的第二个系列产品，经过 566 台测试车...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknvxf2423544.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "8a4ce4137c97e2cee5ad4de6776c2476",
+      "time": "1785330082",
+      "date": "2026-07-29",
+      "title": "美团月付遭批量盗刷，多地用户中招？回应：或遭遇电信诈骗，正配合警方调查",
+      "intro": "新浪科技讯 7月29日晚间消息，据媒体报道，近日，有陕西、广东、甘肃等多地用户反映，个人美团账号在本人未操作、不知情的情况下遭遇异地批量盗刷，用于购买多张团购券...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-29/doc-iniknrqz0022611.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "8bf6fc28063443daf49e9e4059337f44",
+      "time": "1785329143",
+      "date": "2026-07-29",
+      "title": "鸿蒙智行尊界 V800 / V680 豪华 MPV 官宣 7 月 30 日起全国门店展车陆续到店",
+      "intro": "IT之家 7 月 29 日消息，鸿蒙智行尊界汽车官方今日宣布，尊界 V800 / V680 两款超豪华 MPV 将在 7 月 30 日起全国门店展车陆续到店。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-29/doc-iniknrrc1629922.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e2c0b7c0ab0299d51f27efffad16ed1b",
+      "time": "1785327929",
+      "date": "2026-07-29",
+      "title": "中国电信：8 月 1 日起，其他第三方互联网渠道不再提供电信号卡办理相关服务",
+      "intro": "IT之家 7 月 29 日消息，中国电信官网发布关于规范互联网渠道售卡管理的公告。自 2026 年 8 月 1 日起，其他第三方互联网渠道不再提供电信号卡办理相关服务。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-29/doc-iniknrqz0010734.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0dc690dd3bb37187226aae347af62624",
+      "time": "1785327088",
+      "date": "2026-07-29",
+      "title": "千亿美元投资：Brookfield 携手北美能源巨头 NextEra Energy 建设巨型数据中心",
+      "intro": "IT之家 7 月 29 日消息，据彭博社当地时间今日报道，另类资产管理龙头 Brookfield（博枫）将与北美最大的电力和能源基础设施公司 NextEra Energy 一道...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknrrc1604460.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [
+        "电力",
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9acbc8e612c7122c80135213b3122d7d",
+      "time": "1785324730",
+      "date": "2026-07-29",
+      "title": "美图秀秀和Wink将参展2026 ChinaJoy",
+      "intro": "新浪科技讯 7月29日晚间消息，官方消息显示，美图公司旗下美图秀秀、Wink已确认参展2026年第二十三届ChinaJoy，将为现场观众带来形式新颖的AI影像体验。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-29/doc-iniknrqy9974363.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "d60d63d91dd52dbd4d597465c190af1e",
+      "time": "1785324381",
+      "date": "2026-07-29",
+      "title": "贝壳联合腾讯启动“会救命的社区门店”共建计划",
+      "intro": "新浪科技讯 7月29日晚间消息，贝壳集团及旗下链家品牌联合腾讯启动“会救命的社区门店”共建计划，这是贝壳自3月宣布启动“以消费者为中心”升级社区居住服务模式后的又一大举...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-29/doc-iniknrrf5722163.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ffee680fab0bd5d77250b8af0969e51d",
+      "time": "1785324373",
+      "date": "2026-07-29",
+      "title": "三星回应 Galaxy Z Fold 系列能否重新支持 S Pen 手写笔：前提是能维持机身轻薄",
+      "intro": "IT之家 7 月 29 日消息，三星从 Galaxy Z Fold 3 开始为横折叠手机加入 S Pen 手写笔支持，从而令大尺寸内屏拥有了更高的实用价值。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknrrc1580679.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3e5a049f940d0cefc321447d3668529d",
+      "time": "1785324010",
+      "date": "2026-07-29",
+      "title": "美团月付遭批量盗刷，多地用户中招？官方暂无回应，客服提醒谨防电信诈骗",
+      "intro": "新浪科技讯 7月29日晚间消息，据媒体报道，近日，有陕西、广东、甘肃等多地用户反映，个人美团账号在本人未操作、不知情的情况下遭遇异地批量盗刷，用于购买多张团购券...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-29/doc-iniknrrf5719925.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "cf7f221156c002c97921cb3e6b12409a",
+      "time": "1785323272",
+      "date": "2026-07-29",
+      "title": "联想披露“乐享”智能体运营数据：月活突破700万，拉动超50亿销售额",
+      "intro": "新浪科技讯 7月29日晚间消息，在联想智汇沙龙上，联想系统性拆解了近期完成4.0版本升级的乐享企业超级智能体（简称：乐享），同时公布了最新运营数据：平台月活用户突破700...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-29/doc-iniknmim2627816.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "097780cdd2d85e6253e5c3d79c53e666",
+      "time": "1785317819",
+      "date": "2026-07-29",
+      "title": "曝月之暗面完成超35亿美元F轮融资，估值升至500亿美元",
+      "intro": "新浪科技讯 7月29日下午消息，据报道，月之暗面kimi已完成超35亿美元F轮融资，投后估值涨至350亿美元。 据悉，因融资额度超目标金额三倍多，目前本轮融资已提前关闭...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/it/2026-07-29/doc-iniknmic0034839.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3dbb638339a9d2837c7174888b4aa810",
+      "time": "1785317601",
+      "date": "2026-07-29",
+      "title": "麒麟XE90首秀！华为MateBook Pro S正式亮相：仅798g创全球最轻纪录",
+      "intro": "快科技7月29日消息，华为今日举办鸿蒙电脑新品技术沟通会，正式揭晓了全新超轻笔记本MateBook Pro S。官方定位“超轻、超能干”，整机重量仅798g...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-07-30/doc-iniknmif1648557.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e2baa85c6cc71f2f60f7918950070a58",
+      "time": "1785317168",
+      "date": "2026-07-29",
+      "title": "AI板块股价大跌 对冲基金遭追加保证金要求",
+      "intro": " 近几周，AI股票加速暴跌，多种主流对冲基金交易策略出现大幅亏损，华尔街各大银行因此纷纷要求对冲基金追加担保抵押物。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-29/doc-iniknmic0027365.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "金融",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "95374094b24b055343737588986beca9",
+      "time": "1785315952",
+      "date": "2026-07-29",
+      "title": "希捷科技：2026财年营收122亿美元，同比增长34%",
+      "intro": "新浪科技讯 7月29日下午消息，数据存储解决方案企业希捷科技（简称“希捷”）今日发布截至2026年7月3日的2026财年第四财季及全年财务业绩。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-29/doc-iniknmic0010742.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e600ad4f7d94bc8484ce06b2adbc1280",
+      "time": "1785315776",
+      "date": "2026-07-29",
+      "title": "华为官宣鸿蒙折叠电脑MateBook Fold非凡大师：搭载全新麒麟XE90 Plus",
+      "intro": "快科技7月29日消息，华为今日在鸿蒙电脑技术沟通会上正式官宣全新折叠笔记本——华为MateBook Fold非凡大师。新品将在8月5日正式发布。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-07-30/doc-iniknmic0015685.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "77f460414c0659a9019e838a26e1ebe4",
+      "time": "1785314942",
+      "date": "2026-07-29",
+      "title": "消息称月之暗面完成 35 亿美元超预期融资，投后估值达 350 亿美元",
+      "intro": "IT之家 7 月 29 日消息，据彭博社报道，得益于其突破性模型 Kimi K3 在硅谷引发的轰动效应，总部位于北京的初创公司月之暗面（Moonshot AI）在刚刚完成的一轮融资中筹集了...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknmic0013649.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "91cab3ba9897349010b7c967ffbd171d",
+      "time": "1785314736",
+      "date": "2026-07-29",
+      "title": "宝马据悉向德国员工提出自愿离职方案 拟在全球裁员8000人",
+      "intro": "宝马汽车向其在德国的数千名员工提供自愿离职补偿方案，以精简架构。 据知情人士称，宝马预计此次德国减员将占其全球约8000个裁员岗位的大部分。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-29/doc-iniknezm5901051.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f598688b2da3616c3976c70538b4897d",
+      "time": "1785314471",
+      "date": "2026-07-29",
+      "title": "首款鸿蒙台式机：华为擎云 HM650 系列官宣 10 月上市，搭载自研麒麟 X90 芯片",
+      "intro": "IT之家 7 月 29 日消息，华为终端平板与 PC 产品线总裁朱懂东今日发布预告，首款鸿蒙台式机 —— 华为擎云 HM650 系列将于今年 10 月上市，鸿蒙电脑产品矩阵将进一步完善。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknmic0013693.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片"
+      ]
+    },
+    {
+      "id": "b2938c835e9f776e1483197aa3bf98c6",
+      "time": "1785313986",
+      "date": "2026-07-29",
+      "title": "华为nova 16系列销量突破100万台 单周新增约11万台",
+      "intro": "快科技7月29日消息，今日，数码博主“RD观测”公布了华为nova 16系列最新销量数据。数据显示，截至2026年第29周（7月13日至7月19日），华为nova 16系列累计销量约108...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-07-30/doc-iniknezi1722918.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "50cd6bf71ca6b6b94aeaee74a6ddbc9d",
+      "time": "1785313456",
+      "date": "2026-07-29",
+      "title": "华为全新麒麟XE90 PC处理器亮相：单核提升23%、能效提升25%",
+      "intro": "快科技7月29日消息，华为今日召开鸿蒙电脑技术沟通会，介绍了全新笔记本MateBook Pro S。该机首创榫卯一体化结构，融合超轻镁锂合金与三段式主板设计，整机仅重798g...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-07-30/doc-iniknezm5889600.shtml",
+      "channel": "industry",
+      "categories": [
+        "大宗商品"
+      ],
+      "sectors": [
+        "消费电子",
+        "有色金属"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "cdafd8842961f88ac9cddb83b63289d4",
+      "time": "1785312276",
+      "date": "2026-07-29",
+      "title": "Momenta获德国全境L4级测试许可，Uber追加投资",
+      "intro": "新浪科技讯 7月29日下午消息，近日，Momenta正式获得德国联邦机动车运输管理局（KBA）颁发许可，可在德国全国范围内的城市道路进行L4级自动驾驶测试...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-29/doc-iniknezm5872183.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源汽车"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "867309a66b4976048bae4f52593bfefa",
+      "time": "1785311994",
+      "date": "2026-07-29",
+      "title": "国内 PC 产品首个：华为鸿蒙电脑全链路通过整机、OS、芯片 CC EAL5+ 认证",
+      "intro": "IT之家 7 月 29 日消息，在今天的华为鸿蒙电脑新品技术沟通会上，华为终端鸿蒙安全部部长郭昌盛分享了鸿蒙电脑在安全方面的进展。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknezp2656436.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片"
+      ]
+    },
+    {
+      "id": "5d27c4affa5ab7ae116885b72b560adf",
+      "time": "1785311300",
+      "date": "2026-07-29",
+      "title": "华为全新小艺任务登场：4 大类 2300+ 项技能，鸿蒙电脑 9 月 OTA 升级支持",
+      "intro": "IT之家 7 月 29 日消息，在今天的华为鸿蒙电脑新品技术沟通会上，华为终端云服务小艺业务部总裁贾永利分享了鸿蒙自主决策 Agent PC 新体验，并带来了全新小艺任务。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknezi1697553.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "fe2d5608703ecf4e874bfbd6eef89cf4",
+      "time": "1785310100",
+      "date": "2026-07-29",
+      "title": "海尔联合橡鹿机器人发布全自动AI炒菜机器人，代号“CR3”",
+      "intro": " 新浪科技讯 7月29日下午消息，今日，海尔智家与橡鹿机器人签署战略合作协议，并联合发布全球首款家用全自主AI烹饪机器人——CR3，进军家庭炒菜机器人赛道。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-29/doc-iniknezf0050170.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "7df47e6e58ce036fb693fde0d67511a2",
+      "time": "1785309702",
+      "date": "2026-07-29",
+      "title": "华为鸿蒙电脑外设支持数量再增加，涵盖 1700+ 通用 / 1600+ 专业设备",
+      "intro": "IT之家 7 月 29 日消息，在今天的华为鸿蒙电脑新品技术沟通会上，华为终端 BG 平板与 PC 产品线总裁朱懂东分享了鸿蒙电脑最新取得的成绩。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknezf0059833.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "a33d4d41b23193798be89b2f9fb7fc1c",
+      "time": "1785308827",
+      "date": "2026-07-29",
+      "title": "华为鸿蒙电脑全新麒麟 XE90 / X90 Plus 处理器亮相，主打高能效 / 高性能",
+      "intro": "IT之家 7 月 29 日消息，在今天的华为鸿蒙电脑新品技术沟通会上，华为终端 BG 平板与 PC 产品线总裁朱懂东分享了鸿蒙电脑最新取得的成绩。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknezf0043291.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "7f23150eecd03fa8e9af0cedbc90b9cb",
+      "time": "1785308370",
+      "date": "2026-07-29",
+      "title": "AI 重塑亚洲航空货运格局，取代跨境电商成为增长新引擎",
+      "intro": "IT之家 7 月 29 日消息，据路透社报道，全球人工智能（AI）竞赛正在重塑亚洲航空货运格局。随着跨境电商增长放缓，航空公司开始围绕不断壮大的半导体制造中心重新规划航线...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknezf0025310.shtml",
+      "channel": "industry",
+      "categories": [
+        "产业政策",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能",
+        "交通运输"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "人工智能",
+        "半导体"
+      ]
+    },
+    {
+      "id": "fa481a5b822a1562b011252c2dfd6e98",
+      "time": "1785307929",
+      "date": "2026-07-29",
+      "title": "说一套做一套！Anthropic CEO：我不反对开源模型、但对华芯片禁令必须收紧",
+      "intro": "快科技7月29日消息，Anthropic联合创始人兼CEO达里奥·阿莫迪发文，敦促华盛顿收紧对华芯片出口禁令。他认为这是阻止中国前沿AI模型最有效最直接的方式...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-07-30/doc-iniknezm5804727.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片",
+        "AI"
+      ]
+    },
+    {
+      "id": "207ca6e2ab3a2778c773b17e4867e9bd",
+      "time": "1785306784",
+      "date": "2026-07-29",
+      "title": "华为 Nova16 SE 手机外观曝光，消息称将搭载麒麟 8020 芯片 + 红枫影像",
+      "intro": "IT之家 7 月 29 日消息，博主 @数码闲聊站 今日分享了一张华为 nova 16 SE 手机的网传图，曝光了新机的外观设计。画面显示，该机相机 Deco 采用横向矩阵设计，提供黑、白...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknezi1603309.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片"
+      ]
+    },
+    {
+      "id": "62e0b8dc3039b49c04fde68240130315",
+      "time": "1785302427",
+      "date": "2026-07-29",
+      "title": "德塔智能完成近5亿元天使++轮融资，成立半年融资六轮",
+      "intro": "新浪科技讯 7月29日下午消息，人形机器人基础模型公司德塔智能（Delta Intelligence）宣布完成近5亿元天使++轮融资，本轮投资方包括多家上市公司产业方和头部财务投资机构...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/2026-07-29/doc-inikmytr2661047.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ebe736d7f86acd2edf7795b0c9876dfc",
+      "time": "1785301591",
+      "date": "2026-07-29",
+      "title": "OceanBase回应30亿融资传闻：全力投入AI数据创新，与资本市场保持开放沟通",
+      "intro": "新浪科技讯 7月29日中午消息，针对有关首次外部股权融资的报道，OceanBase向新浪科技回复表示：“公司全力投入AI时代的数据技术与产品创新...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/2026-07-29/doc-inikmyti0056577.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "2145050ef54dcaeb2d5db54f9cbc55ad",
+      "time": "1785299843",
+      "date": "2026-07-29",
+      "title": "AI时代如何培养人才？刘元春：大学要从教知识转向教提问",
+      "intro": "新浪科技讯 7月29日午间消息，近日，由上海财经大学主办的WAIC 2026智能经济发展生态论坛在上海举行。上海财经大学校长刘元春发表《经济学视角下的AI与智能经济新形态》主...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/hy/hyjz/2026-07-29/doc-inikmyti0030187.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "ccb2cb2aa5f56a49502e092c06073db7",
+      "time": "1785299390",
+      "date": "2026-07-29",
+      "title": "5米大体量车身！广汽埃安全新车系Ray登场：首款车型命名Ray 7",
+      "intro": "快科技7月29日消息，恰逢品牌成立十周年，广汽埃安正式推出了面向年轻消费群体的全新Ray车系，该系列首款车型命名为Ray 7，定位中大型纯电轿跑...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-07-30/doc-inikmyti0032717.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "cbab6272fb25e13f023582750043b1e9",
+      "time": "1785297290",
+      "date": "2026-07-29",
+      "title": "清闲智能发布 Maxis Pro 动态人机工学椅 覆盖更多久坐场景与使用人群",
+      "intro": "新浪数码讯 7月29日消息，近日，清闲智能创新（深圳）有限公司宣布，旗下动态人机工学椅产品矩阵迎来新成员 Maxis Pro 系列。这是继 OC1、OC1 Pro、S1 之后...",
+      "summary": "近日，清闲智能创新（深圳）有限公司宣布，旗下动态人机工学椅产品矩阵迎来新成员 Maxis Pro 系列。",
+      "source": "新浪数码",
+      "url": "https://finance.sina.com.cn/tech/mobile/n/2026-07-29/doc-inikmump1723280.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ca98c17a84b049b117253a12814556a6",
+      "time": "1785294972",
+      "date": "2026-07-29",
+      "title": "高通朱元堃：未来所有设备都将成为智能体的端点，打造以用户为中心的个人AI体验",
+      "intro": "新浪科技讯 7月29日上午消息，在近日的财新圆桌-AI系列活动“智能体时代终端产业的下一站”专题活动上，由高通公司委托，IDC独立开展研究的《从AI设备到个人AI：智能体驱动的...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/2026-07-29/doc-inikmumr5927081.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "6788a32249afecb86aa1c7b9ee411ff6",
+      "time": "1785294936",
+      "date": "2026-07-29",
+      "title": "OceanBase计划融资20亿至30亿人民币以推进 AI 布局",
+      "intro": " 新浪科技讯 7月29日上午消息，据外媒报道，知情人士透露，OceanBase 正在寻求融资，以支持其更加独立地运营，并为向AI数据库服务领域的业务拓展提供资金。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/2026-07-29/doc-inikmumr5926618.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "333dc87ed53cd15fb848baee0fa1c4b9",
+      "time": "1785294922",
+      "date": "2026-07-29",
+      "title": "雷军：小米现在出增程车“并不晚”，例如理想新一代 L6 销量持续走高",
+      "intro": "IT之家 7 月 29 日消息，小米创办人、董事长兼 CEO 雷军今天（29 日）发长文，详细回应了“小米澎程为什么要做增程”和“现在进入是不是太晚”两个问题。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-inikmumm0098742.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "77c2abd7747d6775ee89b89f4a04f8a3",
+      "time": "1785292617",
+      "date": "2026-07-29",
+      "title": "理想汽车自动泊车频繁失败？涉事车主回应：车位后有辆电动车占了位置",
+      "intro": "新浪科技讯 7月29日上午消息，近日有网友发布视频显示，一辆理想汽车在地下停车场多次尝试自动泊车失败，频繁调整却始终无法入库，致后方车辆无法前行。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/2026-07-29/doc-inikmump1632944.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "29203c6f9602d5698ecd74ebe1b01cf6",
+      "time": "1785289330",
+      "date": "2026-07-29",
+      "title": "脑机接口企业瓦博科技完成天使轮融资，洪泰基金出资",
+      "intro": "新浪科技讯 7月29日上午消息，非侵入式脑机接口企业的瓦博科技宣布完成天使轮融资，本轮融资投资方包括祥峰投资、洪泰基金、未来产业基金、惠丰达创投...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/2026-07-29/doc-inikmqcv2734130.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5efe20eb1a1f1fb47a1e20b1999c15a6",
+      "time": "1785302468",
+      "date": "2026-07-29",
+      "title": "普赢创新港股IPO：降价难促销收入下滑净利暴跌 管理层分红却毫不手软 重营销轻研发AI布局几近空白",
+      "intro": "出品：新浪财经上市公司研究院 作者：渚 2026年6月30日，深圳普赢创新科技股份有限公司（简称“普赢创新”）向联交所GEM板提交上市申请...",
+      "summary": "",
+      "source": "新浪证券",
+      "url": "https://finance.sina.com.cn/stock/observe/2026-07-29/doc-inikmyti0069367.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态",
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "low",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "8591a5ff155164c567530b522343c24c",
+      "time": "1785331477",
+      "date": "2026-07-29",
+      "title": "360集团回应前董秘追讨2649万股权激励：支持她依法解决争议，这是最清晰、最公平的方式",
+      "intro": " 新浪科技讯 7月29日晚间消息，近日，360原董事会秘书、首席法律顾问张帆公开发文称，自己离开360七年但尚约2649万元股权激励权益未兑付。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-07-29/doc-iniknrri2549041.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "2ea3b99431de9d1e06d3ed56462a5093",
+      "time": "1785316656",
+      "date": "2026-07-29",
+      "title": "全文|SK海力士Q2业绩会实录：AI推动芯片需求持续增长 下半年出货提升",
+      "intro": " SK海力士第二财季营业利润增长557%，但仍不及预期。该公司今年资本支出至少在310亿美元，而市场对人工智能产能过度投资的担忧在日益升温。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-07-29/doc-iniknmii5791581.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经",
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "low",
+      "tags": [
+        "AI",
+        "芯片",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "57080fc9f4d4a92c7f648ec11a8ff113",
+      "time": "1785307423",
+      "date": "2026-07-29",
+      "title": "消息称蚂蚁数科正筹备 Pre-IPO 轮融资，OceanBase 同步启动 A 轮拟募资 20 亿至 30 亿元",
+      "intro": "IT之家 7 月 29 日消息，据《科创板日报》今日报道，蚂蚁集团旗下子公司蚂蚁数科正在筹备 Pre-IPO 轮融资。《科创板日报》昨日还报道称...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-07-30/doc-iniknezi1611905.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "821b0626fa43203891c7735e909de7f5",
+      "time": "1785299907",
+      "date": "2026-07-29",
+      "title": "理想汽车高管回应车主自动泊车频繁失败：车后有电动自行车占位，将优化复杂场景下的泊车能力",
+      "intro": "新浪科技讯 7月29日中午消息，近日有网友发布视频显示，一辆理想汽车在地下停车场多次尝试自动泊车失败，频繁调整却始终无法入库，致后方车辆无法前行。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/nextauto/2026-07-29/doc-inikmytm1635522.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    }
+  ],
+  "market_data": {
+    "indices": [
+      {
+        "code": "000001",
+        "name": "上证指数",
+        "price": 3804.69,
+        "change_pct": -0.62,
+        "change_val": -23.78,
+        "volume": 592298923,
+        "amount": 1106477266461.8
+      },
+      {
+        "code": "399001",
+        "name": "深证成指",
+        "price": 13285.8,
+        "change_pct": -2.73,
+        "change_val": -372.64,
+        "volume": 686984750,
+        "amount": 1236331989082.34
+      },
+      {
+        "code": "000688",
+        "name": "科创50",
+        "price": 1588.41,
+        "change_pct": -5.38,
+        "change_val": -90.33,
+        "volume": 14695675,
+        "amount": 151830717441
+      },
+      {
+        "code": "399006",
+        "name": "创业板指",
+        "price": 3244.62,
+        "change_pct": -3.97,
+        "change_val": -134.08,
+        "volume": 210928511,
+        "amount": 601843948622.83
+      }
+    ],
+    "topSectors": [
+      {
+        "code": "BK1575",
+        "name": "白酒Ⅲ",
+        "price": 4455.19,
+        "change_pct": 4.33
+      },
+      {
+        "code": "BK1277",
+        "name": "白酒Ⅱ",
+        "price": 4455.19,
+        "change_pct": 4.33
+      },
+      {
+        "code": "BK1451",
+        "name": "厨房电器",
+        "price": 8019.44,
+        "change_pct": 4.26
+      },
+      {
+        "code": "BK1240",
+        "name": "厨卫电器",
+        "price": 5453.85,
+        "change_pct": 3.92
+      },
+      {
+        "code": "BK1507",
+        "name": "宠物食品",
+        "price": 1557.28,
+        "change_pct": 3.86
+      },
+      {
+        "code": "BK1519",
+        "name": "电动乘用车",
+        "price": 5058.85,
+        "change_pct": 3.73
+      },
+      {
+        "code": "BK1557",
+        "name": "培训教育",
+        "price": 4581.72,
+        "change_pct": 3.61
+      },
+      {
+        "code": "BK1500",
+        "name": "医美耗材",
+        "price": 1497.64,
+        "change_pct": 3.26
+      },
+      {
+        "code": "BK1452",
+        "name": "卫浴电器",
+        "price": 1297.79,
+        "change_pct": 3.25
+      },
+      {
+        "code": "BK1262",
+        "name": "乘用车",
+        "price": 3857.56,
+        "change_pct": 3.24
+      }
+    ],
+    "bottomSectors": [
+      {
+        "code": "BK1325",
+        "name": "半导体材料",
+        "price": 10613.27,
+        "change_pct": -9.08
+      },
+      {
+        "code": "BK1326",
+        "name": "半导体设备",
+        "price": 42693.27,
+        "change_pct": -9.03
+      },
+      {
+        "code": "BK1327",
+        "name": "分立器件",
+        "price": 12654.23,
+        "change_pct": -8.31
+      },
+      {
+        "code": "BK1340",
+        "name": "印制电路板",
+        "price": 8755.31,
+        "change_pct": -7.77
+      },
+      {
+        "code": "BK1328",
+        "name": "集成电路封测",
+        "price": 7073.58,
+        "change_pct": -7.58
+      },
+      {
+        "code": "BK1591",
+        "name": "通信网络设备及器件",
+        "price": 11166.2,
+        "change_pct": -7.24
+      },
+      {
+        "code": "BK1036",
+        "name": "半导体",
+        "price": 2314.91,
+        "change_pct": -7.16
+      },
+      {
+        "code": "BK1039",
+        "name": "电子化学品Ⅱ",
+        "price": 2689,
+        "change_pct": -7.05
+      },
+      {
+        "code": "BK1332",
+        "name": "电子化学品Ⅲ",
+        "price": 2689,
+        "change_pct": -7.05
+      },
+      {
+        "code": "BK1334",
+        "name": "光学元件",
+        "price": 12620.19,
+        "change_pct": -7.03
+      }
+    ]
+  }
+}

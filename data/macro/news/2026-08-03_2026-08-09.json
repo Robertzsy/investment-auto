@@ -1,0 +1,3565 @@
+{
+  "period": "weekly",
+  "window": {
+    "start": 1785686400,
+    "end": 1786291199,
+    "startDate": "2026-08-03",
+    "endDate": "2026-08-09"
+  },
+  "collected_at": "2026-08-11T00:18:14.991Z",
+  "stats": {
+    "total": 188,
+    "high": 13,
+    "medium": 163,
+    "low": 12,
+    "categories": {
+      "监管动态": 7,
+      "国际财经": 13,
+      "其他": 104,
+      "产业政策": 6,
+      "大宗商品": 4,
+      "地缘政治": 1,
+      "科技前沿": 57,
+      "行业动态": 18
+    },
+    "sectors": {
+      "新能源": 5,
+      "有色金属": 3,
+      "半导体": 13,
+      "人工智能": 41,
+      "电力": 1,
+      "通信": 12,
+      "消费电子": 14,
+      "建筑装饰": 2,
+      "医药生物": 1,
+      "食品饮料": 1,
+      "金融": 1,
+      "新能源汽车": 3,
+      "房地产": 1,
+      "交通运输": 1
+    }
+  },
+  "news": [
+    {
+      "id": "a830e5711753d77653154fad6193efcd",
+      "time": "1786257580",
+      "date": "2026-08-09",
+      "title": "传音控股最快9月登陆港交所：募资约5亿美元 已完成港股上市备案",
+      "intro": "快科技8月9日消息，传音控股近日公告，公司于近日收到中国证监会出具的《关于深圳传音控股股份有限公司境外发行上市备案通知书》。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-09/doc-inimtchr5592639.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态",
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "cb46d612892ef1998f5a01b8a0a8b066",
+      "time": "1786254166",
+      "date": "2026-08-09",
+      "title": "传音控股：赴港上市获中国证监会备案，拟发行不超过 1.32 亿股",
+      "intro": "IT之家 8 月 9 日消息，传音控股于 8 月 7 日发布公告称，公司正在进行申请发行境外上市股份（H 股）并在香港联合交易所主板挂牌上市的相关工作...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-09/doc-inimswyp1922886.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "80329b400abe3dd4d0377d3e166dd81a",
+      "time": "1786153152",
+      "date": "2026-08-08",
+      "title": "名创优品回应消费者吐槽一次性内裤质量差：已启动紧急调查核实产品情况与问题原因",
+      "intro": "8月8日消息，近日有网友发视频称，她出差时穿着名创优品一次性内裤，同事问道“脚下为什么有块白色的布”，她看着像自己穿的一次性内裤，摸了摸腰...",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/roll/2026-08-08/doc-inimqimv4318581.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "1acc7b68412d750aee770f9388e8938d",
+      "time": "1786089537",
+      "date": "2026-08-07",
+      "title": "韩政府反驳美方涉新版数字法歧视美企主张",
+      "intro": "韩国政府7日反驳美国国会众议院共和党籍议员所谓“韩国《信息通信网法修正案》可被用作政治审查”的说法。 外交部官员表示，该法修正案旨在应对数字环境变迁带来的社会弊端并...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-07/doc-inimnrap3188117.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "8942247437292bf5ff818c2ace1db781",
+      "time": "1786085385",
+      "date": "2026-08-07",
+      "title": "鸿蒙智行智界 RX 新版本申报：磷酸铁锂 / 三元锂电池，提供大量轮毂 / 车标样式可选",
+      "intro": "IT之家 8 月 7 日消息，工信部发布第 410 批《道路机动车辆生产企业及产品公告》新产品公示，鸿蒙智行智界 RX 完成新版本申报，并公开了更多信息。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnrac4071598.shtml",
+      "channel": "industry",
+      "categories": [
+        "产业政策",
+        "大宗商品"
+      ],
+      "sectors": [
+        "新能源",
+        "有色金属"
+      ],
+      "importance": "high",
+      "tags": [
+        "锂电池"
+      ]
+    },
+    {
+      "id": "cc4d73cb8fd80e0a3e9fa9bac29cb6de",
+      "time": "1786078247",
+      "date": "2026-08-07",
+      "title": "北汽极狐阿尔法 T7 官宣 8 月 26 日预售，华为乾崑、宁德时代加持",
+      "intro": "IT之家 8 月 7 日消息，北汽极狐今日宣布，阿尔法 T7 将于 8 月 26 日预售。该车曾在 6 月现身工信部申报目录，可选纯电动或增程动力，尺寸为 5020×1996×1685mm...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnkur3176108.shtml",
+      "channel": "industry",
+      "categories": [
+        "产业政策"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "895d0b108a9845eed9c0a385df9d2a2d",
+      "time": "1786075556",
+      "date": "2026-08-07",
+      "title": "已投资超200家企业，净内部收益率14%，港投公司CEO陈家齐最新发声",
+      "intro": "8月7日上午消息，2026全球医疗峰会在香港举行，香港投资管理有限公司（HKIC，以下简称“港投公司”）行政总裁陈家齐发表演讲。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/hy/hyjz/2026-08-07/doc-inimnenp3344867.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "242751f610e738f788d3860810e7cd0f",
+      "time": "1786071485",
+      "date": "2026-08-07",
+      "title": "有助于突破摩尔定律极限，台积电等研发出单层二硫化钼 MoS2 顶栅极晶体管",
+      "intro": "IT之家 8 月 7 日消息，据台媒经济日报消息，台积电在下一代技术领域取得重大突破。台积电联合阳明交通大学团队，成功研发出高性能单层二硫化钼（MoS2）顶栅极晶体管...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnent3216291.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "ebb83e1f14a2d7cee2a528958dc18cb5",
+      "time": "1786070931",
+      "date": "2026-08-07",
+      "title": "半导体产业的基石原料！美国对多晶硅及其衍生产品加征关税",
+      "intro": "快科技8月7日消息，据报道，美国总统特朗普于当地时间8月6日签署公告，宣布将对进口多晶硅衍生品加征15%关税，并对进口多晶硅及其衍生品设定最低进口价机制...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-07/doc-inimnent3208832.shtml",
+      "channel": "industry",
+      "categories": [
+        "地缘政治",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体"
+      ],
+      "importance": "high",
+      "tags": [
+        "半导体"
+      ]
+    },
+    {
+      "id": "9972727dab1d162b921b5c0f0ce5aeb3",
+      "time": "1785982718",
+      "date": "2026-08-06",
+      "title": "突发｜谷歌AI一夜巨震，Gemini换帅，首席科学家带三个大牛出走创业",
+      "intro": "谷歌 AI 正经历一场人事大震荡。就在刚刚，Google DeepMind 负责人 Demis Hassabis 宣布卸下日常管理职责，转任 Google DeepMind 主席兼 Alphabet 首席科学家。",
+      "summary": "",
+      "source": "爱范儿",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-06/doc-inimivfi3119353.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "high",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "0e7f159ecbe083a2f57cb53371e58574",
+      "time": "1785975071",
+      "date": "2026-08-06",
+      "title": "印度强推E20乙醇汽油引抗议 车企协会刚发警告就撤回！车主怒批其出尔反尔",
+      "intro": "快科技8月6日消息，据路透社报道，印度汽车制造商协会（SIAM）在发出E20乙醇汽油会损坏车辆零部件的警告后仅数小时便紧急撤回，这一操作引发消费者强烈不满。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-06/doc-inimiqxt4049641.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "high",
+      "tags": []
+    },
+    {
+      "id": "d6a7766f5e75918e54e8435c5a50506a",
+      "time": "1785953172",
+      "date": "2026-08-06",
+      "title": "谷歌AI业务迎重大人事变动 Alphabet股价应声跌逾5%",
+      "intro": "Alphabet旗下谷歌正失去一些最知名的人工智能老将，这场重大人事调整引发外界对这一关键增长领域领导层的质疑，此时人工智能领域的竞争正日益激烈。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/world/2026-08-06/doc-inimhyac1090767.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "high",
+      "tags": [
+        "AI",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "157c53183464675b6be65914425ad07f",
+      "time": "1785925279",
+      "date": "2026-08-05",
+      "title": "消息称美国前沿人工智能模型网络安全审查机制暂不涉及开放权重模型",
+      "intro": "IT之家 8 月 5 日消息，综合《纽约时报》《华尔街日报》《Axios》、彭博社等外媒报道，美国政府在当地时间本周二与头部人工智能企业举行的闭门会议中表示...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-05/doc-inimhiec5164161.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "high",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "733fc9e083acb2438125d4a551e20063",
+      "time": "1786194813",
+      "date": "2026-08-08",
+      "title": "16万亿砸向AIDC：AI大时代，电力成最大刚需？",
+      "intro": "谷歌母公司Alphabet、Meta、微软、亚马逊四家公司为未来数年数据中心建设累计承诺投资约合16万亿元人民币。 AI的较量正从芯片转向电力。",
+      "summary": "",
+      "source": "一财网",
+      "url": "https://finance.sina.com.cn/roll/2026-08-08/doc-inimrkxi9485548.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能",
+        "电力",
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "芯片"
+      ]
+    },
+    {
+      "id": "aeeba84e26d665259db3f96ee5bf556d",
+      "time": "1786116718",
+      "date": "2026-08-07",
+      "title": "槽点密集的造舰计划：特朗普的“黄金舰队”梦能实现吗",
+      "intro": "澎湃新闻记者 杨文钦 据新华社报道，当地时间8月5日，美国国会预算办公室（CBO）发布报告估算，美国总统特朗普要求打造的海军全新核动力“黄金舰队”可能需要在今后数十年间...",
+      "summary": "",
+      "source": "澎湃新闻",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-07/doc-inimpfya9879883.shtml",
+      "channel": "industry",
+      "categories": [
+        "大宗商品"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "17e0502ebdf82fef0c3cfdbe1ea4cd54",
+      "time": "1786086803",
+      "date": "2026-08-07",
+      "title": "从“母子”到对簿公堂：中文在线与枫叶互动因一份《和解与治理协议》反目 短剧出海利益矛盾彻底爆发",
+      "intro": "出品：新浪财经上市公司研究院 作者：渚 8月1日，短剧出海赛道上演了一场罕见的“母子反目”戏码。上市公司中文在线与参股公司枫叶互动（Crazy Maple...",
+      "summary": "",
+      "source": "新浪证券",
+      "url": "https://finance.sina.com.cn/stock/observe/2026-08-07/doc-inimnrai3194701.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "81a88a0ef50ff08520d1e6e44f03613c",
+      "time": "1786070309",
+      "date": "2026-08-07",
+      "title": "DeepSeek调用量达OpenAI三倍，打折无效后的OpenAI选择免费",
+      "intro": "当地时间8月6日，OpenAI宣布免费用户默认模型升级为GPT-5.6 Luna，并开放无限量文本聊天，全球约十亿ChatGPT用户将直接受益。昨日，DeepSeek发布公告...",
+      "summary": "",
+      "source": "一财网",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-07/doc-inimnenp3284836.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "af0ce38e203113907588938366c52e7e",
+      "time": "1785970080",
+      "date": "2026-08-06",
+      "title": "长飞光纤为香港电讯提供空芯光纤光缆",
+      "intro": "来源：上海证券报·中国证券网上证报中国证券网讯（记者 荆淮侨）长飞光纤8月5日通过官方公众号发布消息称，香港电讯（HKT）将推出3...",
+      "summary": "",
+      "source": "上海证券报",
+      "url": "https://finance.sina.com.cn/roll/2026-08-06/doc-inimiqxp4684883.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "64a81e800ff63e85534ee2621934f76e",
+      "time": "1786288846",
+      "date": "2026-08-09",
+      "title": "古尔曼曝光苹果早前设想：生产 iPhone 时就装好 iCloud 数据，让用户不再经历繁琐导数据流程",
+      "intro": "IT之家 8 月 9 日消息，据彭博社记者马克 · 古尔曼今日透露，苹果在构想 Apple Upgrade 设备租赁计划时考虑推出一项功能，让用户拿到新手机时不再需要导数据。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-10/doc-inimtuef8655401.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ef96fd7d86a99e5abb8ea49d7a66e1af",
+      "time": "1786283026",
+      "date": "2026-08-09",
+      "title": "苹果开始测试长鑫存储芯片 合作还需获得美国许可",
+      "intro": "快科技8月9日消息，据媒体报道，苹果公司正着手测试长鑫存储生产的内存芯片，计划将其导入iPhone、MacBook等多条产品线，以应对全球内存芯片因人工智能需求激增而引发的供...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-10/doc-inimtuef3240569.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "58a90df1f95cdd1260b81606d02c51e9",
+      "time": "1786273282",
+      "date": "2026-08-09",
+      "title": "路透社民调：超 60% 美国成年人赞成对社交媒体公司加强监管",
+      "intro": "IT之家 8 月 9 日消息，根据路透社与益普索的一项民意调查，约 61% 的民调受访者表示，社交媒体公司需要接受更严格的监管。这项通过网络开展的民调共调查了 4...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-10/doc-inimtiqm3425126.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f7060ef2a36b7d9daba4b9cddbce4a53",
+      "time": "1786269182",
+      "date": "2026-08-09",
+      "title": "“一斤羊肉180元” 西贝贾国龙再入局鲜羊餐饮：羊肉串8元起，部分店员来自西贝，网友：更贵了？",
+      "intro": "文 | 《BUG》栏目 张奥 近日，继西贝事件后，西贝餐饮集团创始人贾国龙再度入局“鲜羊”领域，并开出全新品牌“天边羊多”。 恰逢开业首个周末，新品牌首店的状况如何？",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimtiqm8772580.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5594fd92f07383f76bfd513248465b9f",
+      "time": "1786268173",
+      "date": "2026-08-09",
+      "title": "飞猪启动台风“白海豚”应急响应机制，已保障多批消费者无损退改",
+      "intro": "据中央气象台消息，台风“白海豚”（强台风级）预计于9日傍晚至10日凌晨在浙江舟山到福建福鼎一带沿海登陆。目前，飞猪已启动应急响应机制，充分保障消费者的退改权益。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimtiqm3377715.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c9d40f8693e11af3b3b5b059b0fd50a1",
+      "time": "1786267846",
+      "date": "2026-08-09",
+      "title": "新加坡总理黄循财谈 AI：将利用新技术提高生产效率、创造高质量就业岗位",
+      "intro": "IT之家 8 月 9 日消息，据彭博社 8 日报道，在新加坡独立 61 周年前夕，新加坡总理黄循财发表国庆献词指出，人工智能快速发展正在给新加坡带来新的增长机会。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-10/doc-inimtiqm3378207.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "7379950ceacd04f1f55ad2749f83b8db",
+      "time": "1786267129",
+      "date": "2026-08-09",
+      "title": "43.98万起的硬派豪华SUV！享界G9预售72小时订单破1.5万台",
+      "intro": "快科技8月9日消息，近日，享界汽车官方公布旗下首款豪华硬派SUV享界G9开启预售72小时，累计订单量突破15000台，新车预售价43.98万元起。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-10/doc-inimtiqm8762611.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "36aa2dd93afdea48ab0aae5350da175c",
+      "time": "1786264136",
+      "date": "2026-08-09",
+      "title": "摩尔线程：2026上半年营收17.36亿元，同比增长147.42%",
+      "intro": "新浪科技讯 8月9日下午消息，摩尔线程发布2026年半年度报告。根据报告，2026年上半年，摩尔线程实现营收17.36亿元，同比增长147.42%，已超2025年全年营收；毛利总额达9...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimtchp3473249.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "03ccca10b0a42886959a66355e2312f2",
+      "time": "1786263144",
+      "date": "2026-08-09",
+      "title": "苹果回应删除接入千问手册：没收到通知，中国大陆还没推出“Apple智能使用千问”功能",
+      "intro": "新浪科技讯 8月9日下午消息，针对删除《在 Mac 上配合Apple智能使用千问》使用文档一事，苹果客服最新回应新浪科技称：“我们有功能或新项目发布时，都会提前收到通知...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimtchr5630368.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "a3324b2256fab76980336795333785f9",
+      "time": "1786263087",
+      "date": "2026-08-09",
+      "title": "摩尔线程：2026上半年营收17.36亿元，已超2025全年",
+      "intro": "8月9日，国产GPU龙头摩尔线程（688795.SH）发布《2026年半年度报告》。2026年上半年，公司实现营收17.36亿元，同比大幅增长147.42%，已超2025年全年营收；毛利总额达9...",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimtchp3465077.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "381bbc5da908f5f42f894f645b8813c5",
+      "time": "1786256015",
+      "date": "2026-08-09",
+      "title": "视频|俞敏洪：如果我不是创始人的话，我也早跑出去了",
+      "intro": "",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/tob/2026-08-09/doc-inimswyr8935303.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "17b008f65c6c52809376d28edc0bf1a7",
+      "time": "1786251114",
+      "date": "2026-08-09",
+      "title": "上线不到24小时，苹果删除“Apple智能接入千问”支持文档",
+      "intro": "新浪科技讯 8月9日午间消息，昨日，一篇名为《在 Mac 上配合 Apple 智能使用千问》的支持文档现身苹果官网 Mac 简体中文使用手册...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/2026-08-09/doc-inimswyr3498858.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2c93743d41d5ce6b4884820b53cf527b",
+      "time": "1786235124",
+      "date": "2026-08-09",
+      "title": "小米汽车：澎程 N90 Max 四门可选智能电动门，支持开门杀预警和避障",
+      "intro": "IT之家 8 月 9 日消息，小米汽车昨晚发布答网友问（第 272 集），对于小米澎程的车门设计、对坐模式等进行了详解。据官方介绍，小米澎程全系后门都可实现近 90 度开合。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-10/doc-inimsnkv3642674.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f514eef0ede65b20105bf8bf5fbbdbc3",
+      "time": "1786232284",
+      "date": "2026-08-09",
+      "title": "中国电视7月出货185万台：海信、小米、创维包揽前三 索尼等外资垫底",
+      "intro": "快科技8月9日消息，今日，洛图科技发布2026年7月中国电视市场品牌出货数据。数据显示，2026年7月，中国电视市场品牌整机出货量为185.0万台，同比微降0.5%...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-10/doc-inimsnkv3613470.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "da62645de75934082fe3556d63ad2a4e",
+      "time": "1786194325",
+      "date": "2026-08-08",
+      "title": "吴声：联想AI把绿茵场变成了技术组织能力竞技场",
+      "intro": " 新浪科技讯 8月8日晚间消息，十年里程碑“新物种爆炸・吴声商业方法发布2026”落地香港，场景实验室创始人吴声现场拆解联想AI深度改造2026 FIFA世界杯赛事场景技术实践。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-08/doc-inimrkxf2420140.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "2797f3d9534c1ce658ee26befa1f7444",
+      "time": "1786192102",
+      "date": "2026-08-08",
+      "title": "“非计划”空间事件！中国卫星拍到了",
+      "intro": "参考消息 据香港《南华早报》网站8月6日报道，一颗新发射的中国卫星追踪到太空探索技术公司“猎鹰9”号火箭的一块碎片撞向月球，并拍下撞击画面，展示出空间监测实力。",
+      "summary": "",
+      "source": "市场资讯",
+      "url": "https://finance.sina.com.cn/roll/2026-08-08/doc-inimrkxf2404925.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "14cbf3bf2cdb09f185b72de068e891e2",
+      "time": "1786176887",
+      "date": "2026-08-08",
+      "title": "千里智驾ASD装车突破53万辆，已搭载smart等19款车型",
+      "intro": "新浪科技讯 8月8日下午消息，千里智驾最新宣布，继smart #6后，搭载千里智驾ASD 4.0辅助驾驶方案的smart精灵#1近日量产上市，千里智驾ASD第二次在smart车型上量产搭载...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-08/doc-inimqyip4142618.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1d3c29a1d149495766e06dd21ec63b43",
+      "time": "1786162060",
+      "date": "2026-08-08",
+      "title": "Agentic AI新趋势：亚马逊AWS出现“CPU短缺”",
+      "intro": "来源：华尔街见闻AI Agent的爆发式普及正在引发一场意想不到的算力危机——不是GPU，而是CPU。8月7日，据科技媒体The Information报道...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/stock/t/2026-08-08/doc-inimqptt4279186.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能",
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "7d7ff4d178381a4f290f5098120a6c0d",
+      "time": "1786160675",
+      "date": "2026-08-08",
+      "title": "张雪峰女儿请峰学蔚来员工立秋喝奶茶",
+      "intro": "8月8日消息 峰学蔚来官方在抖音发文：“以前秋天的第一杯奶茶都是张雪峰老师买的，以后秋天的第一杯奶茶是姩菡给的！” 张姩菡还在评论区表示：“立秋快乐，老妈说...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-08/doc-inimqptr2656139.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "7cbc34acc10abed97b46694cd5581967",
+      "time": "1786149761",
+      "date": "2026-08-08",
+      "title": "南航飞机上发西梅汁 乘客称：“差点让我丢大脸”",
+      "intro": "8月8日消息，有消费者在网络社交平台表示，在8月1日南航CZ8403航班上，乘务员分发的饮品有西梅汁，一些乘客喝完后，发生排队上厕所现象，上演“厕所争夺战”...",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/roll/2026-08-08/doc-inimqccx4418244.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "044b4de539f8fc541d5cb06b2f75e122",
+      "time": "1786111910",
+      "date": "2026-08-07",
+      "title": "算力紧缺背景下 亚马逊AWS要求工程师削减CPU资源浪费",
+      "intro": "据一位知情会议参与者透露，亚马逊云科技（AWS）管理层于5月与工程师召开会议，传递出一则严峻指令：为保障旗下热门弹性云服务器业务EC2未来能为全部客户提供充足算力...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-07/doc-inimpfya9842938.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "通信",
+        "建筑装饰"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "36859788eff3f17d86ab21d2cc069307",
+      "time": "1786110145",
+      "date": "2026-08-07",
+      "title": "莫言携新书《人呐》做客京东图书分享会",
+      "intro": "新浪科技讯 8月7日晚间消息，由京东图书主办的莫言《人呐》新书分享会上，诺贝尔文学奖得主莫言与资深媒体人杨澜、牛津大学人类学教授项飙展开跨界对谈，围绕创作缘起...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-07/doc-inimpfxz3054840.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "82adc38f8dd27b5ce3b7bb77e3e08cfe",
+      "time": "1786102987",
+      "date": "2026-08-07",
+      "title": "京东健康上半年首发65款新药，覆盖肿瘤、皮肤等领域",
+      "intro": " 新浪科技讯 8月7日晚间消息，新浪科技从京东健康获悉，2026年上半年，京东健康累计首发65款新药，覆盖肿瘤、皮肤、慢病等领域，新药首发数量连续多年领跑行业。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-07/doc-inimnzsc3122641.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "368d2d70700d0fa63573d47e664b9a88",
+      "time": "1786100950",
+      "date": "2026-08-07",
+      "title": "到手价16499元！华硕ROG魔霸9X台式机上新：酷睿Ultra 7+32GB DDR5",
+      "intro": "快科技8月7日消息，华硕ROG魔霸9X台式游戏主机新增酷睿Ultra 7 270K PLUS处理器+RTX 5070 12GB版本，目前已在京东平台正式开售，官方定价17999元...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-07/doc-inimnvki0012633.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0919c8283e894249f222386cd668f557",
+      "time": "1786100947",
+      "date": "2026-08-07",
+      "title": "存储暴涨谁也躲不开，iPhone 18 Pro国行或冲击万元门槛",
+      "intro": "【iMobile爱科技资讯】全球存储芯片价格持续大幅走高，受AI产业抢占存储产能影响，DRAM、NAND闪存成本大幅飙升，消费电子厂商元器件成本压力陡增...",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-07/doc-inimnvkf3235069.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "消费电子",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片",
+        "AI"
+      ]
+    },
+    {
+      "id": "0bccd679f5de7462fb8902b2bcb80891",
+      "time": "1786100834",
+      "date": "2026-08-07",
+      "title": "华为何刚官宣 FreeClip 2 耳夹耳机配饰上新，和法国珠宝品牌 Les Néréides 达成合作",
+      "intro": "IT之家 8 月 7 日消息，华为终端 BG CEO 何刚今日宣布，FreeClip 2 耳夹耳机配饰上新。新款配饰由华为与法国珠宝品牌 Les Néréides 合作打造...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnvkf3242334.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f4fa81c7325e37b14ce131390befaa0a",
+      "time": "1786100303",
+      "date": "2026-08-07",
+      "title": "对话西湖数智创始人于开丞：走专用模型老路，具身智能进家庭要等上百年",
+      "intro": "新浪科技讯 8月7日晚间消息，近日，Physical AI通用物理智能公司西湖数智完成种子轮、天使轮系列累计超亿元融资，投资方包括英诺基金，东方嘉富基金、正轩投资、天启资本...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-07/doc-inimnvkp4794609.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "254ccbd68406925ef088191902d4ebf7",
+      "time": "1786099321",
+      "date": "2026-08-07",
+      "title": "网易前主管监守自盗：利用后台权限窃取《梦幻西游》171 个闲置账号，牟利 173 万元获三年缓刑",
+      "intro": "IT之家 8 月 7 日消息，据《消费日报》今日报道，广州市天河区人民法院近日对网易互娱前员工刘某甲监守自盗一案作出一审判决。IT之家查询发现...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnvkm3187566.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0deafedff94a8043535a1a2edc9698eb",
+      "time": "1786098730",
+      "date": "2026-08-07",
+      "title": "天工短剧工作台接入Seedance 2.5，定价打三折",
+      "intro": " 新浪科技讯 8月7日晚间消息，昆仑万维旗下AI短剧创作平台天工短剧工作台（SkyProduction）宣布接入Seedance 2.5模型，定价调整为官方参考价的30%，为当前市场公开最低价。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-07/doc-inimnvkh9985563.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "8fe80cafd094fa54df445406540d65b8",
+      "time": "1786097523",
+      "date": "2026-08-07",
+      "title": "中国联通被曝“狂砍”区域代理佣金：扣减缓发40%，部分套餐资费涨幅达100%",
+      "intro": "文 丨 《BUG》栏目 周文猛 在运营商集体出手清退第三方线上号卡业务，集体反内卷的大背景下，中国联通杭州区域行销代理商佣金缩水的事实，也正浮出水面。",
+      "summary": "",
+      "source": "BUG",
+      "url": "https://finance.sina.com.cn/tech/it/2026-08-07/doc-inimnvkf3201631.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3437c17ec0649338abbcd7fc79db8365",
+      "time": "1786096900",
+      "date": "2026-08-07",
+      "title": "美图RoboNeo接入Seedance 2.5",
+      "intro": " 新浪科技讯 8月7日下午消息，继8月5日发布全新版本后，8月7日，美图RoboNeo接入Seedance 2.5模型，并推出限时5折活动。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/it/2026-08-07/doc-inimnvkm3151888.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "42c7727fead8b37c498f07ec071926da",
+      "time": "1786096283",
+      "date": "2026-08-07",
+      "title": "产品定义顶级：消息称华为阔直板新机已 Ready，方案属是行业首发",
+      "intro": "IT之家 8 月 7 日消息，博主 @数码闲聊站 今日发文透露，某厂的阔直板新手机已 Ready，方案属于行业首发。结合该博主此前的爆料来看，新机归属华为品牌。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnvkp4760157.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "6569d801d7ac593cfc8e5202f94fd3be",
+      "time": "1786096122",
+      "date": "2026-08-07",
+      "title": "华硕 ROG 魔霸 9X 主机新增 U7 270K PLUS + RTX 5070 型号，32G 大内存 17999 元",
+      "intro": "IT之家 8 月 7 日消息，京东今日宣布，华硕 ROG 魔霸 9X 台式游戏主机新增的酷睿 Ultra 7 270K PLUS 处理器 + RTX 5070 12GB 版本正式开售，官方定价为 17999 元。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnvkh9972167.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d3eacd35404f7f67b213c184ee95813c",
+      "time": "1786093749",
+      "date": "2026-08-07",
+      "title": "华为阔直板或归入Pura X系列，定价可能超7000元",
+      "intro": "【iMobile爱科技资讯】8月7日消息，博主“定焦数码”爆料称，华为正在规划的阔直板机型并不会归入nova系列，最终确定将属于Pura X系列。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-07/doc-inimnvkh9935442.shtml",
+      "channel": "industry",
+      "categories": [
+        "产业政策"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "fab32f710850824916d20b7d617d30f7",
+      "time": "1786093656",
+      "date": "2026-08-07",
+      "title": "Seedance 2.5 API上线",
+      "intro": "新浪科技讯 8月7日下午消息，火山引擎正式上线 Seedance 2.5 API 服务。相比 Seedance 2.0，Seedance 2.5在指令遵循、长叙事、真人感、声画质感等能力上大幅提升。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/it/2026-08-07/doc-inimnvkh9934281.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1d948807c0eb80c17e2b43cc3de76181",
+      "time": "1786091610",
+      "date": "2026-08-07",
+      "title": "Alphabet 再度举债 200~250 亿美元，软银以 OpenAI 股份担保借款 100 亿美元",
+      "intro": "IT之家 8 月 7 日消息，人工智能无疑是一个重资产行业，无论是算力资源还是专家人才都需要大额资金投入。主要参与方正利用一系列金融手段为无休止的 AI...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnram0042451.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经",
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能",
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "f8d346c4246da47039040fa02e782742",
+      "time": "1786091148",
+      "date": "2026-08-07",
+      "title": "对话熠序科技创始人李德辉：给AI打疫苗、发身份证，这家5个月的公司天使轮拿到了15亿估值",
+      "intro": "文 | 新浪科技 陈思竹 2026年1月底，北京白塔寺附近的一家咖啡馆里，熠序科技创始人李德辉萌发出一个想法：人类社会中有着各种规章制度来维持社会稳定...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/it/2026-08-07/doc-inimnram0033788.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "医药生物",
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "66f0e3519b6ba0507a93358dd4110f2a",
+      "time": "1786091103",
+      "date": "2026-08-07",
+      "title": "宇树科技王兴兴：公司将并行开展WMA世界模型、VLA视觉-语言-动作具身大模型研发",
+      "intro": "新浪科技讯 8月7日下午消息 在宇树科技今日的网上路演上，有投资者询问：公司募投项目之一智能机器人模型研发项目的具身智能核心模块“大脑”采用的是大语言模型还是世界模型...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/it/2026-08-07/doc-inimnrap3208937.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "大模型"
+      ]
+    },
+    {
+      "id": "eb4f2abec1d215f2bf96d34a261679bc",
+      "time": "1786088761",
+      "date": "2026-08-07",
+      "title": "行业首款！华为阔直板手机确定归属Pura X系列：预计7000元起",
+      "intro": "快科技8月7日消息，今日，博主“定焦数码”爆料称，华为正在筹备的阔直板手机最终确定归属Pura X系列，并非此前传闻的nova系列。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-07/doc-inimnrai3232100.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "1a985c37a89c1bb5d327fcd2948a72ec",
+      "time": "1786088489",
+      "date": "2026-08-07",
+      "title": "Lazard新兴市场股票基金抄底三星 看好内存芯片上行周期",
+      "intro": " Lazard Asset Management一只规模96亿美元基金的管理者，借助三星电子7月暴跌的时机，一年多来首次将该股纳入投资组合。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-07/doc-inimnrac4108795.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片"
+      ]
+    },
+    {
+      "id": "1c6076a04a8d5590be9a2ecf1b299064",
+      "time": "1786088400",
+      "date": "2026-08-07",
+      "title": "SK海力士将在韩国投资380亿美元扩张芯片业务",
+      "intro": " SK海力士在监管文件中表示，将投资约54万亿韩元（380亿美元）在龙仁和清州建设新的半导体工厂，以扩大中长期的记忆体产能。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-07/doc-inimnrac4107121.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经",
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片",
+        "半导体"
+      ]
+    },
+    {
+      "id": "2fcc856d0dca0c9730815883b2ed402d",
+      "time": "1786088062",
+      "date": "2026-08-07",
+      "title": "云锋基金回应Corgi投资传闻：未参与，持续深耕硬科技与人工智能全产业链",
+      "intro": "新浪科技讯 8月7日下午消息，针对近期市场关于“云锋基金投资美国AI公司Corgi”的传闻，云锋基金正式回应称该消息不实，基金并未参与该项目投资。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/it/2026-08-07/doc-inimnrai3215727.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "人工智能",
+        "AI"
+      ]
+    },
+    {
+      "id": "da64070c936a40dc2d76a95ec6e0bdd6",
+      "time": "1786087000",
+      "date": "2026-08-07",
+      "title": "海融科技“接盘”盒马烘焙工厂糖盒食品 传统渠道承压之下能否借并购破局？",
+      "intro": "出品：新浪财经上市公司研究院  作者：郝显 7月30日，海融科技发布公告，拟以1.3亿元收购糖盒食品（昆山）有限公司（下称 “糖盒食品”）55% 股权...",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/stock/observe/2026-08-07/doc-inimnrak9970715.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "食品饮料"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d08123dc6732237426473b9a9e861023",
+      "time": "1786086206",
+      "date": "2026-08-07",
+      "title": "Meta印度业务的“72小时危机”",
+      "intro": "Meta与印度监管机构之间局势高度紧张，近期该企业在印度接连两次陷入舆论风波。 今年7月印度Z世代抗议活动期间，Meta曾短暂限制印度总理纳伦德拉・莫迪面向学生发表讲话的...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-07/doc-inimnrak9956329.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "afdd20e9b670091189092f2be6348295",
+      "time": "1786085900",
+      "date": "2026-08-07",
+      "title": "张俊杰：蚂蚁阿福累计服务用户过亿 25%是老年人",
+      "intro": " 8月7日下午消息，由新风天域集团与香港投资管理有限公司（港投公司）联合举办的2026全球医疗峰会在香港开幕，蚂蚁集团副总裁、蚂蚁健康事业群总裁张俊杰发表演讲。",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/roll/2026-08-07/doc-inimnrai3179762.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "74d915c58224b40f31973a2649fa2497",
+      "time": "1786085333",
+      "date": "2026-08-07",
+      "title": "王莆中：从订单角度看 美团是内地最大的药品零售平台",
+      "intro": " 8月7日下午消息，由新风天域集团与香港投资管理有限公司（港投公司）联合举办的2026全球医疗峰会在香港开幕，美团核心本地商业CEO王莆中发表演讲。",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/roll/2026-08-07/doc-inimnkup0078221.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d8b6a5f3d6acb7e2f7cc3909c381dda7",
+      "time": "1786085232",
+      "date": "2026-08-07",
+      "title": "宇树科技王兴兴：高性能通用机器人集合了多学科、多领域，是同时面向行业级和消费级的应用",
+      "intro": "新浪科技讯 8月7日下午消息 在宇树科技今日的网上路演上，有投资者询问，进入高性能通用机器人领域的专业技术与人才壁垒是什么？",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-07/doc-inimnkum3304818.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e64fc3d10b33058d9935a579f2beafda",
+      "time": "1786085055",
+      "date": "2026-08-07",
+      "title": "宇树科技王兴兴：公司采用“以销定产+安全库存”的生产计划模式",
+      "intro": "新浪科技讯 8月7日下午消息 宇树科技董事长、总经理兼首席技术官王兴兴在网上路演时表示，公司采用“以销定产+安全库存”的生产计划模式...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-07/doc-inimnkum3303320.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d72a49d39aad64accf7d8985206098b7",
+      "time": "1786084613",
+      "date": "2026-08-07",
+      "title": "宇树科技王兴兴：宇树科技将积极探索人形机器人、机甲等更多产品形态",
+      "intro": "新浪科技讯 8月7日下午消息 ，宇树科技董事长王兴兴8月7日在网上路演时表示，本次登陆资本市场，是宇树科技全新的起点。“未来我们将恪守初心，踏实打磨关键技术...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-07/doc-inimnkum3298972.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0b17603e135bcdc29f26ce8303bff36e",
+      "time": "1786084351",
+      "date": "2026-08-07",
+      "title": "谷歌AI权力重回布林 DeepMind哈萨比斯退居二线",
+      "intro": "谷歌正将AI业务的控制权从伦敦收回硅谷。一场大规模领导层重组，巩固了联合创始人谢尔盖・布林重新崛起的影响力。 据十几位熟悉这家科技巨头的人士透露...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-07/doc-inimnkur3233285.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "d70384bd76b295c5e9ab5b1bb07e66bd",
+      "time": "1786083978",
+      "date": "2026-08-07",
+      "title": "广汽埃安 Ray 7 纯电轿车申报：华为 180kW 电机、宁德时代电池",
+      "intro": "IT之家 8 月 7 日消息，广汽埃安今年 7 月宣布推出全新车系“Ray”，首款车型命名为“Ray 7”，号称是“年轻人热爱的超级纯电轿车”。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnkum3299135.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d1549c0f98fee3bc48ed1caef454567d",
+      "time": "1786083369",
+      "date": "2026-08-07",
+      "title": "SpaceX确认Terafab项目已敲定 首次与Grimes县居民面对面交流",
+      "intro": " SpaceX与Terafab代表周三首次直接与Grimes县居民会面，并正式确认相关协议已签署生效。当地居民挤满专员法庭会议室，参加被许多人视为该县近年来最重要的会议之一。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-07/doc-inimnkup0060429.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9ffad3f4e456f4f3feadcad0b8014640",
+      "time": "1786080053",
+      "date": "2026-08-07",
+      "title": "传58同城启动人员优化，销售团队压缩至6000人，官方暂无回应",
+      "intro": "新浪科技讯 8月7日下午消息，有自称58同城员工在社交平台爆料称，58同城将启动多轮人员优化计划，覆盖830、930、1030、1130多个时间节点...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-07/doc-inimnkup0028560.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "83e6a18b875d88d20497e4ab48ca93f9",
+      "time": "1786079661",
+      "date": "2026-08-07",
+      "title": "国产高端第一旗舰！1TB版Mate 80标准版上架卖6499 华为要冲击系列千万台出货",
+      "intro": "快科技8月7日消息，华为悄无声息上架了Mate 80标准版的1TB存储版本，据熟悉供应链情况的业内人士透露，华为这次推出大内存高配版本...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-07/doc-inimnkum3255074.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "092b936c5a932f4d2ad40845c73af21c",
+      "time": "1786075397",
+      "date": "2026-08-07",
+      "title": "本田中国1-7月汽车销量230870辆 同比暴跌超35%：单单7月销量呈现出拦腰砍断态势",
+      "intro": "快科技8月7日消息，本田在华的汽车销量已经彻底陷入低谷，当前各项经营数据显示，其销量下滑的速度没有任何放缓的意思，颓势还在持续加剧。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-07/doc-inimneni4208464.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "cf00901de07371e2d9c638879bde2d74",
+      "time": "1786072557",
+      "date": "2026-08-07",
+      "title": "本田中国 7 月汽车销量 25052 辆，同比下降 44.1%",
+      "intro": "IT之家 8 月 7 日消息，据新浪财经今日报道，本田中国 7 月汽车销量 25,052 辆，同比下降 44.1%；本田中国 1-7 月汽车销量 230,870 辆，同比下降 35.9%。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnent3245637.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "a96b4011b23e793edc05b68ea3c4048a",
+      "time": "1786072210",
+      "date": "2026-08-07",
+      "title": "影石产品将上线AI语音助手，分区域接入阿里千问和Gemini模型",
+      "intro": "新浪科技讯 8月7日午间消息 影石Insta360将于8月7日为GO Ultra拇指相机上线AI语音助手。该功能按区域采用不同大模型方案：中国大陆地区接入阿里千问大模型...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-07/doc-inimnent3218461.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "大模型"
+      ]
+    },
+    {
+      "id": "63ffe7238b56b0987404c5f1542d523b",
+      "time": "1786070687",
+      "date": "2026-08-07",
+      "title": "消息称日本将在秋田建设 500MW 数据中心，为该国最大同类设施之一",
+      "intro": "IT之家 8 月 7 日消息，据《日经亚洲》当地时间今日报道，日本将在本州岛东北部的秋田县秋田市建设一座容量最大可达 500MW 的数据中心，这将成为日本最大同类设施之一。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimnent3202445.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "754af1d9580100d58072556a36b8cb55",
+      "time": "1786069737",
+      "date": "2026-08-07",
+      "title": "BMW 3系中国市场累计销量突破200万辆，新世代BMW i3将于成都车展正式全面亮相",
+      "intro": "新浪科技讯 8月7日上午消息，近日，BMW 3系在中国市场迎来重要里程碑，累计销量正式突破200万辆。 过去50年来，BMW 3系始终是BMW品牌驾驶乐趣的最佳代表。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-07/doc-inimnent3177933.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9e780b16bfc344243dc1a207d9cc90a2",
+      "time": "1786069480",
+      "date": "2026-08-07",
+      "title": "小红书严打“毒动画”：全量下架有关笔记，违规账号永久封禁",
+      "intro": "新浪科技讯 8月7日上午消息，近日，小红书发布“清朗·未成年人网络保护”专项行动开展以来的治理进展。平台已全面排查数十类涉未成年人高发风险，累计处置违规笔记8...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-07/doc-inimnenp3270323.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "541545317ced09279bb4f4f43ecd490c",
+      "time": "1786069000",
+      "date": "2026-08-07",
+      "title": "千问App更新：上线思考研究、定时任务、办公助理等五项新功能",
+      "intro": "新浪科技讯 8月7日上午消息，千问App和PC端功能上新，推出思考研究、定时任务、办公助理、智能体广场、语音通话等多项新功能，同时支持阿里最新旗舰模型Qwen3.8-MAX。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-07/doc-inimnenr0035717.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ed6bc81c996376878020a34cccdb1810",
+      "time": "1786067737",
+      "date": "2026-08-07",
+      "title": "海辰储能王鹏程：推动全球锂电长时储能进入大规模交付时代",
+      "intro": "8月7日消息，海辰储能山东菏泽基地今天量产下线，实现从材料、电芯到模组、系统及交付的全链条贯通。据悉，该基地总投资超130亿元...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-07/doc-inimmyev3272757.shtml",
+      "channel": "industry",
+      "categories": [
+        "大宗商品",
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源",
+        "有色金属"
+      ],
+      "importance": "medium",
+      "tags": [
+        "储能"
+      ]
+    },
+    {
+      "id": "1ad767f33a14416fdf956e6a82337929",
+      "time": "1786067733",
+      "date": "2026-08-07",
+      "title": "海辰储能全球首个长时储能一体化产业园量产下线",
+      "intro": " 8月7日消息，海辰储能山东长时储能一体化产业园今天在山东菏泽鲁西新区量产下线，为全球首个专注长时储能的一体化产业园。该项目自2024年10月动工，提前近两年建成。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-07/doc-inimmyev3272557.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源"
+      ],
+      "importance": "medium",
+      "tags": [
+        "储能"
+      ]
+    },
+    {
+      "id": "e3db3959322fc3215b509d04ce86bf5f",
+      "time": "1786067707",
+      "date": "2026-08-07",
+      "title": "荣耀MagicOS11启动内测报名，首次公开支撑液态玻璃设计的自研双架构体系",
+      "intro": " 新浪科技讯 8月7日上午消息，荣耀近日举办MagicOS11先锋品鉴会，正式公开了安卓首个液态玻璃设计的完整技术底座——荣耀琉光架构与荣耀蜂鸟架构。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-07/doc-inimmyem4212500.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "84fca7bded921a6ce6ac7a8727c4f33a",
+      "time": "1786066419",
+      "date": "2026-08-07",
+      "title": "华为畅享100 Pro Max首发麒麟8030：麒麟最强8系芯片",
+      "intro": "快科技8月7日消息，有博主爆料称华为畅享100 Pro Max将首发搭载麒麟8030芯片，并配备一块6.84英寸的1.5K分辨率屏幕，同时电池容量突破9000mAh。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-07/doc-inimmyem4192367.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片"
+      ]
+    },
+    {
+      "id": "01a1c08d797ae1c012779c8aeb8178fc",
+      "time": "1786063152",
+      "date": "2026-08-07",
+      "title": "因 Facebook、Instagram 损害青少年权益，Meta 被判支付 5.67 亿美元",
+      "intro": "IT之家 8 月 7 日消息，据路透社报道，当地时间 8 月 6 日，美国新墨西哥州圣菲地区法院认定 Meta 应对损害儿童心理健康负责，责令该公司支付 5...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimmyev3206301.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "22af0b9a4c0b5b84e162c1130ad4088f",
+      "time": "1786029916",
+      "date": "2026-08-06",
+      "title": "曝字节拟训练超5万亿参数大模型 参数规模超Kimi K3",
+      "intro": "新浪科技讯 8月6日晚间消息，据《晚点 LatePost》报道，字节跳动正在讨论训练一个参数规模超 5 万亿的模型，它超过阿里的 Qwen 3.8-Max（2...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimmayt2843668.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "大模型"
+      ]
+    },
+    {
+      "id": "cb152f8635dba3432a230ffd02cfd4a9",
+      "time": "1786027096",
+      "date": "2026-08-06",
+      "title": "华为天生会画 App 最新功能支持差异清单发布，全新 MateBook Fold 折叠电脑适配流体笔刷等",
+      "intro": "IT之家 8 月 6 日消息，华为官网现更新了天生会画 App 最新功能支持差异清单，详细介绍了各机型升级至 HarmonyOS 5 及以上系统版本后支持的功能。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimmayz3640748.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9cea6ccf509738baf3d29f2e609d3f59",
+      "time": "1786026562",
+      "date": "2026-08-06",
+      "title": "充电宝也能离线查找、播放铃声！李小龙晒华为首款新国标3C移动电源",
+      "intro": "快科技8月6日消息，日前，华为自带线全能充智能移动电源发布，这是华为首款通过新国标CCC认证的移动电源。今日，华为终端BG CTO李小龙晒出这款移动电源并表示：“支持离线查...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-06/doc-inimkwsx4557897.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "53ff919a16de19fad5f3e737bd879f59",
+      "time": "1786025990",
+      "date": "2026-08-06",
+      "title": "华为官宣享界 G9 豪华硬派 SUV 首批展车陆续到店，新车预售价 43.98 万元起",
+      "intro": "IT之家 8 月 6 日消息，华为终端官方今日宣布，鸿蒙智行首款豪华硬派 SUV 享界 G9 首批展车陆续到店。IT之家注意到，华为常务董事、产品投资评审委员会主任...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimkwtc3766705.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "4917e6043fa2af0e4d3d723e96bfc146",
+      "time": "1786023666",
+      "date": "2026-08-06",
+      "title": "豆包智商拉满 国产大模型将超越5万亿规模：需百万显卡算力",
+      "intro": "快科技8月6日消息，国产大模型中，Qwen3.8 Max、Kimi K3参数量已经到了2.4万亿、2.8万亿的级别，再下一步就是5万亿参数量了，这一次可能是字节率先行动。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-07/doc-inimkwtf0517445.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "人工智能",
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": [
+        "大模型"
+      ]
+    },
+    {
+      "id": "60a697426e07836c8dbd2b985bc5787b",
+      "time": "1786023457",
+      "date": "2026-08-06",
+      "title": "华为自带线全能充智能移动电源确认支持精准查找，提供播放铃声、遗落提醒等功能",
+      "intro": "IT之家 8 月 6 日消息，在昨天的尊界时代旗舰 MPV 及华为全场景新品发布会上，华为终端 BG CEO 何刚发布了华为首款新国标 3C 移动电源 —— 华为自带线全能充智能移动电源...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimkwsx4534350.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "7660312a985b4fa9f41bcebc6d99b663",
+      "time": "1786021882",
+      "date": "2026-08-06",
+      "title": "支付宝鸿蒙版 App 获 12.12.16.4400 尝鲜升级，开放蚂蚁阿宝 AI 功能",
+      "intro": "IT之家 8 月 6 日消息，支付宝鸿蒙版 App 今日在华为应用市场（App Gallery）开启了 12.12.16.4400 (212163) 版本尝鲜升级，测试时间为 2026/8/6-2026/8/9。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimkwtc3732586.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "79feccf34111a98b7b3f134aee4f1462",
+      "time": "1786020486",
+      "date": "2026-08-06",
+      "title": "Alphabet为至多400亿美元的股权融资计划新增多家经办行",
+      "intro": " Alphabet补充了此前有关至多400亿美元股权融资交易的招股说明书，将美银证券和花旗环球市场等多家银行新增为经办机构。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-06/doc-inimkwsv2890553.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [
+        "金融"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "be3a734337301ef6c8ab07ab6bb0986d",
+      "time": "1786020425",
+      "date": "2026-08-06",
+      "title": "滴滴旗下99与巴西租车企业Movida签署合作协议，降低新能源汽车进入网约车运营场景门槛",
+      "intro": "新浪科技讯 8月6日下午消息，滴滴旗下巴西一站式本地生活服务平台99与巴西汽车租赁企业Movida签署合作协议，双方将面向99平台网约车司机推出包含新能源汽车在内的优惠租赁...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimkwtf0487308.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源",
+        "新能源汽车"
+      ],
+      "importance": "medium",
+      "tags": [
+        "新能源"
+      ]
+    },
+    {
+      "id": "31e76d4301dd83321cd2538328edec60",
+      "time": "1786020256",
+      "date": "2026-08-06",
+      "title": "Alphabet寻求通过发行10部分债券筹集至多250亿美元",
+      "intro": " 知情人士称，谷歌母公司Alphabet计划通过最新的美国投资级债券发行筹集至多250亿美元。在AI相关债券7月遭到抛售后，这笔交易将检验投资者的需求。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-06/doc-inimkwsx4491631.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "d156a56b41681dc0497714b11be7213b",
+      "time": "1786019743",
+      "date": "2026-08-06",
+      "title": "华为官宣昇腾 0 Day 支持蚂蚁百灵 Ling-3.0-flash 模型，全新算子编程框架 CANN PyPTO 首秀",
+      "intro": "IT之家 8 月 6 日消息，蚂蚁百灵昨日正式开源新一代原生混合推理模型 Ling-3.0-flash，主打极致智能密度、全链路 Agent 闭环与低成本规模化落地。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimkwsv2893653.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "8d38327c6df40c2dd9bab178e58e16e6",
+      "time": "1786014543",
+      "date": "2026-08-06",
+      "title": "宇树科技：本次发行价格150.80元/股，本次发行数量占发行后总股本10%",
+      "intro": "新浪科技 8月6日晚间消息 宇树科技公告称，公司首次公开发行股票并在科创板上市，发行价格为150.80元/股。本次发行数量为4044.6434万股，占发行后总股本10%。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimkskz4559695.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d023e7e1edb7346015e602038309aff7",
+      "time": "1786012063",
+      "date": "2026-08-06",
+      "title": "华为智选车产品总监彭磊：享界 G9 预售 24 小时小订破 1 万台，Ultra 及以上版本占比达 90%",
+      "intro": "IT之家 8 月 6 日消息，在昨天下午的尊界时代旗舰 MPV 及华为全场景新品发布会上，华为常务董事、产品投资评审委员会主任、终端 BG 董事长余承东宣布...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimksmi0548226.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d503f1d4a9cbb1517958e2681dd26c91",
+      "time": "1786010952",
+      "date": "2026-08-06",
+      "title": "尊界V800/V680上市：百万级MPV市场，第一次有了中国答案",
+      "intro": "8月5日，尊界时代旗舰MPV正式上市，尊界V680、尊界V800官方指导价分别为64.8万元起、76.6万元起。其中尊界V800提供尊享版、行政版、领航版，售价区间76.6万–101.6万元...",
+      "summary": "过去二十多年，百万级MPV市场几乎是外资品牌的\"自留地\"。如今这道封闭了二十多年的闸门，正在被中国品牌撬开。",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/tech/it/2026-08-06/doc-inimkncc4651728.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "620c7fd9dc2c0c000ee1f2a9d1c7291a",
+      "time": "1786010159",
+      "date": "2026-08-06",
+      "title": "首开股份聚焦城市更新赛道 “增量开发+存量更新+多元转型”驱动增长",
+      "intro": "随着房地产行业从增量扩张步入存量提质的新阶段，传统拿地开发模式红利逐步消退，城市更新正成为新的增量来源。 2026年5月，国务院正式发布《城市更新“十五五”规划》...",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/stock/observe/2026-08-06/doc-inimknaz3039768.shtml",
+      "channel": "industry",
+      "categories": [
+        "产业政策",
+        "行业动态"
+      ],
+      "sectors": [
+        "房地产"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d8ef12a29e074a108113137512090db0",
+      "time": "1786009829",
+      "date": "2026-08-06",
+      "title": "三十多亿收入囊中！尊界V680/V800上市24小时大定破3500台",
+      "intro": "快科技8月6日消息，鸿蒙智行官宣，昨日下午上市的尊界MPV（V680、V800）24小时大定量突破3500台，作为对比，尊界S800上市24小时大定成绩为1600台。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-06/doc-inimknaz3041812.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "8f40ca08f80e681c830a2661501659db",
+      "time": "1786009139",
+      "date": "2026-08-06",
+      "title": "存储焦虑终结者！华为Mate 80 16GB+1TB版发布：6499元",
+      "intro": "快科技8月6日消息，华为商城信息显示，华为Mate 80新增16GB+1TB存储版本，售价6499元。目前，该版本仅提供曜石黑一种配色，为有大容量存储需求的用户提供了新的选择。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-06/doc-inimkncm0649789.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "a96d03a719619a5357697e042780d33d",
+      "time": "1786008885",
+      "date": "2026-08-06",
+      "title": "任天堂业绩：Switch 2销量下滑，但一季度利润、营收超预期",
+      "intro": "任天堂周四公布第一财季财报，尽管Switch 2主机销量大幅下滑，但营收与净利润均超出分析师预期。 以下为截至6月30日的任天堂第一财季业绩...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-06/doc-inimkncm0640927.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f8f73d773f25ba69455b8935f5ea0ae2",
+      "time": "1786008732",
+      "date": "2026-08-06",
+      "title": "新氧再掀价格战：“奇迹童颜”最新定价999元/两支",
+      "intro": "新浪科技讯 8月6日下午消息，近日，据新氧内部消息显示，奇迹童颜总销量已近11万支。同时，在奇迹童颜上线一周年节点，新氧计划把入门版“奇迹童颜3...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimknci3866773.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "671d622cfbaf07871ea15dedf9eab393",
+      "time": "1786007706",
+      "date": "2026-08-06",
+      "title": "逆版本而行：华为 Mate 80 标准版手机新增“16GB+1TB”版本规格，学生价 6199 元",
+      "intro": "IT之家 8 月 6 日消息，在内存价格疯涨导致手机等终端设备存储规格普遍“缩水”的大背景下，华为“逆版本”而行，推出了 Mate 80 标准版手机的“16GB+1TB”规格，定价 6499 元。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimknci3871817.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "消费电子",
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "612df0f61c813dd7936e1f053b6c5e53",
+      "time": "1786007289",
+      "date": "2026-08-06",
+      "title": "张朝阳：AI无法取代“新闻网站”，因为人类要看的不是“效率”而是“视角”",
+      "intro": "新浪科技讯 8月6日下午消息，《张朝阳的英语课》开播十周年之际，搜狐创始人、董事局主席兼首席执行官张朝阳在与新浪科技等媒体沟通中分享了AI对传统新闻行业冲击的看法。...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimknaz3006595.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "18a50ca537c13b96848373a640ae23f3",
+      "time": "1786006837",
+      "date": "2026-08-06",
+      "title": "软银季度业绩胜预期 投资英特尔大赚85亿美元",
+      "intro": " 软银集团公布的季度净利润降幅小于市场预期，主要得益于其持有的英特尔公司股份带来的丰厚收益，而市场目前正密切关注其对OpenAI的巨额押注。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-06/doc-inimknaz2999884.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经",
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "9c3962542c71db801f3eff61954d0af9",
+      "time": "1786006644",
+      "date": "2026-08-06",
+      "title": "谷歌150亿美元印度数据中心深陷水资源与野生动物保护争议",
+      "intro": "谷歌规划的印度数据中心枢纽建设工作正在如火如荼推进，项目所在地上方的山坡已经被开挖，露出赤红土层，并修出层层台地。但环保人士的反对声浪持续高涨...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-06/doc-inimkncc4601181.shtml",
+      "channel": "industry",
+      "categories": [
+        "产业政策",
+        "国际财经"
+      ],
+      "sectors": [
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e33ad88f5ffefd1702645680becd0ad0",
+      "time": "1786006396",
+      "date": "2026-08-06",
+      "title": "OpenAI请求法院驳回苹果公司诉讼 称其借助窃密官司应对人才流失",
+      "intro": " OpenAI请求联邦法官驳回苹果公司提起的一项诉讼。苹果指控这家人工智能公司窃取商业秘密，而OpenAI则称这家iPhone制造商的相关指控毫无依据。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-06/doc-inimkncm0616083.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "人工智能"
+      ]
+    },
+    {
+      "id": "05b6af34732e5e43169cb5993b404aef",
+      "time": "1786006204",
+      "date": "2026-08-06",
+      "title": "华为乾崑 7 月安全出行报告发布，累计辅助驾驶里程突破 134.1 亿公里",
+      "intro": "IT之家 8 月 6 日消息，华为乾崑智能汽车解决方案官方今日发布了华为乾崑 7 月安全出行报告。据介绍，华为乾崑智驾累计辅助驾驶里程 134.1 亿公里，月度辅助驾驶里程 10...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimkncc4610161.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "新能源汽车"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "975d3338347d4d97d16b8d78dfe636c7",
+      "time": "1786005702",
+      "date": "2026-08-06",
+      "title": "内存刚涨完芯片又要涨价 今年换手机，你的预算可能得加两千",
+      "intro": "【TechWeb】8月6日消息， 全球移动芯片巨头高通即将在9月1日启动新一轮全线涨价。据外媒报道，高通目前正在与全球客户协商最终定价方案...",
+      "summary": "",
+      "source": "TechWeb",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-06/doc-inimkncc4601130.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片"
+      ]
+    },
+    {
+      "id": "16d1fc92786db2db50c06d06857f8de4",
+      "time": "1786004211",
+      "date": "2026-08-06",
+      "title": "张朝阳：英语是一门非常精确的语言，学好能提升理性思维",
+      "intro": "新浪科技讯 8月6日下午消息，《张朝阳的英语课》开播十周年，搜狐创始人、董事局主席兼首席执行官张朝阳今日将线上“一边读新闻一边学英语”的经典授课形式落地线下...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimknci3821210.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "d33948f8956ca78341243cfdda928e6a",
+      "time": "1786003997",
+      "date": "2026-08-06",
+      "title": "华为昇腾宣布已支持 RL 训推一致性，实测获得最高 60% 性能收益",
+      "intro": "IT之家 8 月 6 日消息，强化学习已成为大模型训练主流范式，推动模型技术向行业核心场景工程化落地。其中，训推一致至关重要，因推理与训练过程耦合...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimknaz2972150.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [
+        "人工智能",
+        "建筑装饰"
+      ],
+      "importance": "medium",
+      "tags": [
+        "大模型"
+      ]
+    },
+    {
+      "id": "720bc5d2112a6ad272b796735c3dce4b",
+      "time": "1786003677",
+      "date": "2026-08-06",
+      "title": "鸿蒙智行问界 M8 旗舰 SUV 累计交付破 18 万辆，将迎华为鸿蒙座舱新大版本升级",
+      "intro": "IT之家 8 月 6 日消息，鸿蒙智行官方今日宣布，问界 M8“家庭智慧旗舰 SUV”累计交付量突破 18 万辆。据介绍，问界 M8 过去一年多推送了 9 个 OTA 版本更新...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimknci3824436.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c91d6f08cf221f20e7770231eaa908a2",
+      "time": "1786002805",
+      "date": "2026-08-06",
+      "title": "为了6G：我国成立星地融合工作组 华为、中兴、小米、OPPO、vivo和荣耀等参与",
+      "intro": "快科技8月6日消息，我国IMT-2030（6G）推进组旗下的星地融合（NTN）工作组，已于7月30日在北京正式揭牌成立。这个专项工作组的核心目标...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-06/doc-inimkfvc3086182.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "3d96482b27321c2c74df79e0b0c8f18a",
+      "time": "1786002641",
+      "date": "2026-08-06",
+      "title": "华为昇腾宣布攻克训推一致难题：Logdiff直接干到0、性能还提升60%",
+      "intro": "快科技8月6日消息，华为宣布昇腾正式支持强化学习RL训推一致性，在通义千问3-30B-A3B混合专家模型上，实测对数概率差值logdiff为0...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-06/doc-inimkfvm3942457.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "388569a6a0b2b1c240ff3c383f791314",
+      "time": "1786002276",
+      "date": "2026-08-06",
+      "title": "京东外卖上线“今日半价”",
+      "intro": "新浪科技讯 8月6日下午消息，近日，京东外卖上线“今日半价”活动，为消费者带来低至9.9元的品质外卖福利。活动覆盖周一至周五，每日锁定一个特色品类，依次推出嗦粉麻辣烫...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimkfvf4676680.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5537c032ef1df8af1c9e8d12334cffca",
+      "time": "1786002190",
+      "date": "2026-08-06",
+      "title": "字节举行年中全员会 梁汝波：接受短期落后 坚持大模型自研",
+      "intro": "新浪科技讯 8月6日下午消息，今日，字节跳动举办2026年度年中全员会。公司CEO 梁汝波、刚刚成立的“创造力服务平台”（Creativity Service...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimkfvp0704798.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "大模型"
+      ]
+    },
+    {
+      "id": "369d75c08f8741080cbaa44fcde44119",
+      "time": "1786002140",
+      "date": "2026-08-06",
+      "title": "BOSS直聘加强骑手岗位违规招聘治理，累计处置近2.6万个账号",
+      "intro": "新浪科技 8月6日下午消息 今日，BOSS直聘发布《关于加强骑手配送类岗位收费风险治理专项公告》。数据显示，专项治理期间（7月1日至今），平台累计处置违规招聘账号近2...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimkfvm3931705.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0854dad5d70683d7daacb5e4852aca0b",
+      "time": "1786001748",
+      "date": "2026-08-06",
+      "title": "良好开局：三星 Galaxy Z Fold8/Ultra 折叠屏手机预售量同比大增 30%",
+      "intro": "IT之家 8 月 6 日消息，据彭博社今天（6 日）报道，三星电子透露，新一代折叠屏手机预订开局火热，Galaxy Z Fold8、Galaxy Z Fold8 Ultra 和 Galaxy Z Flip8 有望刷新历代...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimkfvc3080757.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "c1b749f6a8e15957672c3a0f3a805c4b",
+      "time": "1786001558",
+      "date": "2026-08-06",
+      "title": "掏空 NFC？消息称后续星闪 3.0 将新增第四种空口模式，支持无源射频能力",
+      "intro": "IT之家 8 月 6 日消息，博主 @Adak封狼居胥 昨日更新了自己整理的产品星闪参数。有网友询问“SLZ”是什么能力，博主回复称：“无源射频，后续星闪 3...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimkfvf4668188.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "618afd35709db1108f6868ad18014f44",
+      "time": "1786001115",
+      "date": "2026-08-06",
+      "title": "影石Insta360 创始人刘靖康：目前云端已提供高端剪辑服务，上线两个月已经剪了几十万条",
+      "intro": "新浪科技 8月6日下午消息 日前，影石 Insta360 创始人刘靖康在公开场合表示，目前影石已经尝试通过云端为用户直接提供 AI 剪辑服务。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimkfvp0688670.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "91c906e09b51b60c8f7433e37d30b32f",
+      "time": "1786000384",
+      "date": "2026-08-06",
+      "title": "曝鹿明机器人CTO丁琰已于近期离职，官方暂无回应",
+      "intro": " 新浪科技 8月6日下午消息，具身智能公司鹿明机器人联席CTO丁琰已于近期离职，其团队协作软件状态目前显示“暂停使用”。从2025年11月2日入职到近日离开，任期不足280天。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimkfvf4638048.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5b47552c324be574aaeb689ebb58fe54",
+      "time": "1786000358",
+      "date": "2026-08-06",
+      "title": "独家 | 小红书加大AI投入：布局AI社交方向，开启AI陪伴产品自研",
+      "intro": " 新浪科技讯 8月6日下午消息，新浪科技独家获悉，小红书正全面提速AI战略，布局AI社交产品、AI社区互动工具等方向，从后台技术应用转向前台自研、产品化与生态化全面竞速。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimkfvp0675138.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "97202e6dd4cacdcd267ae754de34c046",
+      "time": "1786000130",
+      "date": "2026-08-06",
+      "title": "统筹 6G 方向：我国成立星地融合（NTN）工作组，华为中兴小米等参与",
+      "intro": "IT之家 8 月 6 日消息，在工业和信息化部信息通信发展司指导下，我国 IMT-2030（6G）推进组星地融合（NTN）工作组 7 月 30 日在北京正式成立。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimkfvf4650292.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "7e7af4ba74c10882dcd80d0e8556200d",
+      "time": "1785999879",
+      "date": "2026-08-06",
+      "title": "华擎 2026 财年半年报归母净利润 8.77 亿新台币",
+      "intro": "IT之家 8 月 6 日消息，华擎今日发布 2026 财年（2026 年 1 月～2026 年 12 月）半年报（2026 年 1 月～2026 年 6 月）业绩快报报告：",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimkfvm3914008.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "de72ea539d41ca7b6c7fd6b1b727d4e4",
+      "time": "1785999850",
+      "date": "2026-08-06",
+      "title": "极趣推出 ZecTrix Note 4 黑白墨水屏“AI 便利贴”：自带磁吸、可快速记录备忘录，259 元",
+      "intro": "IT之家 8 月 6 日消息，据外媒 NoteBook Check 报道，制造商极趣推出一款 ZecTrix Note 4（极趣 Note 4）黑白墨水屏“AI 便利贴”，在淘宝定价为 259 元。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimkfvm3914281.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "06c608be9e4cfa9851600252d18a823b",
+      "time": "1785998104",
+      "date": "2026-08-06",
+      "title": "“9.9元”却买不到，徕芬的承诺不能只写在广告里",
+      "intro": "本文来自公众号消费方法论  作者｜周琦 编辑｜吕栋 当初冲着“刷头9.9元”买的电动牙刷，如今这个价位的刷头却买不到了。 最近，徕芬的一批老用户被这件事惹恼了。",
+      "summary": "最近，徕芬的一批老用户被这件事惹恼了。",
+      "source": "新浪科技综合",
+      "url": "https://finance.sina.com.cn/tech/elec/xpfb/2026-08-10/doc-inimuvrv4989696.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "63e19feee738c7fd4d1672b8a0abc787",
+      "time": "1785997832",
+      "date": "2026-08-06",
+      "title": "张一鸣罕见发声：即便暂时落后，字节Seed不走模型蒸馏捷径",
+      "intro": "新浪科技讯 8月6日下午消息，据外媒援引知情人士消息报道，在7月底的Seed团队全员大会上，字节跳动创始人张一鸣罕见表态称，字节跳动不会把蒸馏作为提升AI模型能力的捷径...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-06/doc-inimkfvc2997014.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "fe4ec4b2da01e7ce3d59356906814200",
+      "time": "1785996253",
+      "date": "2026-08-06",
+      "title": "追觅科技：清洁电器全球累计出货量超4000万台",
+      "intro": "新浪科技讯 8月6日下午消息，追觅科技对外公布，截至2026年7月，公司清洁电器中的核心品类扫地机、洗地机、吸尘器全球累计出货量突破4000万台。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-06/doc-inimkfvm3867533.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "59de10ca8882f34879202290156550fd",
+      "time": "1785995484",
+      "date": "2026-08-06",
+      "title": "美图RoboNeo新版本上线，涵盖视频创作Skills全家桶等8项能力",
+      "intro": "新浪科技讯 8月6日午间消息，8月5日，主打“日更级AI短剧团队”的RoboNeo新版本正式上线，涵盖专业级3D导演台、项目资产库、全链路工作流、短剧趋势洞察、人像肤质提升...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-06/doc-inimkfvf4580117.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "da7310f9b7d6c28e5e3b3b47ee616c2a",
+      "time": "1785993904",
+      "date": "2026-08-06",
+      "title": "苏泊尔回应“AI擦边广告”争议：我们在授权店铺内容管理和发布审核机制上仍有疏漏",
+      "intro": " 新浪科技讯 8月6日下午消息，近日，苏泊尔官方认证店铺账号“苏泊尔个护电器旗舰店”接连发布低俗擦边营销视频，招致大量网络声讨。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-06/doc-inimizpr0754863.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "2c2f6998b65851d1cd45a20cdd8e150f",
+      "time": "1785990598",
+      "date": "2026-08-06",
+      "title": "百年宿敌变一家人！日本精工与NTN联姻 只为对抗中国价格战",
+      "intro": "快科技8月6日消息，据日经中文网报道，日本两大轴承巨头日本精工（NSK）与NTN将合并，合并后营收将超越瑞典斯凯孚（SKF），成为全球最大的轴承厂商。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-06/doc-inimizpi4676579.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0f2a39ee3eddb2432f970d02b77223ef",
+      "time": "1785989905",
+      "date": "2026-08-06",
+      "title": "得物旗下二手平台95分搬运转转数据被诉，终审判赔210万",
+      "intro": "新浪科技讯 8月6日中午消息，近日，转转公司诉上海置潮信息科技有限公司（“95分”平台运营方）不正当竞争案终审胜诉。北京知识产权法院终审认定...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/china/gncj/2026-08-06/doc-inimizpp3955325.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "45df4b816fc453cb3995d6d8feea08d6",
+      "time": "1785989448",
+      "date": "2026-08-06",
+      "title": "百度dodo硬改“搭子”引内讧：批量员工“强烈反对”，直言“不认可”",
+      "intro": "新浪科技讯 8月6日上午消息，近日，百度因dodo更名事宜引发大量内部争议。据流出内容，百度打算把内部办公智能体dodo更名为“搭子”...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/china/gncj/2026-08-06/doc-inimizpi4663220.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2e6cc4c13da71467e14d4cd1cc3ab5ec",
+      "time": "1785988634",
+      "date": "2026-08-06",
+      "title": "中创新航被曝内部改革：质量部话语权变大，拿到了一票否决权",
+      "intro": "8月6日消息，广汽埃安AION S系列车型搭载的中创新航177Ah磷酸铁锂电池批量鼓包变形引发的维保仍在进行中。有消息人士称，中创新航近期在内部进行以“质量安全”为先的技术改...",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/roll/2026-08-06/doc-inimizpp3945665.shtml",
+      "channel": "industry",
+      "categories": [
+        "大宗商品",
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源",
+        "人工智能",
+        "有色金属"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI",
+        "锂电池"
+      ]
+    },
+    {
+      "id": "2ec121991a2bdeb3e1dbc3a128ad6dc2",
+      "time": "1785987666",
+      "date": "2026-08-06",
+      "title": "独家｜万科组织架构再“瘦身”：办公事业部解散，事业部缩减至7个",
+      "intro": "8月6日上午消息，新浪财经独家获悉，万科正式撤销办公事业部。调整后，公司事业部数量由8个缩减至7个。 据知情人士透露，办公事业部撤销后，各个项目并入各自城市公司...",
+      "summary": "",
+      "source": "新浪财经",
+      "url": "https://finance.sina.com.cn/roll/2026-08-06/doc-inimizpf3043864.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "dd15c9eb6eaaa09398226b959022fa43",
+      "time": "1785985436",
+      "date": "2026-08-06",
+      "title": "百度入局AI办公：dodo并入百度搭子，全面整合办公Agent业务",
+      "intro": "新浪科技讯 8月6日上午消息，新浪科技获悉，百度已启动内部办公智能体dodo与百度搭子团队整合，dodo相关研发人员、资源都将并入百度搭子...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-06/doc-inimivfi3145631.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "bba2b97785d05ad03276fa3c828d9784",
+      "time": "1785983724",
+      "date": "2026-08-06",
+      "title": "全国最大AI算力园区“远景星河基地”投产",
+      "intro": "8月6日消息，远景科技集团（以下简称“远景”）今天宣布在乌兰察布建成全球最大的AI算力超级单体，标志着“远景星河基地”正式投产。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-06/doc-inimivfi3121545.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能",
+        "通信"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "997893e5d459dfd3640bd642f9f9bc54",
+      "time": "1785983539",
+      "date": "2026-08-06",
+      "title": "MiniMax今日纳入港股通，股价涨超17%",
+      "intro": " 新浪科技讯 8月6日上午消息，港股通标的名单调整，MiniMax等多家标的调入，并自6日起生效。截至发稿，MiniMax股价涨幅超17%。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-06/doc-inimivfi3117288.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "df01766969b82718e1d02b8a08598a25",
+      "time": "1785982381",
+      "date": "2026-08-06",
+      "title": "传茶颜悦色子品牌“小神闲茶馆”倒闭，客服：综合多方面考虑已全部撤店，没有回归的具体通知",
+      "intro": " 8月6日，近日，有网友称，茶颜悦色子品牌“小神闲茶馆”最后一家门店关闭，茶颜悦色点单小程序中已检索不到相关门店信息。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/tech/shenji/2026-08-06/doc-inimivfr4003744.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "6c5b7c5c6def45a9c19634f213896235",
+      "time": "1785982040",
+      "date": "2026-08-06",
+      "title": "曝三星、SK海力士正测试中国芯片设备 三星否认",
+      "intro": "【TechWeb】8月6日消息，据路透社报道，三星电子和SK海力士正在评估中微半导体(AMEC)的芯片制造设备，准备在中国工厂使用。知情人士透露...",
+      "summary": "",
+      "source": "TechWeb",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-06/doc-inimivft0780108.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片",
+        "半导体"
+      ]
+    },
+    {
+      "id": "3aad6d91970a7c08b159de4b1d089c63",
+      "time": "1785981723",
+      "date": "2026-08-06",
+      "title": "余承东回应发布会口误，网友纷纷安慰：口误的余总才是亲切的余总",
+      "intro": "新浪科技讯 8月6日上午消息，针对近日发布会上的口误，华为常务董事、产品投资评审委员会主任、终端BG董事长余承东在微博上发文回应：“我刚才发布会上口误了...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-06/doc-inimivfi3087287.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2ef540ed3f548a584c93fc9f6a25562c",
+      "time": "1785980415",
+      "date": "2026-08-06",
+      "title": "【强科技 增动能】强流重离子加速器装置首个实验结果发表",
+      "intro": "来源：每日甘肃网【强科技增动能】中国科学院近代物理所科研团队与合作者依托HIAF成功产生并鉴别稀有原子核铪-153强流重离子加速器装置首个实验结果发表每日甘肃网兰州讯（...",
+      "summary": "",
+      "source": "财经头条",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-06/doc-inimiqxp4737228.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "578edf94db439176ec12a058f1e612b2",
+      "time": "1785978765",
+      "date": "2026-08-06",
+      "title": "苹果向长鑫存储砍价遭拒：产能被华为小米锁死，根本不缺你这一单",
+      "intro": "【TechWeb】8月6日消息，据外媒报道，苹果公司近期为降低下一代iPhone的制造成本，曾考虑将中国长鑫存储（CXMT）纳入新的供应链，并就LPDDR5X等移动DRAM的供应价格展开谈判...",
+      "summary": "",
+      "source": "TechWeb",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-06/doc-inimivft0732230.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "bf9494254490cc9ca723f13d93592e37",
+      "time": "1785978685",
+      "date": "2026-08-06",
+      "title": "韬定律让中国芯片有了另一条路！华为首席科学家警告：英伟达等巨头将面临芯片性能瓶颈",
+      "intro": "快科技8月6日消息，华为首席半导体科学家廖恒近日在一次罕见的公开露面中发出预警，包括英伟达在内的全球头部芯片巨头，眼下在追求处理器性能更强的过程中...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-06/doc-inimivfr3953477.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体"
+      ],
+      "importance": "medium",
+      "tags": [
+        "芯片",
+        "半导体"
+      ]
+    },
+    {
+      "id": "c883d4a59f74a5e14bdf06e810c19999",
+      "time": "1785973557",
+      "date": "2026-08-06",
+      "title": "余承东回应发布会口误：起售价是24999 不是2499",
+      "intro": "快科技8月6日消息，在8月5日下午举办的尊界时代旗舰MPV暨华为全场景新品发布会上，华为常务董事、产品投资评审委员会主任、终端BG董事长余承东介绍MateBook Fold...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-07/doc-inimiqxp4706596.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9007942f88fcbc4f1325aad3b09af503",
+      "time": "1785973029",
+      "date": "2026-08-06",
+      "title": "贝索斯年内首次减持亚马逊股票，套现近 3.5 亿美元",
+      "intro": "IT之家 8 月 6 日消息，亚马逊创始人杰夫 · 贝索斯（Jeff Bezos）今年首次出售亚马逊股票。在亚马逊股价于本周一创下历史新高后，他出售了价值近 3...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimiqxm3103073.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "b60dd2bf6e7373de5202210268388b62",
+      "time": "1785971259",
+      "date": "2026-08-06",
+      "title": "华为小米长协锁产能！长鑫：产品不低于甚至高于三星和SK海力士",
+      "intro": "快科技8月6日消息，据供应链最新传出的业内消息，那些抱着期待等国产存储降价就能拿到低价货源的厂商恐怕要失望了，长鑫存储已经明确给出态度，不可能走低价倾销的路线。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-07/doc-inimiqxt4019251.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2a9cf35b7311452486df57a6345194ef",
+      "time": "1785970671",
+      "date": "2026-08-06",
+      "title": "消息称 2026 年全球折叠屏手机出货量预计同比增长 20%，苹果首款折叠 iPhone 成重要驱动力",
+      "intro": "IT之家 8 月 6 日消息，据《DigiTimes》援引业内消息人士报道，2026 年全球折叠屏智能手机出货量预计将同比增长 20%，苹果首次进军折叠屏手机市场被认为是推动增长的重要因...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimiqxm3083068.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "173232146ae16d178b6e135603d57219",
+      "time": "1785969698",
+      "date": "2026-08-06",
+      "title": "追求源于热爱创业首秀：万志强发布 PANDAER 新品及DreamGoGo 众筹平台",
+      "intro": "2026 年 8 月 5 日——追求源于热爱科技公司（DreamGoGo，简称“热爱科技”）今日正式举办创业发布会。这家由魅族前 CMO 万志强创办，聚合原魅族产品、研发、Design...",
+      "summary": "",
+      "source": "新浪数码",
+      "url": "https://finance.sina.com.cn/tech/mobile/n/n/2026-08-06/doc-inimikrx0912982.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "2f26ebb5281e4ec7fe5eeb639eb059a4",
+      "time": "1785945627",
+      "date": "2026-08-06",
+      "title": "华为nova 16 SE支持星闪音频：最高4.6Mbps母带级无损音质",
+      "intro": "快科技8月6日消息，日前，华为nova 16系列新成员——nova 16 SE正式发布，售价2499元起，将于8月12日开售。华为官网信息显示，nova 16 SE支持星闪E2.0，可实现星闪音频传输...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-07/doc-inimhyac1058391.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0da6a25014c2bb325ae3c670c2583eaf",
+      "time": "1785943588",
+      "date": "2026-08-05",
+      "title": "阿里巴巴 2026 云栖大会定档 9 月 22 日至 24 日在杭州举行",
+      "intro": "IT之家 8 月 5 日消息，阿里官方今日宣布，2026 云栖大会将于 9 月 22 日至 24 日在杭州举行。本届大会主题为“智以致用”（Intelligence Goes Beyond）...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimhttv3435080.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "edde71da9554e23888bd658ef269ba13",
+      "time": "1785941344",
+      "date": "2026-08-05",
+      "title": "华为Pura X Max开卖3个月销量破64万台：典藏版更受欢迎",
+      "intro": "快科技8月5日消息，今日，博主“RD观测”公布的数据显示，截至2026年第30周（7月20日至7月26日），华为Pura X Max系列销量约为64.47万台。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-06/doc-inimhttx5022309.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "ccba7369c64f8844a10e827f9b7591ed",
+      "time": "1785935566",
+      "date": "2026-08-05",
+      "title": "沙特主权财富基金联合库什纳旗下Affinity Partners完成550亿美元收购EA交易",
+      "intro": "由沙特公共投资基金牵头的财团宣布，已完成对游戏厂商艺电（Electronic Arts，EA）的550亿美元收购。 本次交易的出资方还包括私募股权机构银湖资本...",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-05/doc-inimhpnf4496081.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "19a0e685d14873b7348ecc20b71c8605",
+      "time": "1785931314",
+      "date": "2026-08-05",
+      "title": "段永平回应“减持”泡泡玛特",
+      "intro": "新浪科技讯 8月5日晚间消息，据香港交易所披露，段永平管理的H&amp;H International Investment对泡泡玛特国际集团有限公司的多头持仓比例于2026年7月30日从7.65%降至5...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-05/doc-inimhpmz5072267.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0b164bed386b8f7ae512dbc18ecc9903",
+      "time": "1785928633",
+      "date": "2026-08-05",
+      "title": "比亚迪全新腾势 Z9GT 新增铂光经典、疾速流光等 7 款定制车衣",
+      "intro": "IT之家 8 月 5 日消息，比亚迪腾势汽车总经理李慧今日表示，全新腾势 Z9GT 此前加推的午夜蓝、皓月米外观车色，以及暗影黑内饰，三款全球色都非常受欢迎。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-05/doc-inimhpni1236289.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "e87a8197127c5427281ed047e1089d03",
+      "time": "1785928150",
+      "date": "2026-08-05",
+      "title": "展开厚度仅为4.5mm 苹果iPhone Ultra核心参数浮出水面",
+      "intro": "国外数码博主爆料，苹果即将在9月发布会上推出旗下首款折叠屏手机，预计命名为iPhone Ultra，苹果入局折叠屏赛道，有望成为iPhone近年来最大的一次形态变革。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-05/doc-inimhiem1356507.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "bd7a38c55a3404aa501c77e6ae3c0513",
+      "time": "1785927943",
+      "date": "2026-08-05",
+      "title": "比问界M9大一圈！尊界SUV谍照曝光：车头极具品牌辨识度",
+      "intro": "快科技8月5日消息，近期，一组鸿蒙智行旗下高端品牌尊界汽车的SUV车型谍照曝光。按照目前的研发进度，这款旗舰SUV最快有望在2026年内发布，上市预计要到2027年。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-05/doc-inimhiei4584294.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "4e406920d3e7067cbbfbf2e06986c78b",
+      "time": "1785926806",
+      "date": "2026-08-05",
+      "title": "姚明喜提蔚来ES9：“篮球巨人”终于等来最合适的座驾！",
+      "intro": "快科技8月5日消息，今日，蔚来ES9首席体验官姚明于上海提车，蔚来上海区域公司总经理夏庆华为其交付。在交付现场，姚明直观感受了天行全主动悬架的互动演示...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-05/doc-inimhiem1352012.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "fd90644527fae2ef8eea089552da9da2",
+      "time": "1785926454",
+      "date": "2026-08-05",
+      "title": "华为官宣乾崑智驾 ADS Pro V5.0 将支持园区领航辅助 NCA 功能",
+      "intro": "IT之家 8 月 5 日消息，华为官方今日宣布，华为乾崑智驾 ADS Pro V5.0 将支持园区领航辅助 NCA 功能，用户可直接选定目标车位，系统将辅助车辆从园区入口抵达车位并泊入。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-05/doc-inimhiem1349729.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "b189e4b21f23217b6eed077f52c5dd63",
+      "time": "1785926199",
+      "date": "2026-08-05",
+      "title": "余承东称手机/PC不涨价都是亏本卖！24999元电脑报成2499元别当真 华为何刚现场纠正",
+      "intro": "快科技8月5日消息，今天尊界时代旗舰MPV及华为全场景新品发布会正式举行，华为常务董事、产品投资评审委员会主任、终端BG董事长余承东登台发表主题演讲...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-05/doc-inimhiei4572270.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "489964177f199d39a581add058d6e646",
+      "time": "1785926014",
+      "date": "2026-08-05",
+      "title": "米哈游：未经授权泄密《原神》等游戏未公开版本视频，泄密人员被判刑",
+      "intro": "新浪科技讯 8月5日晚间消息，“米哈游法务部”今日发文表示，近日，米哈游旗下游戏泄密刑事案件迎来一审判决，认定B站用户苏某（账号“真不想涩涩”）及吴某（账号“风堇lover-...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-05/doc-inimhiem1341706.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "6cba9187f2e949eb9966c2aaffb5e554",
+      "time": "1785925857",
+      "date": "2026-08-05",
+      "title": "大麦国际开售乒乓球德甲门票 支持中文界面与支付宝付款",
+      "intro": " 新浪科技讯 8月5日下午消息，大麦国际（MAISEAT）开售德国乒乓球甲级联赛杜塞尔多夫俱乐部主场赛事门票，项目支持中文页面与支付宝付款及人民币结算。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-05/doc-inimhiec5160127.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "fb5890e772150efe34bd86628fa79007",
+      "time": "1785925423",
+      "date": "2026-08-05",
+      "title": "段永平减持泡泡玛特，持股比例降至5.55%",
+      "intro": "新浪科技讯 8月5日晚间消息，据香港交易所披露，段永平管理的H&amp;H International Investment对泡泡玛特国际集团有限公司的多头持仓比例于2026年7月30日从7.65%降至5...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-05/doc-inimhiei4564986.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "5d7446d37d219c17f24b9f247644e219",
+      "time": "1785925289",
+      "date": "2026-08-05",
+      "title": "米哈游法务部：未经授权发布游戏泄密视频，两名泄密人员被判刑",
+      "intro": "IT之家 8 月 5 日消息，米哈游法务部今日发文透露，近日，米哈游旗下游戏泄密刑事案件迎来一审判决，认定B站用户苏某（账号“真不想涩涩”）及吴某（账号“风堇...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-05/doc-inimhiec5164372.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "9daf59b3c50032a53bfb33000d44ebb0",
+      "time": "1785925227",
+      "date": "2026-08-05",
+      "title": "把丰田埃尔法拉下神坛 尊界V680/V800上市1小时大定2115台",
+      "intro": "快科技8月5日消息，今日下午上市的尊界V680、V800战报出炉，上市1小时大定2115台，作为对比，尊界S800最初上市1小时大定破1000台。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-05/doc-inimhiec5159608.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "dc107ecc577e9b25ec37d42ba996a66f",
+      "time": "1785925097",
+      "date": "2026-08-05",
+      "title": "华为谈自动驾驶系统强制性国家标准发布，引望国内首批完成 L3 车型准入试点验证",
+      "intro": "IT之家 8 月 5 日消息，2026 年 7 月 30 日，由工业和信息化部提出并组织制定的 GB 44721-2026《智能网联汽车 自动驾驶系统安全要求》正式发布。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-05/doc-inimhicz3560703.shtml",
+      "channel": "industry",
+      "categories": [
+        "产业政策",
+        "科技前沿"
+      ],
+      "sectors": [
+        "新能源汽车"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "f9680b4155e94259794eaf3e4d48ff29",
+      "time": "1785925051",
+      "date": "2026-08-05",
+      "title": "影石十年旗舰X6全景相机8月12日发布，将于东京开设中国影像品牌首家直营旗舰店",
+      "intro": "新浪科技讯 8月5日下午消息 8月4日，影石官宣其“十年之作”——Insta360 X6全景相机定档8月12日发布。据了解，新品搭载索尼定制双方形传感器、升级4nm AI三芯架构...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-05/doc-inimhiec5153166.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "405a1133f5e2b0af13fbb1ef3e10da25",
+      "time": "1785924853",
+      "date": "2026-08-05",
+      "title": "消息称长鑫拒绝苹果压价，坚持要求内存采购价不低于三星电子和 SK 海力士",
+      "intro": "IT之家 8 月 5 日消息，据韩媒《Digital Daily》今日报道，苹果公司近期考虑将中国长鑫存储（CXMT）作为新的供应链以降低成本，但目前在进一步降价谈判中遭遇困难。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-05/doc-inimhiec5164377.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "70c8ecf56b206bfd6c4986c566bc78ef",
+      "time": "1785923674",
+      "date": "2026-08-05",
+      "title": "比亚迪日本市场专属纯电 K-Car“海獭”Racco 取得超 700 辆订单",
+      "intro": "IT之家 8 月 5 日消息，据日经新闻报道，比亚迪 3 日宣布，7 月 28 日上市的日本专属纯电 K-Car“Racco（海獭）”订单量已经突破 700 辆。",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-05/doc-inimhiec5147917.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "11e49b17a8a84c8e3264fd4b39f4be49",
+      "time": "1785923322",
+      "date": "2026-08-05",
+      "title": "菜鸟发布“全球三日达”跨境物流服务产品",
+      "intro": "新浪科技讯 8月5日下午消息，菜鸟正式发布“全球三日达”跨境物流服务产品。菜鸟方面表示，这是继“全球十日达”和“全球五日达”之后，菜鸟跨境物流速度的又一次飞跃...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-05/doc-inimhiei4550822.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "交通运输"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "672d3ec6eac7963eb388e07510a927b1",
+      "time": "1785923005",
+      "date": "2026-08-05",
+      "title": "美图AI影像生产线平台MeituHub正式上线",
+      "intro": "新浪科技讯 8月5日下午消息，美图公司正式上线AI影像生产线平台MeituHub。该平台为企业提供从需求理解到成品交付的全链路影像生产解决方案...",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/jjxw/2026-08-05/doc-inimhicz3533004.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "medium",
+      "tags": [
+        "AI"
+      ]
+    },
+    {
+      "id": "63d7f8c8bebf27c087a5707180efa21c",
+      "time": "1785922467",
+      "date": "2026-08-05",
+      "title": "华为nova 16 SE发布：8500mAh电池+红枫镜头",
+      "intro": "在尊界时代旗舰MPV及华为全场景新品发布会中，华为nova 16 SE正式发布，这款手机在设计和配置上与nova 16系列略有区别，价格方面也相应降低，是一款非常有性价比的手机。",
+      "summary": "",
+      "source": "未知来源",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-05/doc-inimhicz3560830.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0b0c1ed10b3e3f924c7fc60e2425cc64",
+      "time": "1785922195",
+      "date": "2026-08-05",
+      "title": "华为余承东：鸿蒙智行尊界 V800 / V680 旗舰 MPV 上市 1 小时大定 2115 台",
+      "intro": "IT之家 8 月 5 日消息，在今天的尊界时代旗舰 MPV 及华为全场景新品发布会上，华为常务董事、产品投资评审委员会主任、终端 BG 董事长余承东正式发布尊界 V800 / V680...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-05/doc-inimhicz3530502.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "4494e86a091304cacc2c9d61a23b9a11",
+      "time": "1785921776",
+      "date": "2026-08-05",
+      "title": "9999元起 华为全新MateBook Pro发布：升级麒麟X90 Plus、40W性能释放",
+      "intro": "快科技8月5日消息，在今天的新品发布会上，华为发布了全新的MateBook Pro，处理器升级到麒麟X90 Plus高性能PC处理器，整机实现40W性能释放，售价9999元起...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-05/doc-inimhiei4542131.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [
+        "消费电子"
+      ],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "410a948993090c24501db6ac4e5d33e7",
+      "time": "1785921635",
+      "date": "2026-08-05",
+      "title": "华为首款新国标 3C 移动电源发布：12000mAh 容量、支持离线查找，399 元",
+      "intro": "IT之家 8 月 5 日消息，在今天的尊界时代旗舰 MPV 及华为全场景新品发布会上，华为终端 BG CEO 何刚发布了华为首款新国标 3C 移动电源 —— 华为全能充移动电源...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-05/doc-inimhiec5134172.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "medium",
+      "tags": []
+    },
+    {
+      "id": "0a64d5efed941ab0d6bcb4bc9f6747e7",
+      "time": "1785993936",
+      "date": "2026-08-06",
+      "title": "四方精创A+H：控股股东高位减持超7亿分红率大幅回落 一季度增收不增利在手订单缩水 警惕市场炒作风险",
+      "intro": "出品：新浪财经上市公司研究院 作者：渚 2026年7月5日，四方精创更新招股书再度冲击港股，谋求A+H双重上市。 表面上公司货币资金充足、有息负债几乎为零...",
+      "summary": "",
+      "source": "新浪证券",
+      "url": "https://finance.sina.com.cn/stock/observe/2026-08-06/doc-inimizpp3982645.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "b9ad405704c9e56c1153c51463dc90b0",
+      "time": "1786171497",
+      "date": "2026-08-08",
+      "title": "飞天茅台线下售价上涨至1753元，有茅台自营店已收到调价消息、尚未正式上调",
+      "intro": " 8月8日，近日，有市场消息称，飞天茅台线下自营店零售价再度上涨，由1719元/瓶调整为1753元/瓶。7月下旬，茅台多地直营店刚将飞天茅台售价提至1719元/瓶。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/roll/2026-08-08/doc-inimqtzt6482916.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "a4c512ac1d5c812a33ead43278d2545b",
+      "time": "1786083132",
+      "date": "2026-08-07",
+      "title": "存储暴涨下苹果不会仁慈！iPhone 18 Pro系列价格预测：国行万元起步没啥问题",
+      "intro": "快科技8月7日消息，全球存储芯片价格持续大幅上涨，居高不下的元件成本直接倒逼各家手机厂商不得不上调产品售价，把陡增的成本压力部分转嫁给终端消费者...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/discovery/2026-08-07/doc-inimnkur3225853.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "消费电子"
+      ],
+      "importance": "low",
+      "tags": [
+        "芯片"
+      ]
+    },
+    {
+      "id": "f402ead90591582bf431935d90895bb1",
+      "time": "1786076434",
+      "date": "2026-08-07",
+      "title": "Airbnb爱彼迎：2026年第二季度营收达36亿美元，同比增长17%",
+      "intro": "新浪科技讯 8月7日午间消息 今日，Airbnb爱彼迎发布2026年第二季度财务报告。财报显示，2026年上半年，爱彼迎整体业绩表现强劲，取得近年来最佳表现之一。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/hy/hyjz/2026-08-07/doc-inimnenp3352389.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "ce95198fa3e1c948a7b430752b53bd2e",
+      "time": "1786029125",
+      "date": "2026-08-06",
+      "title": "特斯拉 Terafab 晶圆厂落地得克萨斯州，马斯克豪言“把尖端制造带回美国”",
+      "intro": "IT之家 8 月 6 日消息，当地时间 6 日（今天），SpaceX 宣布将与特斯拉首期投入 168 亿美元（IT之家注：现汇率约合 1,136.05 亿元人民币）...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-07/doc-inimmayt2842505.shtml",
+      "channel": "industry",
+      "categories": [
+        "国际财经"
+      ],
+      "sectors": [
+        "半导体"
+      ],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "283c6736a598fbf44d16675dd251cb70",
+      "time": "1786027391",
+      "date": "2026-08-06",
+      "title": "SpaceX首批IPO后股份解禁 股价或将面临进一步下行压力",
+      "intro": " 首批SpaceX投资者将于周四迎来机会，可变现部分所持股份，此前的上市锁定期限制正式到期。本就较6月中旬高点跌幅超50%的该股，或将因此承压。",
+      "summary": "",
+      "source": "环球市场播报",
+      "url": "https://finance.sina.com.cn/stock/usstock/c/2026-08-06/doc-inimkwsv2955478.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "1300daf87d32e62c70af000ee900bd62",
+      "time": "1786023052",
+      "date": "2026-08-06",
+      "title": "宇树科技IPO发行价150.8元，DeepSeek、腾讯等获战略配售",
+      "intro": "【TechWeb】8月6日消息，宇树科技股份有限公司（以下简称“宇树科技”）发布《首次公开发行股票并在科创板上市发行公告》，正式启动科创板IPO发行程序。",
+      "summary": "",
+      "source": "TechWeb",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-06/doc-inimkwtf0513862.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "9618021f21f040de13de866e32f408a4",
+      "time": "1786021710",
+      "date": "2026-08-06",
+      "title": "反对利润分红 韩国誓要保住三星海力士：中国追赶速度太快",
+      "intro": "快科技8月6日消息，AI产业链最大最早的受益者是美国AI芯片公司，但今年变成了韩国三星、SK海力士，靠着内存、闪存涨价，两家公司的利润比NVIDIA还要夸张了。",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-07/doc-inimkwsx4513902.shtml",
+      "channel": "industry",
+      "categories": [
+        "行业动态",
+        "科技前沿"
+      ],
+      "sectors": [
+        "半导体",
+        "人工智能"
+      ],
+      "importance": "low",
+      "tags": [
+        "AI",
+        "芯片"
+      ]
+    },
+    {
+      "id": "5c2f481b43d0ad41ae8898dfe3543de4",
+      "time": "1785997317",
+      "date": "2026-08-06",
+      "title": "三星和 SK 海力士现金储备飙升，股东施压要求获得更高分红",
+      "intro": "IT之家 8 月 6 日消息，随着人工智能推动业绩创下历史新高，三星电子和 SK 海力士正面临越来越大的股东压力。投资者希望两家公司通过提高股息或扩大股票回购等方式...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimkfvc3001547.shtml",
+      "channel": "industry",
+      "categories": [
+        "科技前沿"
+      ],
+      "sectors": [
+        "人工智能"
+      ],
+      "importance": "low",
+      "tags": [
+        "人工智能"
+      ]
+    },
+    {
+      "id": "6d4e86d9df98bad2eba3c62127857e55",
+      "time": "1785990426",
+      "date": "2026-08-06",
+      "title": "DeepSeek拟上调API服务定价，预计涨幅较大",
+      "intro": " 新浪科技讯 8月6日午间消息，据DeepSeek最新公告，公司计划近期整体上调DeepSeek API服务定价，预计涨幅较大。公司建议广大用户合理安排使用，具体方案以正式通知为准。",
+      "summary": "",
+      "source": "新浪科技",
+      "url": "https://finance.sina.com.cn/china/gncj/2026-08-06/doc-inimizpf3066108.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "dc17bbcc42680b5797427994b61a52ad",
+      "time": "1785985390",
+      "date": "2026-08-06",
+      "title": "受台风“白海豚”影响，奇瑞捷豹路虎神行者 8 预售发布会计划由 8 月 10 日调整至 14 日",
+      "intro": "IT之家 8 月 6 日消息，今日，FREELANDER 神行者全球 CMO @周文-神行者 发文称，原定于 8 月 10 日的神行者 8 预售发布会，受台风“白海豚”天气过境影响...",
+      "summary": "",
+      "source": "IT之家",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-06/doc-inimivft0820112.shtml",
+      "channel": "industry",
+      "categories": [
+        "其他"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    },
+    {
+      "id": "99b0215182302f451bdf93cb79760661",
+      "time": "1785930016",
+      "date": "2026-08-05",
+      "title": "人形机器人第一股 宇树科技终于上市了：8月7日举行IPO网上路演",
+      "intro": "快科技8月5日消息，宇树科技发布公告，公司科创板IPO网上路演安排正式落地，路演时间定在8月7日14:00至17:00，投资者可以在上证路演中心...",
+      "summary": "",
+      "source": "快科技",
+      "url": "https://finance.sina.com.cn/tech/roll/2026-08-05/doc-inimhpmx3463438.shtml",
+      "channel": "industry",
+      "categories": [
+        "监管动态",
+        "科技前沿"
+      ],
+      "sectors": [],
+      "importance": "low",
+      "tags": []
+    }
+  ],
+  "market_data": {
+    "indices": [],
+    "topSectors": [],
+    "bottomSectors": [],
+    "_isWeekend": true,
+    "_date": "2026-08-09"
+  }
+}

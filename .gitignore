@@ -15,7 +15,8 @@ runtime/optimizer/
 runtime/macro/
 /runtime/*.lock
 /runtime/chat_*
-/data/
+/data/*
+!/data/macro/
 *.db
 *.sqlite
 portfolio.json
