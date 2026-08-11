@@ -3,20 +3,19 @@ AI Chat backend for investment-auto.
 
 Features:
 - Persistent conversation history and memory
-- Tool execution loop with JSON/DSML/raw JSON parsing
+- Deterministic routes for controls, market state, stocks, and optimization
+- Typed Pydantic AI tools for open-ended Agent conversations
 - Streaming-friendly generator for SSE endpoint
-- Full project permissions, restricted to project root paths for file IO
+- Per-Agent least-privilege tool access
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import subprocess
 import threading
-import traceback
 import uuid
 from collections import OrderedDict
 from datetime import datetime
@@ -37,104 +36,10 @@ _cancel_lock = threading.RLock()
 _cancel_events: "OrderedDict[str, threading.Event]" = OrderedDict()
 _active_request_ids: List[str] = []
 _MAX_CANCEL_EVENTS = 512
-_MAX_TOOL_ROUNDS = 12
 
 logger = logging.getLogger("investment-auto.chat")
 
-SYSTEM_PROMPT = """你是 Investment-Auto 的 AI 操作助手，拥有对项目的完全读写和执行权限。
-
-你的能力：
-1. 读写文件：读取/修改 config/config.yaml、config/market/*.yaml 等配置
-2. 执行命令：在项目目录下运行 Python、Node.js、测试、优化器等命令
-3. 管理调度：查看/启动/停止调度器、检查日志
-4. 分析数据：调用 stock-fetcher 获取行情，调用 optimizer 生成优化报告
-5. 修改配置：调整风控、市场开关、轮次时间、模型选择等
-
-重要：如果需要执行操作，必须使用以下 JSON 工具调用格式，不要只把 JSON 当作普通文本回复：
-
-```tool
-{"tool": "read_file", "params": {"path_str": "config/config.yaml"}}
-```
-
-可用工具：
-- read_file: {"path_str": "文件路径"}
-- write_file: {"path_str": "文件路径", "content": "内容"}
-- run_shell: {"cmd": "命令", "timeout": 60}
-- list_dir: {"path_str": "目录路径"}
-- stock_search: {"query": "股票名称或代码"}
-- stock_snapshot: {"code": "股票代码，如 600519 / sh600519 / hk00700 / AAPL"}
-- optimizer: {"market": "cn", "symbols": ["600519", "000858"]}；symbols 可省略，使用持仓+默认标的
-
-工具调用规则：
-- 要读文件/跑命令/改配置时，先用工具，不要假装已经做了
-- 分析股票时优先使用 stock_search / stock_snapshot，不要用 run_shell 试探 node/python 版本
-- 工具返回后，根据结果继续回答
-- 如果一次需要多个操作，分多轮工具调用
-- 最终回复必须是中文 Markdown，不要再包含工具调用 JSON
-
-安全边界：文件读写限制在项目根目录内。"""
-
-# ── tools ─────────────────────────────────────────────
-def run_shell(cmd: str, cwd: Optional[str] = None, timeout: int = 60) -> Dict[str, Any]:
-    workdir = cwd or str(PROJECT_ROOT)
-    try:
-        p = subprocess.run(cmd, shell=True, cwd=workdir, capture_output=True, timeout=int(timeout))
-        stdout = decode_subprocess_output(p.stdout)
-        stderr = decode_subprocess_output(p.stderr)
-        return {"stdout": stdout[:20000], "stderr": stderr[:8000], "returncode": p.returncode}
-    except subprocess.TimeoutExpired:
-        return {"error": f"命令超时 ({timeout}s)"}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-def read_file(path_str: str) -> Dict[str, Any]:
-    p = _safe_project_path(path_str)
-    if not p or not p.exists():
-        return {"error": f"路径不安全或不存在: {path_str}"}
-    try:
-        content = p.read_text(encoding="utf-8")
-        return {"path": str(p.relative_to(PROJECT_ROOT)), "content": content[:30000], "truncated": len(content) > 30000}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-def write_file(path_str: str, content: str) -> Dict[str, Any]:
-    p = _safe_project_path(path_str)
-    if not p:
-        return {"error": f"路径不安全: {path_str}"}
-    try:
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(content, encoding="utf-8")
-        return {"path": str(p.relative_to(PROJECT_ROOT)), "written": len(content)}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-def list_dir(path_str: str = ".") -> Dict[str, Any]:
-    p = _safe_project_path(path_str)
-    if not p or not p.exists():
-        return {"error": f"路径不存在: {path_str}"}
-    try:
-        items = []
-        for entry in sorted(p.iterdir()):
-            items.append({"name": entry.name, "type": "dir" if entry.is_dir() else "file", "size": entry.stat().st_size if entry.is_file() else None})
-        return {"path": str(p.relative_to(PROJECT_ROOT)), "items": items}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-def _safe_project_path(path_str: str) -> Optional[Path]:
-    p = Path(path_str)
-    if not p.is_absolute():
-        p = PROJECT_ROOT / p
-    p = p.resolve()
-    try:
-        p.relative_to(PROJECT_ROOT)
-        return p
-    except ValueError:
-        return None
-
+# ── deterministic helpers (not exposed as Agent tools) ───────────────
 def _optimizer_tool(market: str = "cn", symbols: Any = None, cancel_event: Optional[threading.Event] = None) -> Dict[str, Any]:
     from src.optimizer.runner import compact_result, parse_symbols, run_optimizer
 
@@ -152,14 +57,9 @@ def _optimizer_tool(market: str = "cn", symbols: Any = None, cancel_event: Optio
         return {"error": str(exc)}
 
 
-TOOLS = {
-    "run_shell": {"fn": run_shell},
-    "read_file": {"fn": read_file},
-    "write_file": {"fn": write_file},
-    "list_dir": {"fn": list_dir},
-    "stock_search": {"fn": lambda query: _stock_fetcher("search", query)},
-    "stock_snapshot": {"fn": lambda code: _stock_fetcher("snapshot", code)},
-    "optimizer": {"fn": _optimizer_tool},
+_LEGACY_TOOL_NAMES = {
+    "run_shell", "read_file", "write_file", "list_dir",
+    "stock_search", "stock_snapshot", "optimizer",
 }
 
 
@@ -321,8 +221,6 @@ def handle_chat_stream(message: str, thinking: bool = False, provider: Optional[
 
 
 def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], model: Optional[str], cancel_event: threading.Event) -> Generator[Dict[str, Any], None, None]:
-    from src.llm.registry import resolve_llm
-
     append_history("user", message)
     if cancel_event.is_set():
         yield from _emit_cancelled("")
@@ -330,19 +228,14 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
     history = load_history(limit=20)
     memory = load_memory()
 
-    messages: List[Dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
-    if memory:
-        messages.append({"role": "system", "content": f"以下是长期记忆/历史偏好：\n{memory}"})
-    # Add recent history except the freshly appended user duplicated later
+    clean_history: List[Dict[str, Any]] = []
+    # Exclude the freshly appended user and legacy provider envelopes from context.
     for item in history[:-1]:
         if item.get("role") in ("user", "assistant"):
             content = item.get("content", "")
-            # Older versions could save provider-specific tool envelopes as if
-            # they were final answers. Do not teach the model to repeat them.
             if item["role"] == "assistant" and _parse_tool_call(content):
                 continue
-            messages.append({"role": item["role"], "content": content})
-    messages.append({"role": "user", "content": _build_user_message(message)})
+            clean_history.append({"role": item["role"], "content": content})
 
     autonomy_control_answer = _handle_autonomy_control_command(message)
     if autonomy_control_answer is not None:
@@ -388,9 +281,11 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
         yield {"type": "final", "content": final_answer}
         return
 
-    llm = resolve_llm(provider=provider, model=model) if provider else resolve_llm(role="chat")
     stock_context = _build_stock_analysis_context(message)
     if stock_context:
+        from src.llm.registry import resolve_llm
+
+        llm = resolve_llm(provider=provider, model=model) if provider else resolve_llm(role="chat")
         yield {"type": "tool", "name": "stock_snapshot", "params": {"query": stock_context.get("query")}}
         final_messages = [
             {"role": "system", "content": "你是专业但谨慎的中文投资分析助手。只能基于用户给出的行情快照分析，不要再调用任何工具；输出要包含：行情概况、技术面、风险点、操作参考。必须提示不构成投资建议。"},
@@ -419,59 +314,43 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
         yield {"type": "final", "content": final_answer}
         return
 
+    from src.ui.agent_runtime import run_agent_events
+
+    yield {"type": "status", "content": "Agent 正在分析..."}
     final_answer = ""
+    try:
+        for event in run_agent_events(
+            message,
+            history=clean_history,
+            memory=memory,
+            thinking=thinking,
+            provider=provider,
+            model=model,
+            cancel_event=cancel_event,
+        ):
+            event_type = event.get("type")
+            if event_type == "result":
+                final_answer = str(event.get("content", "")).strip()
+                break
+            if event_type == "cancelled":
+                yield from _emit_cancelled("")
+                return
+            if event_type == "error":
+                error = str(event.get("content", "Agent 运行失败"))
+                append_history("assistant", f"Agent 运行失败：{error}")
+                yield {"type": "error", "content": error}
+                return
+            yield event
+    except Exception as exc:
+        logger.exception("Typed Agent runtime failed")
+        yield {"type": "error", "content": str(exc)}
+        return
 
-    last_tool_result = None
-    for round_idx in range(_MAX_TOOL_ROUNDS):
-        if cancel_event.is_set():
-            yield from _emit_cancelled("")
-            return
-        yield {"type": "status", "content": "思考中..." if round_idx == 0 else "继续处理工具结果..."}
-        kwargs: Dict[str, Any] = {}
-        if thinking:
-            kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
-        response_parts = []
-        try:
-            for delta in _stream_llm(llm, messages, cancel_event, temperature=0.25, max_tokens=4096, **kwargs):
-                response_parts.append(delta)
-            resp = "".join(response_parts)
-        except InterruptedError:
-            yield from _emit_cancelled("")
-            return
-        except Exception as e:
-            yield {"type": "error", "content": str(e)}
-            return
-
-        tool_call = _parse_tool_call(resp)
-        if not tool_call:
-            final_answer = _strip_tool_blocks(resp)
-            # stream by chunks for UI responsiveness
-            emitted = ""
-            for chunk in _chunk_text(final_answer, 18):
-                if cancel_event.is_set():
-                    yield from _emit_cancelled(emitted)
-                    return
-                emitted += chunk
-                yield {"type": "token", "content": chunk}
-            append_history("assistant", final_answer)
-            # primitive memory extraction
-            if "记住" in message or "remember" in message.lower():
-                append_memory(message)
-            yield {"type": "final", "content": final_answer}
-            return
-
-        # Do not surface raw tool JSON as assistant answer; show tool status instead.
-        yield {"type": "tool", "name": tool_call.get("tool"), "params": tool_call.get("params", {})}
-        messages.append({"role": "assistant", "content": resp})
-        logger.info("Executing chat tool: %s", tool_call.get("tool"))
-        tool_result = _execute_tool(tool_call)
-        last_tool_result = tool_result
-        messages.append({"role": "user", "content": f"[工具执行结果]\n{json.dumps(tool_result, ensure_ascii=False, indent=2)}\n\n请基于工具结果继续。如果需要更多工具，再调用工具；否则给出最终回答，不要重复工具JSON。"})
-
-    if last_tool_result is not None:
-        final_answer = "工具调用轮次较多，已停止继续调用工具。以下是最后一次工具执行结果摘要：\n\n```json\n" + json.dumps(last_tool_result, ensure_ascii=False, indent=2)[:4000] + "\n```"
-    else:
-        final_answer = "工具调用轮次过多，已停止。请拆分任务或查看日志。"
+    if not final_answer:
+        error = "Agent 没有产生最终回答。"
+        append_history("assistant", error)
+        yield {"type": "error", "content": error}
+        return
     emitted = ""
     for chunk in _chunk_text(final_answer, 18):
         if cancel_event.is_set():
@@ -480,6 +359,8 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
         emitted += chunk
         yield {"type": "token", "content": chunk}
     append_history("assistant", final_answer)
+    if "记住" in message or "remember" in message.lower():
+        append_memory(message)
     yield {"type": "final", "content": final_answer}
 
 
@@ -506,10 +387,6 @@ def _emit_cancelled(partial_answer: str) -> Generator[Dict[str, Any], None, None
         saved = "（用户已停止生成）"
     append_history("assistant", saved)
     yield {"type": "cancelled", "content": "已停止生成"}
-
-
-def _build_user_message(user_text: str) -> str:
-    return f"{user_text}\n\n项目根目录: {PROJECT_ROOT}\n如需操作，请使用工具。"
 
 
 def _market_status_request(user_text: str) -> Optional[str]:
@@ -935,7 +812,7 @@ def _parse_tool_call(text: str) -> Optional[Dict[str, Any]]:
     dsml = re.search(r'<｜｜DSML｜｜invoke\s+name="(\w+)"[^>]*>(.*?)</｜｜DSML｜｜invoke>', text, re.DOTALL)
     if dsml:
         name, body = dsml.group(1), dsml.group(2)
-        if name in TOOLS:
+        if name in _LEGACY_TOOL_NAMES:
             params: Dict[str, Any] = {}
             for pname, pvalue in re.findall(r'<｜｜DSML｜｜parameter\s+name="(\w+)"[^>]*>(.*?)</｜｜DSML｜｜parameter>', body, re.DOTALL):
                 params[pname] = pvalue.strip()
@@ -957,7 +834,7 @@ def _loads_tool_json(text: str) -> Optional[Dict[str, Any]]:
     if not isinstance(data, dict):
         return None
     name = data.get("tool") or data.get("tool_name") or data.get("name")
-    if name not in TOOLS:
+    if name not in _LEGACY_TOOL_NAMES:
         return None
     params = data.get("params", data.get("arguments", data.get("input", {})))
     if isinstance(params, str):
@@ -1022,13 +899,3 @@ def _strip_tool_blocks(text: str) -> str:
 def _chunk_text(text: str, size: int = 20) -> Generator[str, None, None]:
     for i in range(0, len(text), size):
         yield text[i:i+size]
-
-
-def _execute_tool(tool_call: Dict[str, Any]) -> Dict[str, Any]:
-    name = tool_call.get("tool")
-    params = _normalize_params(tool_call.get("params", {}))
-    fn = TOOLS[name]["fn"]
-    try:
-        return fn(**params)
-    except Exception as e:
-        return {"error": str(e), "traceback": traceback.format_exc()}

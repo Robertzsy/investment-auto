@@ -44,15 +44,6 @@ def test_stock_fetcher_captures_bytes_instead_of_locale_text(monkeypatch):
     assert chat_server._stock_fetcher("snapshot", "600519") == {"name": "贵州茅台"}
 
 
-def test_run_shell_decodes_utf8_without_windows_code_page(monkeypatch):
-    def fake_run(*args, **kwargs):
-        assert kwargs.get("text") is not True
-        return SimpleNamespace(stdout="成功".encode("utf-8"), stderr=b"", returncode=0)
-
-    monkeypatch.setattr(chat_server.subprocess, "run", fake_run)
-    assert chat_server.run_shell("ignored") == {"stdout": "成功", "stderr": "", "returncode": 0}
-
-
 def test_data_fetcher_decodes_node_utf8(monkeypatch):
     def fake_run(*args, **kwargs):
         assert kwargs.get("text") is not True

@@ -13,7 +13,7 @@ import pytest
 sys.path.insert(0, ".")
 
 from src.llm.adapter import GenericOpenAILLM
-from src.ui import chat_server
+from src.ui import agent_runtime, chat_server
 
 
 def test_chat_ui_sanitizes_all_markdown_before_inner_html():
@@ -51,27 +51,15 @@ class _ImmediateLLM:
         yield "x" * 40
 
 
-class _ToolThenAnswerLLM:
-    def __init__(self):
-        self.round = 0
-        self.messages = []
-
-    def chat_stream(self, messages, *, cancel_event, **kwargs):
-        self.messages.append([dict(item) for item in messages])
-        if self.round == 0:
-            self.round += 1
-            yield (
-                "好的，我来检查。\n\n<tool_call>\n"
-                '{"tool_name":"run_shell","params":{"cmd":"Get-Date","timeout":5}}'
-                "\n</tool_call>"
-            )
-            return
-        assert "[工具执行结果]" in messages[-1]["content"]
-        yield "美股调度器正在运行，状态检查已完成。"
+def _immediate_agent_events(message, *, cancel_event, **kwargs):
+    if cancel_event.is_set():
+        yield {"type": "cancelled"}
+        return
+    yield {"type": "result", "content": "x" * 40}
 
 
 def test_request_cancellation_is_isolated_and_saves_only_emitted_partial(monkeypatch):
-    monkeypatch.setattr("src.llm.registry.resolve_llm", lambda **kwargs: _ImmediateLLM())
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", _immediate_agent_events)
     first = chat_server.handle_chat_stream("普通问题一", request_id="request-a")
     second = chat_server.handle_chat_stream("普通问题二", request_id="request-b")
 
@@ -114,7 +102,7 @@ def test_cancel_before_request_registration_is_not_cleared(monkeypatch):
 
 
 def test_missing_request_id_keeps_legacy_cancel_working(monkeypatch):
-    monkeypatch.setattr("src.llm.registry.resolve_llm", lambda **kwargs: _ImmediateLLM())
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", _immediate_agent_events)
     events = chat_server.handle_chat_stream("旧客户端请求")
     assert next(events)["type"] == "status"
     assert chat_server.request_cancel() is True
@@ -135,39 +123,46 @@ def test_provider_specific_tool_call_aliases_are_normalized(payload):
     assert parsed == {"tool": "run_shell", "params": {"cmd": "Get-Date", "timeout": 5}}
 
 
-def test_tool_name_envelope_executes_and_continues_to_final_answer(monkeypatch):
-    llm = _ToolThenAnswerLLM()
-    executions = []
-    monkeypatch.setattr(chat_server, "_build_market_status_answer", lambda message: None)
-    monkeypatch.setattr("src.llm.registry.resolve_llm", lambda **kwargs: llm)
-    monkeypatch.setitem(
-        chat_server.TOOLS,
-        "run_shell",
-        {"fn": lambda **params: executions.append(params) or {"stdout": "23:18:00", "returncode": 0}},
-    )
+def test_legacy_tool_envelope_is_filtered_and_never_executed(monkeypatch):
+    captured_history = []
+
+    def fake_agent_events(message, *, history, **kwargs):
+        captured_history.extend(history)
+        yield {"type": "result", "content": "已使用新的类型化 Agent 处理。"}
+
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", fake_agent_events)
     chat_server.append_history("user", "旧问题")
     chat_server.append_history(
         "assistant",
         '<tool_call>{"tool_name":"run_shell","params":{"cmd":"stale"}}</tool_call>',
     )
 
-    events = list(
-        chat_server.handle_chat_stream("美股开始操作了吗", request_id="tool-alias-request")
-    )
+    events = list(chat_server.handle_chat_stream("继续回答", request_id="typed-agent-request"))
 
-    assert executions == [{"cmd": "Get-Date", "timeout": 5}]
-    assert [event["type"] for event in events].count("tool") == 1
     assert events[-1] == {
         "type": "final",
-        "content": "美股调度器正在运行，状态检查已完成。",
+        "content": "已使用新的类型化 Agent 处理。",
     }
-    assert all("tool_name" not in event.get("content", "") for event in events if event["type"] == "token")
     assert all(
         "tool_name" not in item["content"]
-        for item in llm.messages[0]
+        for item in captured_history
         if item["role"] == "assistant"
     )
-    assert chat_server.load_history(10)[-1]["content"] == "美股调度器正在运行，状态检查已完成。"
+    assert chat_server.load_history(10)[-1]["content"] == "已使用新的类型化 Agent 处理。"
+
+
+def test_typed_agent_catalog_excludes_shell_file_write_and_trading_execution():
+    tool_names = set(agent_runtime.MANAGER_AGENT._function_toolset.tools)
+
+    assert tool_names == {
+        "consult_portfolio_agent",
+        "consult_risk_agent",
+        "consult_report_agent",
+        "consult_ops_agent",
+        "search_security",
+        "get_security_snapshot",
+    }
+    assert not ({"run_shell", "write_file", "execute_orders"} & tool_names)
 
 
 class _MarketStatusConfig:
