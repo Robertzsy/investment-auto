@@ -166,6 +166,17 @@ def _latest_macro_excerpt() -> str:
         return ""
 
 
+def _complete_report(llm: Any, messages: List[Dict[str, str]]) -> str:
+    stream = getattr(llm, "chat_stream", None)
+    if callable(stream):
+        text = "".join(stream(messages, temperature=0.25, max_tokens=4096))
+    else:
+        text = llm.chat(messages, temperature=0.25, max_tokens=4096)
+    if not text or not text.strip():
+        raise RuntimeError("LLM returned an empty report")
+    return text
+
+
 def _run_intraday_job(
     market: str,
     time_str: str,
@@ -196,7 +207,7 @@ def _run_intraday_job(
             "请输出可审计的轮次报告：行情与持仓检查、止损止盈、风险暴露、候选方向；"
             "数据不足时明确说明，不得虚构成交。"
         )
-        response = llm.chat([{"role": "user", "content": prompt}])
+        response = _complete_report(llm, [{"role": "user", "content": prompt}])
         _write_report(path, f"{market.upper()} {label} 轮次报告", response, current, catch_up)
         logger.info("[INTRADAY:%s] %s report written: %s", market, label, path)
         return {"status": "generated", "market": market, "label": label, "report": str(path)}
@@ -236,7 +247,7 @@ def _run_close_job(
             f"组合优化结果：\n{json.dumps(optimizer_result, ensure_ascii=False)[:15000]}\n\n"
             "请输出收盘复盘、压力测试解读和下一交易日计划；不得虚构成交。"
         )
-        response = llm.chat([{"role": "user", "content": prompt}])
+        response = _complete_report(llm, [{"role": "user", "content": prompt}])
         _write_report(path, f"{market.upper()} 收盘报告", response, current, catch_up)
         logger.info("[CLOSE:%s] report written: %s", market, path)
         return {"status": "generated", "market": market, "label": "close", "report": str(path)}
