@@ -45,14 +45,15 @@ class ProcessLease:
 
     def acquire(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        handle = self.path.open("a+b")
-        handle.seek(0)
-        if handle.read(1) == b"":
-            handle.seek(0)
-            handle.write(b"0")
-            handle.flush()
-        handle.seek(0)
+        handle: Optional[IO[bytes]] = None
         try:
+            handle = self.path.open("a+b")
+            handle.seek(0)
+            if handle.read(1) == b"":
+                handle.seek(0)
+                handle.write(b"0")
+                handle.flush()
+            handle.seek(0)
             if os.name == "nt":
                 import msvcrt
 
@@ -61,9 +62,10 @@ class ProcessLease:
                 import fcntl
 
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except (OSError, BlockingIOError):
-            handle.close()
-            raise RuntimeError("另一个 investment-auto 调度器已经在运行")
+        except (OSError, BlockingIOError) as exc:
+            if handle is not None:
+                handle.close()
+            raise RuntimeError("另一个 investment-auto 调度器已经在运行") from exc
         self.handle = handle
 
     def release(self) -> None:

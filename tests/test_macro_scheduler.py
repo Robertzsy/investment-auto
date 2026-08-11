@@ -150,6 +150,17 @@ def test_scheduler_process_lease_blocks_duplicate_instances(monkeypatch, tmp_pat
     second.shutdown(wait=False)
 
 
+def test_scheduler_lease_converts_windows_share_violation_to_running_error(monkeypatch, tmp_path):
+    lease = scheduler.ProcessLease(tmp_path / "scheduler.lock")
+
+    def denied(*args, **kwargs):
+        raise PermissionError("Windows sharing violation")
+
+    monkeypatch.setattr(Path, "open", denied)
+    with pytest.raises(RuntimeError, match="调度器已经在运行"):
+        lease.acquire()
+
+
 def test_scheduler_registers_macro_job(monkeypatch, tmp_path):
     monkeypatch.setattr(scheduler, "SCHEDULER_LOCK", tmp_path / "scheduler.lock")
     monkeypatch.setattr(scheduler, "run_catch_up", lambda: [])
