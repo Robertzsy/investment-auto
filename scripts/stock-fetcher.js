@@ -730,13 +730,16 @@ async function main() {
       }
     }
     const allData = data.data || [];
-    const recent60 = allData.slice(-60);
+    const requestedLimit = Number.parseInt(option, 10);
+    const historyData = Number.isFinite(requestedLimit) && requestedLimit > 0
+      ? allData.slice(-requestedLimit)
+      : allData;
     const indicators = computeAllIndicators(allData);
     console.log(JSON.stringify({
       code: data.code,
       market: parsed.market,
-      count: data.count,
-      data: recent60,
+      count: allData.length,
+      data: historyData,
       indicators,
     }));
     return;

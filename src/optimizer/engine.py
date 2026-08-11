@@ -127,16 +127,19 @@ def rebalance_cost(w0: List[float], w1: List[float], buy_rate: float, sell_rate:
     s = sum(max(0, c-t) for c, t in zip(w0, w1))
     return {"turnover_buy": b, "turnover_sell": s, "turnover_total": b+s, "cost_ratio": b*buy_rate + s*sell_rate}
 
-def max_sharpe_cost_aware(mus, cov, rf, max_w, w0, buy_rate, sell_rate, samples=6000):
+def max_sharpe_cost_aware(mus, cov, rf, max_w, w0, buy_rate, sell_rate, samples=6000, target_exposure=1.0):
     n = len(mus)
     pool = [_cap_norm([1/n]*n, max_w)] + [_rand_weights(n, max_w) for _ in range(samples)]
     best_w, best_m = pool[0], None
     best_sharpe_net = -1e9
     for w in pool:
         m = _metrics(w, mus, cov, rf)
-        cost = rebalance_cost(w0, w, buy_rate, sell_rate)["cost_ratio"]
-        net_ret = m["annual_return"] - cost
-        net_sh = (net_ret - rf)/m["annual_volatility"] if m["annual_volatility"]>EPS else 0
+        target = [weight * target_exposure for weight in w]
+        cost = rebalance_cost(w0, target, buy_rate, sell_rate)["cost_ratio"]
+        portfolio_return = target_exposure * m["annual_return"] + (1 - target_exposure) * rf
+        portfolio_volatility = target_exposure * m["annual_volatility"]
+        net_ret = portfolio_return - cost
+        net_sh = (net_ret - rf)/portfolio_volatility if portfolio_volatility > EPS else 0
         if net_sh > best_sharpe_net:
             best_w, best_m = w, m
             best_sharpe_net = net_sh

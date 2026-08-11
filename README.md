@@ -10,6 +10,8 @@
 
 ## 快速开始
 
+**运行依赖：** Python 3.10+ 与 Node.js 18+。Windows 可先执行 `python --version`、`node --version` 确认；系统启动时也会主动检查 Node.js。宏观采集默认使用 Node 内置 HTTPS；检测到 HTTP(S) 代理时会使用系统 `curl` 作为代理后端（Windows 10/11 自带，Linux 精简系统需另行安装）。
+
 ```bash
 # 1. 克隆仓库
 git clone <repo-url> && cd investment-auto
@@ -27,21 +29,33 @@ python -m src.main init
 # 5. 启动 AI 对话面板（推荐）
 python -m src.main chat
 # 打开浏览器访问 http://localhost:8080
-# AI 拥有完全操作权限：读写配置、运行优化器、启停调度
-# 可用 CHAT_HOST、CHAT_PORT、CHAT_OPEN_BROWSER 覆盖监听地址、端口和自动打开浏览器行为
+# Python 部署会在同一进程自动启动 scheduler，并补跑启动前错过的 A 股轮次与宏观日报
+# AI 拥有完全操作权限：读写配置、运行优化器、查看调度与日志
+# 可用 CHAT_HOST、CHAT_PORT、CHAT_OPEN_BROWSER、CHAT_START_SCHEDULER 覆盖行为
 
-# 6. 启动自动化调度器
+# 6. 仅启动自动化调度器（服务器/拆分部署使用；不要与默认 chat 重复启动）
 python -m src.main run
 
-# 7. 单次分析
+# 7. 手动运行组合优化器（不传 symbols 时使用持仓 + 默认标的池）
+python -m src.main optimizer --market cn
+python -m src.main optimizer --market cn --symbols 600519,000858,601318,600030
+
+# 8. 手动补跑今天已错过的轮次 / 生成宏观日报
+python -m src.main catchup --market cn
+python -m src.main macro
+
+# 9. 单次分析
 python -m src.main once --market cn
 ```
 
 ## 配置要点
 
-- `config/config.yaml`：总控制文件，决定市场开关、盘中建仓次数/时间、模型选择
+- `config/config.yaml`：总控制文件，决定市场开关、轮次、启动补跑、宏观日报和模型选择
 - 环境变量 `.env`：存储 API Key，切勿提交至 Git
 - `config/market/`：各市场风控参数、手续费、交易规则
+- `runtime/optimizer/`：组合优化结果；仪表盘会读取最新结果
+- `runtime/macro/`：独立宏观日报数据与报告
+- `runtime/logs/investment-auto.log`：聊天与调度统一日志
 - APScheduler 的星期编号以周一为 `0`。A股/港股/ETF 和美股北京时间晚间轮次使用 `0-4`（周一至周五）；美股北京时间凌晨轮次使用 `schedule.us_early_morning_days`，默认 `1-5`（周二至周六）。设置 `weekdays_only: false` 可允许每日触发。
 
 ## Docker 部署

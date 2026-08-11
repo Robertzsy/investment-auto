@@ -36,6 +36,7 @@ _cancel_lock = threading.RLock()
 _cancel_events: "OrderedDict[str, threading.Event]" = OrderedDict()
 _active_request_ids: List[str] = []
 _MAX_CANCEL_EVENTS = 512
+_MAX_TOOL_ROUNDS = 12
 
 logger = logging.getLogger("investment-auto.chat")
 
@@ -61,6 +62,7 @@ SYSTEM_PROMPT = """你是 Investment-Auto 的 AI 操作助手，拥有对项目�
 - list_dir: {"path_str": "目录路径"}
 - stock_search: {"query": "股票名称或代码"}
 - stock_snapshot: {"code": "股票代码，如 600519 / sh600519 / hk00700 / AAPL"}
+- optimizer: {"market": "cn", "symbols": ["600519", "000858"]}；symbols 可省略，使用持仓+默认标的
 
 工具调用规则：
 - 要读文件/跑命令/改配置时，先用工具，不要假装已经做了
@@ -132,6 +134,23 @@ def _safe_project_path(path_str: str) -> Optional[Path]:
     except ValueError:
         return None
 
+def _optimizer_tool(market: str = "cn", symbols: Any = None, cancel_event: Optional[threading.Event] = None) -> Dict[str, Any]:
+    from src.optimizer.runner import compact_result, parse_symbols, run_optimizer
+
+    if isinstance(symbols, str):
+        parsed = parse_symbols(symbols)
+    elif isinstance(symbols, (list, tuple)):
+        parsed = [str(item) for item in symbols]
+    elif symbols is None:
+        parsed = None
+    else:
+        return {"error": "symbols 必须是逗号分隔字符串或数组"}
+    try:
+        return compact_result(run_optimizer(market=str(market or "cn"), symbols=parsed, cancel_event=cancel_event))
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 TOOLS = {
     "run_shell": {"fn": run_shell},
     "read_file": {"fn": read_file},
@@ -139,6 +158,7 @@ TOOLS = {
     "list_dir": {"fn": list_dir},
     "stock_search": {"fn": lambda query: _stock_fetcher("search", query)},
     "stock_snapshot": {"fn": lambda code: _stock_fetcher("snapshot", code)},
+    "optimizer": {"fn": _optimizer_tool},
 }
 
 
@@ -318,8 +338,23 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
             messages.append({"role": item["role"], "content": item.get("content", "")})
     messages.append({"role": "user", "content": _build_user_message(message)})
 
-    llm = resolve_llm(provider=provider, model=model) if provider else resolve_llm(role="chat")
+    optimizer_request = _build_optimizer_request(message)
+    if optimizer_request is not None:
+        yield {"type": "tool", "name": "optimizer", "params": optimizer_request}
+        result = _optimizer_tool(**optimizer_request, cancel_event=cancel_event)
+        final_answer = _format_optimizer_result(result)
+        emitted = ""
+        for chunk in _chunk_text(final_answer, 18):
+            if cancel_event.is_set():
+                yield from _emit_cancelled(emitted)
+                return
+            emitted += chunk
+            yield {"type": "token", "content": chunk}
+        append_history("assistant", final_answer)
+        yield {"type": "final", "content": final_answer}
+        return
 
+    llm = resolve_llm(provider=provider, model=model) if provider else resolve_llm(role="chat")
     stock_context = _build_stock_analysis_context(message)
     if stock_context:
         yield {"type": "tool", "name": "stock_snapshot", "params": {"query": stock_context.get("query")}}
@@ -353,7 +388,7 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
     final_answer = ""
 
     last_tool_result = None
-    for round_idx in range(8):
+    for round_idx in range(_MAX_TOOL_ROUNDS):
         if cancel_event.is_set():
             yield from _emit_cancelled("")
             return
@@ -440,6 +475,80 @@ def _emit_cancelled(partial_answer: str) -> Generator[Dict[str, Any], None, None
 
 def _build_user_message(user_text: str) -> str:
     return f"{user_text}\n\n项目根目录: {PROJECT_ROOT}\n如需操作，请使用工具。"
+
+
+def _build_optimizer_request(user_text: str) -> Optional[Dict[str, Any]]:
+    subject = r"优化器|组合优化|权重优化|风险平价|马科维茨|Black.?Litterman"
+    if not re.search(subject, user_text, re.I):
+        return None
+    if re.search(r"(?:不要|别|无需|禁止|停止|取消).{0,8}(?:" + subject + r")", user_text, re.I):
+        return None
+    execution_intent = re.search(r"运行|执行|启动|开始|算一下|计算|给出.*权重|生成.*方案|优化一下|做一次|跑一次", user_text, re.I)
+    if not execution_intent:
+        return None
+
+    market = "cn"
+    if re.search(r"港股|HK", user_text, re.I):
+        market = "hk"
+    elif re.search(r"美股|US", user_text, re.I):
+        market = "us"
+    elif re.search(r"ETF", user_text, re.I):
+        market = "etf"
+
+    symbols: List[str] = []
+    pattern = r"(?<![A-Za-z0-9])(?:sh|sz|bj)?\d{6}(?!\d)|(?<![A-Za-z0-9])hk\d{5}(?!\d)|(?<!\d)\d{5}(?!\d)|(?<![A-Za-z])[A-Z]{2,5}(?![A-Za-z])"
+    for match in re.finditer(pattern, user_text, re.I):
+        value = match.group(0)
+        if value.upper() in {"ETF", "BLACK", "US", "CN", "HK"}:
+            continue
+        if value not in symbols:
+            symbols.append(value)
+    return {"market": market, "symbols": symbols or None}
+
+
+def _format_optimizer_result(result: Dict[str, Any]) -> str:
+    if result.get("error"):
+        return f"## ❌ 优化器运行失败\n\n{result['error']}"
+
+    recommended = result.get("recommended_scheme", "")
+    schemes = result.get("schemes", {})
+    labels = {
+        "mean_variance": "均值-方差",
+        "black_litterman": "Black-Litterman",
+        "risk_parity": "风险平价",
+        "cost_adjusted": "成本约束",
+    }
+    lines = [
+        "## ✅ 组合优化已完成",
+        "",
+        f"- 市场：`{str(result.get('market', '')).upper()}`",
+        f"- 标的：{', '.join(result.get('symbols') or [])}",
+        f"- 有效样本：{result.get('observations', 0)} 个交易日",
+        f"- 推荐方案：**{labels.get(recommended, recommended)}**",
+        f"- 结果文件：`{result.get('output_file', '')}`",
+        "",
+        "| 方案 | 风险袖年化收益 | 组合净年化 | 年化波动 | 净夏普 | VaR95 | 最大回撤 |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for name, item in schemes.items():
+        metrics = item.get("metrics", {})
+        stress = item.get("stress", {})
+        net_metrics = item.get("net_metrics", {})
+        lines.append(
+            f"| {labels.get(name, name)} | {metrics.get('annual_return', 0) * 100:.2f}% | "
+            f"{net_metrics.get('net_annual_return', 0) * 100:.2f}% | {net_metrics.get('annual_volatility', 0) * 100:.2f}% | "
+            f"{net_metrics.get('net_sharpe', 0):.3f} | {stress.get('var95', 0) * 100:.2f}% | "
+            f"{stress.get('max_drawdown', 0) * 100:.2f}% |"
+        )
+    if recommended in schemes:
+        lines.extend(["", "### 推荐权重", ""])
+        for symbol, weight in schemes[recommended].get("portfolio_weights", {}).items():
+            lines.append(f"- `{symbol}`：{weight * 100:.2f}%")
+    dropped = result.get("dropped_symbols") or {}
+    if dropped:
+        lines.extend(["", f"> ⚠️ 已跳过：{json.dumps(dropped, ensure_ascii=False)}"])
+    lines.extend(["", "> 结果基于历史数据与模拟约束，不构成投资建议。"])
+    return "\n".join(lines)
 
 
 def _looks_like_stock_analysis(user_text: str) -> bool:

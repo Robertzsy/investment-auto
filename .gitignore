@@ -12,6 +12,8 @@ runtime/data/
 runtime/logs/
 runtime/reports/
 runtime/optimizer/
+runtime/macro/
+/runtime/*.lock
 /runtime/chat_*
 /data/
 *.db

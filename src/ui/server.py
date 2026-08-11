@@ -43,6 +43,13 @@ def _is_sensitive_env_key(key: str) -> bool:
     return any(marker in normalized for marker in _SENSITIVE_ENV_MARKERS)
 
 
+def _optimizer_files(directory: Path, market: str = "all") -> list[Path]:
+    if not directory.exists():
+        return []
+    pattern = "*.json" if market in {"", "all"} else f"*-{market.lower()}.json"
+    return sorted(directory.glob(pattern), key=lambda path: path.stat().st_mtime, reverse=True)
+
+
 class ChatHandler(SimpleHTTPRequestHandler):
     """Serves static files from src/ui/ and handles API routes."""
 
@@ -62,7 +69,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             market = query.get("market", ["all"])[0]
             return self._handle_dashboard(market)
         if path == "/api/optimizer":
-            return self._handle_optimizer()
+            market = query.get("market", ["all"])[0]
+            return self._handle_optimizer(market)
         if path == "/api/macro":
             return self._handle_macro(query)
         if path == "/api/macro/dates":
@@ -304,45 +312,33 @@ class ChatHandler(SimpleHTTPRequestHandler):
             self._json_response(500, {"error": str(e)})
 
     def _handle_macro(self, query: dict):
-        """Get macro environment report for a specific date."""
+        """Get a locally generated macro report for a specific date."""
         try:
             date = query.get("date", [None])[0]
             if not date:
                 return self._json_response(400, {"error": "missing date parameter"})
-            
-            # Try to find macro report in workspace data directory
-            workspace = Path.home() / ".openclaw" / "workspace"
-            macro_file = workspace / "data" / "macro" / "daily" / f"{date}.md"
-            
+
+            from src.macro import DATA_ROOT, report_path
+
+            macro_file = report_path(date, DATA_ROOT)
             if not macro_file.exists():
-                # Try JSON format
-                macro_json = workspace / "data" / "macro" / "news" / f"{date}.json"
+                macro_json = DATA_ROOT / "news" / f"{date}.json"
                 if macro_json.exists():
                     data = json.loads(macro_json.read_text(encoding="utf-8"))
                     return self._json_response(200, {"available": True, "date": date, "content": self._macro_json_to_markdown(data)})
                 return self._json_response(200, {"available": False, "message": f"{date} 无宏观数据"})
-            
+
             content = macro_file.read_text(encoding="utf-8")
             self._json_response(200, {"available": True, "date": date, "content": content})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
 
     def _handle_macro_dates(self):
-        """Get list of available macro report dates."""
+        """Get dates available in the standalone runtime macro store."""
         try:
-            workspace = Path.home() / ".openclaw" / "workspace"
-            macro_dir = workspace / "data" / "macro" / "daily"
-            dates = []
-            if macro_dir.exists():
-                for f in sorted(macro_dir.glob("*.md"), reverse=True):
-                    dates.append(f.stem)
-            # Also check JSON news files
-            news_dir = workspace / "data" / "macro" / "news"
-            if news_dir.exists():
-                for f in sorted(news_dir.glob("*.json"), reverse=True):
-                    if f.stem not in dates:
-                        dates.append(f.stem)
-            dates = sorted(dates, reverse=True)
+            from src.macro import DATA_ROOT, latest_dates
+
+            dates = latest_dates(DATA_ROOT)
             self._json_response(200, {"dates": dates, "latest": dates[0] if dates else None})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
@@ -380,13 +376,10 @@ class ChatHandler(SimpleHTTPRequestHandler):
         
         return "\n".join(lines)
 
-    def _handle_optimizer(self):
+    def _handle_optimizer(self, market: str = "all"):
         try:
-            from src.config import cfg
             opt_dir = PROJECT_ROOT / "runtime" / "optimizer"
-            if not opt_dir.exists():
-                return self._json_response(200, {"available": False})
-            files = sorted(opt_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+            files = _optimizer_files(opt_dir, market)
             if not files:
                 return self._json_response(200, {"available": False})
             latest = json.loads(files[0].read_text(encoding="utf-8"))
@@ -428,23 +421,28 @@ class ChatHandler(SimpleHTTPRequestHandler):
             # Calculate holdings value
             holdings_value = 0
             for h in holdings:
+                quantity = h.get("shares", h.get("quantity", 0)) or 0
+                cost_price = h.get("costPrice", h.get("cost", h.get("price", 0))) or 0
                 try:
                     rt = fetcher.realtime(h["code"])
-                    last_price = rt.get("price", h.get("costPrice", 0))
+                    last_price = rt.get("price", cost_price)
                 except Exception:
-                    last_price = h.get("lastPrice", h.get("costPrice", 0))
-                mv = last_price * h.get("shares", 0)
+                    last_price = h.get("lastPrice", cost_price)
+                mv = last_price * quantity
                 holdings_value += mv
                 all_holdings.append({
                     "market": m, "code": h["code"], "name": h.get("name", ""),
-                    "shares": h.get("shares", 0), "cost_price": h.get("costPrice", 0),
+                    "shares": quantity, "cost_price": cost_price,
                     "last_price": last_price, "market_value": mv,
                 })
 
             total_assets += cash + holdings_value
-            for t in acct.get("tradeHistory", []):
-                t["market"] = m
-                all_trades.append(t)
+            for trade in acct.get("tradeHistory", []):
+                item = dict(trade)
+                item["market"] = m
+                item["date"] = item.get("date", item.get("time", ""))
+                item["shares"] = item.get("shares", item.get("quantity", 0))
+                all_trades.append(item)
 
         # Asset distribution by market
         asset_dist = {"labels": [], "values": []}
@@ -472,9 +470,10 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
         # Optimizer comparison
         opt_comparison = []
+        optimizer_schemes = {}
         opt_dir = PROJECT_ROOT / "runtime" / "optimizer"
         if opt_dir.exists():
-            files = sorted(opt_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+            files = _optimizer_files(opt_dir, market)
             if files:
                 try:
                     opt_data = json.loads(files[0].read_text(encoding="utf-8"))
@@ -482,16 +481,24 @@ class ChatHandler(SimpleHTTPRequestHandler):
                     for key in ["mean_variance", "black_litterman", "risk_parity", "cost_adjusted"]:
                         if key in opt_data:
                             m = opt_data[key]["metrics"]
+                            net = opt_data[key].get("net_metrics", {})
                             schemes[key] = {
-                                "annual_return": m.get("annual_return", 0),
-                                "annual_volatility": m.get("annual_volatility", 0),
-                                "sharpe": m.get("sharpe", 0),
+                                "annual_return": net.get("net_annual_return", m.get("annual_return", 0)),
+                                "annual_volatility": net.get("annual_volatility", m.get("annual_volatility", 0)),
+                                "sharpe": net.get("net_sharpe", m.get("sharpe", 0)),
                                 "var95": opt_data[key].get("stress", {}).get("var95", 0),
                                 "max_drawdown": opt_data[key].get("stress", {}).get("max_drawdown", 0),
                             }
+                    optimizer_schemes = schemes
+                    colors = ["#58a6ff", "#a371f7", "#3fb950", "#d29922"]
                     opt_comparison = [
-                        {"label": k, "data": [v["annual_return"]*100, v["sharpe"], v["max_drawdown"]*100, v["var95"]*100, 0]}
-                        for k, v in schemes.items()
+                        {
+                            "label": key,
+                            "data": [value["annual_return"] * 100, value["sharpe"], value["max_drawdown"] * 100, value["var95"] * 100, 0],
+                            "borderColor": colors[index % len(colors)],
+                            "backgroundColor": colors[index % len(colors)] + "22",
+                        }
+                        for index, (key, value) in enumerate(schemes.items())
                     ]
                 except Exception:
                     pass
@@ -511,7 +518,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
             "optimizer_comparison": opt_comparison,
             "holdings": all_holdings,
             "recent_trades": sorted(all_trades, key=lambda t: t.get("date", ""), reverse=True)[:20],
-            "optimizer": {"available": len(opt_comparison) > 0, "schemes": {}},
+            "optimizer": {"available": bool(optimizer_schemes), "schemes": optimizer_schemes},
         }
 
     # ── helpers ────────────────────────────────────

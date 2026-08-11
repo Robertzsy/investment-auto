@@ -1,0 +1,141 @@
+"""Integration-level tests for the executable optimizer pipeline."""
+from __future__ import annotations
+
+from datetime import date, timedelta
+
+import pytest
+
+from src.optimizer import runner
+from src.ui import chat_server
+from src.ui.server import _optimizer_files
+
+
+def _history(symbol: str, **_: object) -> dict:
+    start = date(2026, 1, 1)
+    bias = (sum(ord(ch) for ch in symbol) % 7) / 1000
+    rows = []
+    price = 10 + (sum(ord(ch) for ch in symbol) % 20)
+    for index in range(80):
+        price *= 1 + 0.0008 + bias + ((index % 5) - 2) * 0.001
+        rows.append({"date": (start + timedelta(days=index)).isoformat(), "close": round(price, 6)})
+    return {"code": symbol, "data": rows}
+
+
+def test_optimizer_fetches_aligns_saves_and_returns_all_schemes(monkeypatch, tmp_path):
+    monkeypatch.setattr(runner.fetcher, "history", _history)
+    monkeypatch.setattr(runner.account, "account", lambda market: {"holdings": []})
+
+    result = runner.run_optimizer(
+        market="cn",
+        symbols=["600519", "000858", "601318"],
+        lookback_days=60,
+        samples=120,
+        output_dir=tmp_path,
+    )
+
+    assert result["symbols"] == ["600519", "000858", "601318"]
+    assert result["observations"] == 60
+    assert result["recommended_scheme"] in {"mean_variance", "black_litterman", "risk_parity", "cost_adjusted"}
+    for name in ("mean_variance", "black_litterman", "risk_parity", "cost_adjusted"):
+        assert abs(sum(result[name]["weights"].values()) - 1) < 1e-6
+        assert abs(sum(result[name]["portfolio_weights"].values()) - 1) < 1e-6
+        assert max(value for key, value in result[name]["portfolio_weights"].items() if key != "CASH") <= 0.16000001
+        assert "sharpe" in result[name]["metrics"]
+        assert "net_sharpe" in result[name]["net_metrics"]
+        assert result[name]["net_metrics"]["rebalance_cost"]["turnover_buy"] > 0
+        assert "var95" in result[name]["stress"]
+    saved = __import__("json").loads(__import__("pathlib").Path(result["output_file"]).read_text(encoding="utf-8"))
+    assert saved["output_file"] == result["output_file"]
+
+
+def test_small_universe_reduces_exposure_without_breaking_single_asset_cap(monkeypatch, tmp_path):
+    monkeypatch.setattr(runner.fetcher, "history", _history)
+    monkeypatch.setattr(runner.account, "account", lambda market: {"cash": 500000, "holdings": []})
+    result = runner.run_optimizer(
+        market="cn", symbols=["600519", "000858"], lookback_days=60,
+        samples=100, output_dir=tmp_path,
+    )
+    assert result["constraints"]["effective_exposure"] == pytest.approx(0.32)
+    assert result["constraints"]["cash_weight"] == pytest.approx(0.68)
+    for scheme in ("mean_variance", "black_litterman", "risk_parity", "cost_adjusted"):
+        weights = result[scheme]["portfolio_weights"]
+        assert weights["600519"] <= 0.16000001
+        assert weights["000858"] <= 0.16000001
+        assert weights["CASH"] == pytest.approx(0.68)
+
+
+def test_hk_both_side_stamp_tax_is_included_in_buy_cost(monkeypatch, tmp_path):
+    monkeypatch.setattr(runner.fetcher, "history", _history)
+    monkeypatch.setattr(runner.account, "account", lambda market: {"cash": 500000, "holdings": []})
+    result = runner.run_optimizer(
+        market="hk", symbols=["00700", "09988", "03690"], lookback_days=60,
+        samples=100, output_dir=tmp_path,
+    )
+    cost = result["mean_variance"]["net_metrics"]["rebalance_cost"]["cost_ratio"]
+    # 42.9% effective exposure × (0.025% commission + 0.15% slippage + 0.1% stamp tax).
+    assert cost == pytest.approx(0.429 * 0.00275, rel=1e-6)
+
+
+def test_symbol_normalization_does_not_corrupt_valid_us_tickers():
+    assert runner._symbol_key("USB") == "USB"
+    assert runner._symbol_key("SHOP") == "SHOP"
+    assert runner._symbol_key("HKD") == "HKD"
+    assert runner._symbol_key("sh600519") == "600519"
+    assert runner._symbol_key("hk00700") == "00700"
+    assert runner._symbol_key("usAAPL") == "AAPL"
+
+
+def test_optimizer_requires_two_explicit_symbols():
+    with pytest.raises(ValueError, match="至少需要两个"):
+        runner.resolve_universe("cn", ["600519"])
+
+
+def test_optimizer_lock_rejects_parallel_run(monkeypatch, tmp_path):
+    lock = tmp_path / ".cn-optimizer.lock"
+    lock.write_text("busy", encoding="utf-8")
+    monkeypatch.setattr(runner.fetcher, "history", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("must not fetch")))
+    with pytest.raises(RuntimeError, match="已有任务正在运行"):
+        runner.run_optimizer(market="cn", output_dir=tmp_path)
+
+
+def test_dashboard_optimizer_files_are_filtered_by_market(tmp_path):
+    (tmp_path / "20260811-120000-cn.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "20260811-130000-us.json").write_text("{}", encoding="utf-8")
+    assert [path.name for path in _optimizer_files(tmp_path, "cn")] == ["20260811-120000-cn.json"]
+    assert [path.name for path in _optimizer_files(tmp_path, "us")] == ["20260811-130000-us.json"]
+    assert len(_optimizer_files(tmp_path, "all")) == 2
+
+
+def test_optimizer_intent_detection_avoids_explanations_negations_and_market_tokens():
+    assert chat_server._build_optimizer_request("解释一下 Black-Litterman 模型") is None
+    assert chat_server._build_optimizer_request("不要运行优化器") is None
+    assert chat_server._build_optimizer_request("运行一次 US 组合优化") == {"market": "us", "symbols": None}
+    assert chat_server._build_optimizer_request("执行 A 股优化器 600519,000858") == {
+        "market": "cn", "symbols": ["600519", "000858"]
+    }
+
+
+def test_chat_optimizer_request_bypasses_tool_loop(monkeypatch):
+    result = {
+        "market": "cn",
+        "symbols": ["600519", "000858"],
+        "observations": 120,
+        "recommended_scheme": "risk_parity",
+        "output_file": "runtime/optimizer/test.json",
+        "schemes": {
+            "risk_parity": {
+                "weights": {"600519": 0.5, "000858": 0.5},
+                "metrics": {"annual_return": 0.1, "annual_volatility": 0.2, "sharpe": 0.4},
+                "stress": {"var95": -0.02, "max_drawdown": -0.08},
+            }
+        },
+        "dropped_symbols": {},
+    }
+    monkeypatch.setattr(chat_server, "_optimizer_tool", lambda **kwargs: result)
+    events = list(chat_server.handle_chat_stream("运行一次优化器分析", request_id="optimizer-fast-path"))
+
+    assert events[0]["type"] == "tool"
+    assert events[0]["name"] == "optimizer"
+    assert events[-1]["type"] == "final"
+    assert "组合优化已完成" in events[-1]["content"]
+    assert "工具调用轮次" not in events[-1]["content"]

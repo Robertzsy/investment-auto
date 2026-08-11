@@ -39,6 +39,14 @@ schedule:
   # APScheduler uses Monday=0. Beijing-time US early-morning jobs therefore
   # run Tue-Sat (1-5), mapping to US Mon-Fri sessions.
   us_early_morning_days: "1-5"
+  # Python `chat` deployment starts the scheduler in-process and catches up
+  # missed A-share rounds after startup. Docker chat disables this to avoid
+  # duplicating the dedicated scheduler service.
+  chat_start_scheduler: true
+  catch_up_markets: [cn]
+  catch_up_grace_minutes: 480
+  macro_daily_time: "08:00"
+  macro_timeout_seconds: 240
 
 llm:
   provider: deepseek
@@ -75,8 +83,18 @@ llm:
 optimizer:
   enabled: true
   lookback_days: 120
+  samples: 3000
+  timeout_seconds: 180
   risk_free_rate: 0.02
   cost_aware: true
+  black_litterman_tau: 0.05
+  view_confidence: 0.50
+  risk_aversion: 2.5
+  default_symbols:
+    cn: ["600519", "000858", "601318", "600030", "510300", "600036", "000333"]
+    hk: ["00700", "09988", "03690", "01299", "00941", "00005", "02800"]
+    us: ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "BRK.B", "SPY", "QQQ"]
+    etf: ["510300", "510050", "159915", "512100"]
   stress_thresholds:
     var95: -0.03
     max_drawdown: -0.20

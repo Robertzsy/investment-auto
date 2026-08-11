@@ -28,6 +28,13 @@ def test_existing_market_formats_still_work():
     assert _detect("AAPL") == {"market": "us", "code": "AAPL"}
 
 
+def test_history_command_does_not_silently_truncate_to_sixty_rows():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "const recent60 = allData.slice(-60);" not in source
+    assert "const requestedLimit = Number.parseInt(option, 10);" in source
+    assert "data: historyData" in source
+
+
 def test_watchlist_is_stored_under_project_runtime():
     source = SCRIPT.read_text(encoding="utf-8")
     assert 'path.join(__dirname, "..", "runtime", "data", "watchlist.json")' in source

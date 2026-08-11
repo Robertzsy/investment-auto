@@ -84,6 +84,7 @@ def test_compose_runs_scheduler_and_loopback_only_chat():
         "CHAT_HOST": "0.0.0.0",
         "CHAT_PORT": 8080,
         "CHAT_OPEN_BROWSER": "false",
+        "CHAT_START_SCHEDULER": "false",
     }
     assert services["chat"]["ports"] == ["127.0.0.1:8080:8080"]
     assert "ports" not in services["scheduler"]
@@ -103,5 +104,5 @@ def test_container_context_and_runtime_chat_files_are_excluded():
     for pattern in (".env", ".git", ".venv", "runtime"):
         assert pattern in dockerignore
     assert "/runtime/chat_*" in gitignore
-    for variable in ("CHAT_HOST", "CHAT_PORT", "CHAT_OPEN_BROWSER"):
+    for variable in ("CHAT_HOST", "CHAT_PORT", "CHAT_OPEN_BROWSER", "CHAT_START_SCHEDULER"):
         assert variable in main_source
