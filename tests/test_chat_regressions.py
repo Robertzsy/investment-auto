@@ -335,6 +335,40 @@ def test_market_status_question_is_not_misclassified_as_control_command():
     assert chat_server._autonomy_control_request("美股开始了吗") is None
 
 
+def test_autonomy_status_is_deterministic_and_explains_pause_semantics(monkeypatch):
+    from src.trading import control, controller
+
+    monkeypatch.setattr(chat_server, "cfg", _AutonomyControlConfig())
+    monkeypatch.setattr(controller, "autonomous_enabled", lambda config=None: True)
+    monkeypatch.setattr(
+        control,
+        "load_state",
+        lambda: {
+            "paused": True,
+            "kill_switch": False,
+            "reason": "等待 dry-run 验证",
+        },
+    )
+    monkeypatch.setattr(
+        "src.ui.agent_runtime.run_agent_events",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("Agent must not run")),
+    )
+
+    events = list(
+        chat_server.handle_chat_stream(
+            "为什么自主交易开关打开了但仍然暂停？",
+            request_id="autonomy-status",
+        )
+    )
+
+    assert events[0] == {"type": "tool", "name": "autonomy_status", "params": {}}
+    assert events[-1]["type"] == "final"
+    assert "配置开关**：已打开" in events[-1]["content"]
+    assert "运行时暂停**：是" in events[-1]["content"]
+    assert "调度和报告继续运行" in events[-1]["content"]
+    assert "模拟订单不会提交" in events[-1]["content"]
+
+
 @pytest.mark.parametrize("text", ["分析 A 股市场", "分析项目代码", "看看配置"])
 def test_generic_analysis_requests_do_not_enter_stock_route(monkeypatch, text):
     calls = []

@@ -183,6 +183,7 @@ def _ops_context() -> Dict[str, Any]:
         },
         "autonomous_enabled": autonomous_enabled(),
         "control": load_state(),
+        "control_semantics": "paused 或 kill_switch 阻止模拟订单提交；调度任务和报告生成仍继续",
         "latest_audit": latest_audit,
     }
 
@@ -212,6 +213,7 @@ OPS_AGENT = Agent(
     name="ops_agent",
     instructions=(
         "你是 Investment-Auto 运行状态分析员。只解释提供的调度、控制和审计状态；"
+        "运行时 paused/kill_switch 只阻止模拟订单提交，不会停止调度器，也不会阻止报告生成。"
         "不得声称执行了命令，不得猜测当前时间或进程状态。使用中文 Markdown。"
     ),
 )

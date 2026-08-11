@@ -251,6 +251,20 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
         yield {"type": "final", "content": autonomy_control_answer}
         return
 
+    autonomy_status_answer = _build_autonomy_status_answer(message)
+    if autonomy_status_answer is not None:
+        yield {"type": "tool", "name": "autonomy_status", "params": {}}
+        emitted = ""
+        for chunk in _chunk_text(autonomy_status_answer, 18):
+            if cancel_event.is_set():
+                yield from _emit_cancelled(emitted)
+                return
+            emitted += chunk
+            yield {"type": "token", "content": chunk}
+        append_history("assistant", autonomy_status_answer)
+        yield {"type": "final", "content": autonomy_status_answer}
+        return
+
     market_status_answer = _build_market_status_answer(message)
     if market_status_answer is not None:
         yield {"type": "tool", "name": "market_status", "params": {}}
@@ -518,6 +532,55 @@ def _handle_autonomy_control_command(user_text: str) -> Optional[str]:
         "",
         f"已恢复的市场：{enabled_label}。{execution_note}",
         f"更新时间：{state.get('updated_at') or '刚刚'}",
+    ])
+
+
+def _build_autonomy_status_answer(user_text: str) -> Optional[str]:
+    """Answer autonomy switch/control questions without an LLM round trip."""
+
+    text = re.sub(r"\s+", "", str(user_text or ""))
+    if not re.search(r"自主(?:模拟)?交易|自动(?:模拟)?交易|AI(?:自主)?交易", text, re.I):
+        return None
+    if not re.search(r"状态|开关|暂停|运行|开启|启用|打开|为什么|为何|是否|有没有|吗|么", text):
+        return None
+
+    from src.trading.control import load_state
+    from src.trading.controller import autonomous_enabled
+
+    state = load_state()
+    configured = bool(cfg.autonomous.get("enabled", False))
+    effective = autonomous_enabled(cfg.autonomous)
+    auto_execute = bool(cfg.autonomous.get("auto_execute", False))
+    paper_mode = str(cfg.trading.get("mode", "paper")).lower() == "paper"
+    names = {"cn": "A 股", "hk": "港股", "us": "美股", "etf": "ETF"}
+    markets = "、".join(names.get(value, str(value).upper()) for value in cfg.enabled_markets) or "无"
+
+    if not paper_mode:
+        conclusion = "当前不是 `paper` 模式，系统会拒绝自主模拟下单。"
+    elif not effective:
+        conclusion = "自主交易有效总开关未启用，不会提交模拟订单。"
+    elif state.get("kill_switch"):
+        conclusion = "紧急停止开关已触发；调度可继续生成报告，但不会提交模拟订单。"
+    elif state.get("paused"):
+        conclusion = "配置开关已经打开，但运行时暂停锁仍开启；调度和报告继续运行，模拟订单不会提交。"
+    elif not auto_execute:
+        conclusion = "自主决策已启用，但自动执行关闭；系统只生成决策，不提交模拟订单。"
+    else:
+        conclusion = "自主模拟交易处于可执行状态，后续轮次仍需通过全部硬风控才能提交订单。"
+
+    return "\n".join([
+        "## 🤖 自主模拟交易状态",
+        "",
+        f"- **配置开关**：{'已打开' if configured else '未打开'}",
+        f"- **有效总开关**：{'已启用' if effective else '未启用'}",
+        f"- **自动执行**：{'已打开' if auto_execute else '未打开'}",
+        f"- **运行时暂停**：{'是' if state.get('paused') else '否'}",
+        f"- **紧急停止**：{'已触发' if state.get('kill_switch') else '未触发'}",
+        f"- **交易模式**：`{str(cfg.trading.get('mode', 'paper'))}`",
+        f"- **已启用市场**：{markets}",
+        f"- **控制原因**：{state.get('reason') or '无'}",
+        "",
+        f"**结论**：{conclusion}",
     ])
 
 
