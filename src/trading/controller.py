@@ -84,6 +84,10 @@ def _price(snapshot: Mapping[str, Any]) -> float:
     realtime = snapshot.get("realtime", snapshot)
     if not isinstance(realtime, Mapping):
         return 0.0
+    try:
+        return float(realtime.get("price", realtime.get("last", realtime.get("close", 0))) or 0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _account_for_agents(account: Mapping[str, Any]) -> Dict[str, Any]:
@@ -107,10 +111,6 @@ def _account_for_agents(account: Mapping[str, Any]) -> Dict[str, Any]:
         "holdings": holdings,
         "trade_count": len(account.get("tradeHistory", [])),
     }
-    try:
-        return float(realtime.get("price", realtime.get("last", realtime.get("close", 0))) or 0)
-    except (TypeError, ValueError):
-        return 0.0
 
 
 def _fetch_snapshots(symbols: Sequence[str], workers: int) -> tuple[Dict[str, Any], Dict[str, str]]:
