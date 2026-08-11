@@ -298,6 +298,7 @@ def test_autonomous_cycle_runs_committee_risk_and_execution(monkeypatch, tmp_pat
     }
     monkeypatch.setitem(controller.cfg.raw, "autonomous", autonomous)
     monkeypatch.setenv("AUTONOMOUS_TRADING_ENABLED", "true")
+    monkeypatch.setattr(controller, "load_state", lambda: {"paused": False, "kill_switch": False})
     monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
     monkeypatch.setattr(controller, "CYCLE_LOCK_DIR", tmp_path / "locks")
     monkeypatch.setattr(controller.account_store, "account", lambda market: {
@@ -340,6 +341,7 @@ def test_autonomous_cycle_runs_committee_risk_and_execution(monkeypatch, tmp_pat
 
 def test_catch_up_never_replays_trades_by_default(monkeypatch):
     monkeypatch.setenv("AUTONOMOUS_TRADING_ENABLED", "true")
+    monkeypatch.setattr(controller, "load_state", lambda: {"paused": False, "kill_switch": False})
     monkeypatch.setitem(controller.cfg.raw, "autonomous", {
         "enabled": True,
         "trade_on_catch_up": False,
