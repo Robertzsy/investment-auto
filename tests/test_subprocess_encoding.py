@@ -4,8 +4,25 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.data import fetcher
+from src import main as main_module
 from src.subprocess_utils import decode_subprocess_output
 from src.ui import chat_server
+
+
+def test_windows_stdio_is_reconfigured_to_utf8(monkeypatch):
+    calls = []
+
+    class FakeStream:
+        def reconfigure(self, **kwargs):
+            calls.append(kwargs)
+
+    monkeypatch.setattr(main_module.sys, "stdout", FakeStream())
+    monkeypatch.setattr(main_module.sys, "stderr", FakeStream())
+    main_module._configure_stdio()
+    assert calls == [
+        {"encoding": "utf-8", "errors": "replace"},
+        {"encoding": "utf-8", "errors": "replace"},
+    ]
 
 
 def test_decode_subprocess_output_accepts_utf8_and_gb18030():

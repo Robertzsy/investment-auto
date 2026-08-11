@@ -34,6 +34,16 @@ def _env_bool(name: str, default: bool) -> bool:
     raise ValueError(f"{name} must be one of: true/false, yes/no, on/off, 1/0")
 
 
+def _configure_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (LookupError, OSError):
+                pass
+
+
 def _configure_logging() -> logging.Logger:
     log_dir = ROOT / "runtime" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -62,6 +72,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    _configure_stdio()
     args = _parser().parse_args()
     if args.config:
         os.environ["CONFIG_PATH"] = args.config
