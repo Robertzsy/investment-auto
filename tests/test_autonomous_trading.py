@@ -10,7 +10,7 @@ import pytest
 from src.trading.broker import execute_orders
 from src.trading.control import activate_kill_switch, load_state, reset_kill_switch, set_paused
 from src.trading import controller
-from src.trading.controller import _normalize_decisions, _parse_json_object
+from src.trading.controller import _account_for_agents, _normalize_decisions, _parse_json_object
 from src.trading.risk import build_orders
 
 
@@ -268,6 +268,17 @@ def test_chair_json_parser_and_decision_normalizer():
         "action": "BUY",
         "decision_id": "ai-1",
     }]
+
+
+def test_external_agent_context_omits_trade_history_and_notes():
+    result = _account_for_agents({
+        "cash": 100,
+        "holdings": [{"code": "600519", "quantity": 1, "cost": 10, "secret": "omit"}],
+        "tradeHistory": [{"code": "600519", "note": "private note"}],
+    })
+    assert "tradeHistory" not in result
+    assert "secret" not in result["holdings"][0]
+    assert result["trade_count"] == 1
 
 
 def test_autonomous_cycle_runs_committee_risk_and_execution(monkeypatch, tmp_path):

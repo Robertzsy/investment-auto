@@ -84,6 +84,29 @@ def _price(snapshot: Mapping[str, Any]) -> float:
     realtime = snapshot.get("realtime", snapshot)
     if not isinstance(realtime, Mapping):
         return 0.0
+
+
+def _account_for_agents(account: Mapping[str, Any]) -> Dict[str, Any]:
+    """Minimize portfolio data sent to external LLM providers."""
+    holdings = []
+    for item in account.get("holdings", []):
+        holdings.append({
+            "code": item.get("code"),
+            "name": item.get("name", ""),
+            "quantity": item.get("shares", item.get("quantity", 0)),
+            "cost": item.get("costPrice", item.get("cost", 0)),
+            "last_price": item.get("lastPrice"),
+            "high_price": item.get("highPrice"),
+            "take_profit_1_done": bool(item.get("takeProfit1Done")),
+            "take_profit_2_done": bool(item.get("takeProfit2Done")),
+        })
+    return {
+        "total_capital": account.get("totalCapital", 0),
+        "cash": account.get("cash", 0),
+        "high_water_mark": account.get("highWaterMark"),
+        "holdings": holdings,
+        "trade_count": len(account.get("tradeHistory", [])),
+    }
     try:
         return float(realtime.get("price", realtime.get("last", realtime.get("close", 0))) or 0)
     except (TypeError, ValueError):
@@ -279,7 +302,7 @@ def run_autonomous_cycle(
             "as_of": current.isoformat(timespec="seconds"),
             "market": market,
             "allowed_symbols": symbols,
-            "account": account,
+            "account": _account_for_agents(account),
             "snapshots": compact_snapshots,
             "market_data_errors": market_errors,
             "macro_excerpt": macro_excerpt[:6000],
