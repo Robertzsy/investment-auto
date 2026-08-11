@@ -62,11 +62,17 @@ def _parser() -> argparse.ArgumentParser:
         "command",
         nargs="?",
         default="run",
-        choices=["run", "once", "catchup", "macro", "optimizer", "init", "version", "chat"],
+        choices=[
+            "run", "once", "catchup", "macro", "optimizer", "autonomous",
+            "pause", "resume", "kill", "reset-kill", "status",
+            "init", "version", "chat",
+        ],
     )
     parser.add_argument("--market", "-m", default="cn")
     parser.add_argument("--symbols", default=None, help="Comma-separated symbols for optimizer")
     parser.add_argument("--force", action="store_true", help="Force regeneration where supported")
+    parser.add_argument("--dry-run", action="store_true", help="Run autonomous decision and risk checks without fills")
+    parser.add_argument("--reason", default="", help="Reason recorded for pause/resume/kill controls")
     parser.add_argument("--config", default=None)
     return parser
 
@@ -79,10 +85,10 @@ def main() -> None:
     logger = _configure_logging()
 
     if args.command == "version":
-        print("investment-auto 0.2.0")
+        print("investment-auto 0.3.0")
         return
 
-    if args.command in {"run", "once", "catchup", "macro", "optimizer", "chat"} and not shutil.which("node"):
+    if args.command in {"run", "once", "catchup", "macro", "optimizer", "autonomous", "chat"} and not shutil.which("node"):
         raise SystemExit("未找到 Node.js。行情、优化器和宏观日报需要 Node.js 18+，请安装后重试。")
 
     from src.config import cfg
@@ -95,6 +101,44 @@ def main() -> None:
             for market in ["cn", "hk", "us", "etf"]
         }, "fxRates": {"USD_CNY": 7.2, "HKD_CNY": 0.92}})
         logger.info("Initialized empty portfolio.json in runtime/data/")
+        return
+
+    if args.command in {"pause", "resume", "kill", "reset-kill", "status"}:
+        from src.portfolio import account as portfolio_account
+        from src.trading import control
+        from src.trading.controller import autonomous_enabled
+
+        if args.command == "pause":
+            result = control.set_paused(True, reason=args.reason or "人工暂停")
+        elif args.command == "resume":
+            result = control.set_paused(False, reason=args.reason or "人工恢复")
+        elif args.command == "kill":
+            result = control.activate_kill_switch(reason=args.reason or "人工紧急停止")
+        elif args.command == "reset-kill":
+            result = control.reset_kill_switch(reason=args.reason or "人工解除紧急停止")
+        else:
+            result = {
+                "enabled": autonomous_enabled(),
+                "config_enabled": bool(cfg.autonomous.get("enabled", False)),
+                "control": control.load_state(),
+                "markets": {
+                    market: {
+                        "cash": market_account.get("cash", 0),
+                        "holdings": len(market_account.get("holdings", [])),
+                        "trades": len(market_account.get("tradeHistory", [])),
+                    }
+                    for market in cfg.enabled_markets
+                    for market_account in [portfolio_account.account(market)]
+                },
+            }
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "autonomous":
+        from src.trading.controller import run_autonomous_cycle
+
+        result = run_autonomous_cycle(args.market, label="manual", dry_run=args.dry_run)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 
     if args.command == "optimizer":

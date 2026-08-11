@@ -82,6 +82,10 @@ class AppConfig:
     def optimizer(self) -> Dict[str, Any]:
         return self._data.get("optimizer", {})
 
+    @property
+    def autonomous(self) -> Dict[str, Any]:
+        return self._data.get("autonomous", {})
+
     # ── trading / notify ─────────────────────
     @property
     def trading(self) -> Dict[str, Any]:

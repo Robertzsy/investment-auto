@@ -26,7 +26,9 @@ def load() -> Dict[str, Any]:
 def save(data: Dict[str, Any]):
     p = _path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary = p.with_suffix(p.suffix + ".tmp")
+    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(p)
 
 def account(market: str) -> Dict[str, Any]:
     pf = load()
@@ -39,5 +41,6 @@ def record_trade(market: str, code: str, action: str, price: float, shares: int,
         "code": code, "action": action, "price": price, "shares": shares,
         "amount": round(price * shares, 2), "date": date, "note": note,
     })
-    # simple cash/holds update stub
+    # Legacy append-only helper. Autonomous fills use src.trading.broker so
+    # cash, lots, holdings and fees are updated atomically.
     save(pf)

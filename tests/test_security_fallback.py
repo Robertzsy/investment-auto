@@ -57,7 +57,10 @@ def test_env_save_validates_and_updates_running_environment(
     assert "EXISTING_API_KEY=keep-me" in saved
     assert "NEW_API_KEY=fresh" in saved
     assert os.environ["NEW_API_KEY"] == "fresh"
-    assert (tmp_path / ".env").stat().st_mode & 0o777 == 0o600
+    # Windows does not implement POSIX mode bits through chmod. The file is
+    # still created successfully; ACL hardening is an OS/deployment concern.
+    if os.name != "nt":
+        assert (tmp_path / ".env").stat().st_mode & 0o777 == 0o600
 
     invalid = _FakeHandler(b'{"BAD\\nKEY":"value"}')
     server.ChatHandler._handle_save_env(invalid)  # type: ignore[arg-type]

@@ -99,6 +99,28 @@ optimizer:
     var95: -0.03
     max_drawdown: -0.20
 
+# Autonomous paper-trading is opt-in in the repository. Set enabled=true only
+# after configuring API keys and reviewing the hard limits below.
+autonomous:
+  enabled: false
+  auto_execute: true
+  trade_on_catch_up: false
+  committee_roles: [analyst, researcher, quant_analyst, risk_chairman]
+  minimum_agent_responses: 2
+  min_confidence: 0.65
+  max_universe_size: 10
+  minimum_priced_symbols: 2
+  max_decisions: 10
+  max_orders_per_cycle: 3
+  max_position_pct: 12
+  max_order_value_pct: 8
+  max_cycle_turnover_pct: 15
+  market_data_workers: 4
+  agent_workers: 4
+  cycle_timeout_seconds: 300
+  # When omitted, optimizer.default_symbols is used. Holdings are always added.
+  universe: {}
+
 trading:
   mode: paper
   max_daily_trades: 6

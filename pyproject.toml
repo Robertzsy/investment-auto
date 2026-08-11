@@ -1,6 +1,6 @@
 [project]
 name = "investment-auto"
-version = "0.2.0"
+version = "0.3.0"
 description = "Multi-market paper-trading investment automation with multi-agent research and portfolio optimization"
 requires-python = ">=3.10"
 readme = "README.md"

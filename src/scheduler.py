@@ -195,21 +195,45 @@ def _run_intraday_job(
             return {"status": "exists", "market": market, "label": label, "report": str(path)}
 
         logger.info("[INTRADAY:%s] %s started (scheduled %s, catch_up=%s)", market, label, scheduled.isoformat(), catch_up)
-        context = _account_context(market)
         macro = _latest_macro_excerpt()
+        try:
+            from src.trading.controller import run_autonomous_cycle
+
+            autonomous = run_autonomous_cycle(
+                market,
+                label=label,
+                now=current,
+                macro_excerpt=macro,
+                catch_up=catch_up,
+            )
+        except Exception as exc:
+            logger.exception("[AUTONOMOUS:%s] cycle failed", market)
+            autonomous = {"status": "error", "error": str(exc)}
+        context = _account_context(market)
         llm = resolve_llm(role="analyst")
         prompt = (
             f"当前北京时间 {current.strftime('%Y-%m-%d %H:%M')}，执行 {market} 市场 {label} 轮次"
             f"（计划时间 {scheduled.isoformat(timespec='minutes')}，{'补跑' if catch_up else '准时运行'}）。\n"
             f"账户及持仓行情：\n{json.dumps(context, ensure_ascii=False)[:8000]}\n\n"
             f"最新宏观摘要：\n{(macro or '暂无宏观日报')[:2500]}\n\n"
+            f"自主模拟交易执行结果：\n{json.dumps(autonomous, ensure_ascii=False)[:9000]}\n\n"
             "请直接输出不超过 800 字的可审计最终报告，不展示思考过程。包括行情与持仓检查、"
-            "止损止盈、风险暴露和操作参考；数据不足时明确说明，不得虚构成交。"
+            "止损止盈、风险暴露和已执行/被拒绝订单；数据不足时明确说明，不得虚构成交。"
         )
         response = _complete_report(llm, [{"role": "user", "content": prompt}])
         _write_report(path, f"{market.upper()} {label} 轮次报告", response, current, catch_up)
         logger.info("[INTRADAY:%s] %s report written: %s", market, label, path)
-        return {"status": "generated", "market": market, "label": label, "report": str(path)}
+        return {
+            "status": "generated",
+            "market": market,
+            "label": label,
+            "report": str(path),
+            "autonomous": {
+                "status": autonomous.get("status"),
+                "audit_file": autonomous.get("audit_file"),
+                "fills": autonomous.get("execution", {}).get("fills", []),
+            },
+        }
 
 
 def _run_close_job(
@@ -230,7 +254,6 @@ def _run_close_job(
             return {"status": "exists", "market": market, "label": "close", "report": str(path)}
 
         logger.info("[CLOSE:%s] started (scheduled %s, catch_up=%s)", market, scheduled.isoformat(), catch_up)
-        context = _account_context(market)
         optimizer_result: Dict[str, Any]
         try:
             from src.optimizer.runner import compact_result, run_optimizer
@@ -238,19 +261,46 @@ def _run_close_job(
             optimizer_result = compact_result(run_optimizer(market=market, now=current))
         except Exception as exc:
             optimizer_result = {"error": str(exc)}
+        macro = _latest_macro_excerpt()
+        try:
+            from src.trading.controller import run_autonomous_cycle
+
+            autonomous = run_autonomous_cycle(
+                market,
+                label="close",
+                now=current,
+                macro_excerpt=macro,
+                optimizer_hint=optimizer_result,
+                catch_up=catch_up,
+            )
+        except Exception as exc:
+            logger.exception("[AUTONOMOUS:%s] close cycle failed", market)
+            autonomous = {"status": "error", "error": str(exc)}
+        context = _account_context(market)
         llm = resolve_llm(role="judge")
         prompt = (
             f"当前北京时间 {current.strftime('%Y-%m-%d %H:%M')}，执行 {market} 收盘分析"
             f"（计划时间 {scheduled.isoformat(timespec='minutes')}，{'补跑' if catch_up else '准时运行'}）。\n"
             f"账户及持仓行情：\n{json.dumps(context, ensure_ascii=False)[:7000]}\n\n"
             f"组合优化结果：\n{json.dumps(optimizer_result, ensure_ascii=False)[:9000]}\n\n"
+            f"自主模拟交易执行结果：\n{json.dumps(autonomous, ensure_ascii=False)[:9000]}\n\n"
             "请直接输出不超过 1200 字的收盘复盘、压力测试解读和下一交易日计划，"
-            "不展示思考过程，不得虚构成交。"
+            "同时列出真实执行与被风控拒绝的订单，不展示思考过程，不得虚构成交。"
         )
         response = _complete_report(llm, [{"role": "user", "content": prompt}])
         _write_report(path, f"{market.upper()} 收盘报告", response, current, catch_up)
         logger.info("[CLOSE:%s] report written: %s", market, path)
-        return {"status": "generated", "market": market, "label": "close", "report": str(path)}
+        return {
+            "status": "generated",
+            "market": market,
+            "label": "close",
+            "report": str(path),
+            "autonomous": {
+                "status": autonomous.get("status"),
+                "audit_file": autonomous.get("audit_file"),
+                "fills": autonomous.get("execution", {}).get("fills", []),
+            },
+        }
 
 
 def _build_intraday_job(market: str, time_str: str, label: str):

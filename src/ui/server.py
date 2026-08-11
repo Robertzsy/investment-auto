@@ -79,6 +79,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_models()
         if path == "/api/history":
             return self._handle_get_history()
+        if path == "/api/autonomy":
+            return self._handle_autonomy_status()
 
         # Static files
         if path == "/" or path == "":
@@ -104,6 +106,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_save_config()
         if path == "/api/env":
             return self._handle_save_env()
+        if path.startswith("/api/autonomy/"):
+            return self._handle_autonomy_control(path.rsplit("/", 1)[-1])
 
         self.send_response(404)
         self.end_headers()
@@ -218,6 +222,63 @@ class ChatHandler(SimpleHTTPRequestHandler):
         try:
             from src.config import cfg
             self._json_response(200, cfg.raw)
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_autonomy_status(self):
+        try:
+            from src.trading.control import load_state
+            from src.trading.controller import AUDIT_DIR, autonomous_enabled
+
+            files = sorted(AUDIT_DIR.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True) if AUDIT_DIR.exists() else []
+            latest = None
+            if files:
+                try:
+                    audit = json.loads(files[0].read_text(encoding="utf-8"))
+                    latest = {
+                        "file": files[0].name,
+                        "market": audit.get("market"),
+                        "status": audit.get("status"),
+                        "generated_at": audit.get("generated_at"),
+                        "fills": len(audit.get("execution", {}).get("fills", [])),
+                    }
+                except (OSError, json.JSONDecodeError):
+                    latest = {"file": files[0].name, "status": "unreadable"}
+            self._json_response(200, {
+                "enabled": autonomous_enabled(),
+                "control": load_state(),
+                "latest_cycle": latest,
+            })
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_autonomy_control(self, action: str):
+        length = int(self.headers.get("Content-Length", 0))
+        data = {}
+        if length:
+            try:
+                data = json.loads(self.rfile.read(length))
+            except json.JSONDecodeError:
+                return self._json_response(400, {"error": "invalid json"})
+            if not isinstance(data, dict):
+                return self._json_response(400, {"error": "payload must be a JSON object"})
+        reason = str(data.get("reason", ""))[:500]
+        try:
+            from src.trading import control
+
+            if action == "pause":
+                result = control.set_paused(True, reason=reason or "Web 控制台暂停")
+            elif action == "resume":
+                result = control.set_paused(False, reason=reason or "Web 控制台恢复")
+            elif action == "kill":
+                result = control.activate_kill_switch(reason=reason or "Web 控制台紧急停止")
+            elif action == "reset-kill":
+                result = control.reset_kill_switch(reason=reason or "Web 控制台解除紧急停止")
+            else:
+                return self._json_response(404, {"error": "unknown autonomy action"})
+            self._json_response(200, {"ok": True, "control": result})
+        except RuntimeError as e:
+            self._json_response(409, {"error": str(e)})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
 

@@ -13,6 +13,7 @@ runtime/logs/
 runtime/reports/
 runtime/optimizer/
 runtime/macro/
+runtime/trading/
 /runtime/*.lock
 /runtime/chat_*
 /data/*
