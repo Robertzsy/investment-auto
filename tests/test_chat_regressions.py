@@ -161,6 +161,7 @@ def test_typed_agent_catalog_excludes_shell_file_write_and_trading_execution():
         "consult_ops_agent",
         "search_security",
         "get_security_snapshot",
+        "get_stock_screening",
     }
     assert not ({"run_shell", "write_file", "execute_orders"} & tool_names)
 

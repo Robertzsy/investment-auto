@@ -4,6 +4,7 @@ investment-auto – Multi-market paper-trading investment automation.
 Common commands:
   python -m src.main chat                         Start chat + scheduler.
   python -m src.main optimizer -m cn             Run portfolio optimization.
+  python -m src.main screen -m cn                Refresh the stock shortlist.
   python -m src.main catchup -m cn               Backfill today's missed rounds.
   python -m src.main macro                        Generate/sync the macro daily.
   python -m src.main run                          Run the scheduler only.
@@ -63,7 +64,7 @@ def _parser() -> argparse.ArgumentParser:
         nargs="?",
         default="run",
         choices=[
-            "run", "once", "catchup", "macro", "optimizer", "autonomous",
+            "run", "once", "catchup", "macro", "optimizer", "screen", "autonomous",
             "pause", "resume", "kill", "reset-kill", "status",
             "init", "version", "chat",
         ],
@@ -88,7 +89,7 @@ def main() -> None:
         print("investment-auto 0.3.0")
         return
 
-    if args.command in {"run", "once", "catchup", "macro", "optimizer", "autonomous", "chat"} and not shutil.which("node"):
+    if args.command in {"run", "once", "catchup", "macro", "optimizer", "screen", "autonomous", "chat"} and not shutil.which("node"):
         raise SystemExit("未找到 Node.js。行情、优化器和宏观日报需要 Node.js 18+，请安装后重试。")
 
     from src.config import cfg
@@ -131,6 +132,13 @@ def main() -> None:
                     for market_account in [portfolio_account.account(market)]
                 },
             }
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "screen":
+        from src.trading.controller import run_screening_preview
+
+        result = run_screening_preview(args.market)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 

@@ -15,6 +15,7 @@ from src.data import fetcher
 from src.llm.registry import resolve_llm
 from src.portfolio import account as account_store
 from src.runtime_lock import atomic_claim
+from src.screening import ScreeningOutcome, run_screening
 from src.trading.broker import execute_orders
 from src.trading.control import activate_kill_switch, load_state
 from src.trading.risk import build_orders
@@ -77,7 +78,57 @@ def _universe(market: str, account: Mapping[str, Any], config: Mapping[str, Any]
 
     configured = config.get("universe", {}).get(market) or default_symbols(market)
     held = [item.get("code") for item in account.get("holdings", [])]
-    return _dedupe([*held, *configured], int(config.get("max_universe_size", 10)))
+    limit = max(len(_dedupe(held, 10_000)), int(config.get("max_universe_size", 10)))
+    return _dedupe([*held, *configured], limit)
+
+
+def _screening_outcome(
+    market: str,
+    account: Mapping[str, Any],
+    config: Mapping[str, Any],
+    current: datetime,
+) -> ScreeningOutcome:
+    from src.optimizer.runner import default_symbols
+
+    held = [item.get("code") for item in account.get("holdings", [])]
+    configured = config.get("universe", {}).get(market) or []
+    return run_screening(
+        market,
+        held_symbols=held,
+        configured_symbols=configured,
+        fallback_symbols=default_symbols(market),
+        settings=cfg.screening,
+        autonomous_config=config,
+        snapshot_loader=_fetch_snapshots,
+        now=current,
+    )
+
+
+def run_screening_preview(market: str = "cn", *, now: Optional[datetime] = None) -> Dict[str, Any]:
+    """Run the non-trading screening stage for UI/Agent inspection."""
+
+    current = _now(now)
+    normalized = str(market or "").strip().lower()
+    if normalized not in {"cn", "hk", "us", "etf"}:
+        raise ValueError(f"不支持的市场: {market}")
+    lock_path = CYCLE_LOCK_DIR / f"{normalized}.lock"
+    with atomic_claim(lock_path, stale_seconds=int(cfg.autonomous.get("cycle_timeout_seconds", 300)) + 60) as claimed:
+        if not claimed:
+            from src.screening import latest_screening
+
+            return {
+                "market": normalized,
+                "generated_at": current.isoformat(timespec="seconds"),
+                "status": "in_progress",
+                "latest": latest_screening(normalized),
+            }
+        outcome = _screening_outcome(
+            normalized,
+            account_store.account(normalized),
+            cfg.autonomous,
+            current,
+        )
+        return outcome.audit
 
 
 def _price(snapshot: Mapping[str, Any]) -> float:
@@ -272,8 +323,25 @@ def run_autonomous_cycle(
             return {**base, "status": "in_progress"}
 
         account = account_store.account(market)
-        symbols = _universe(market, account, config)
-        snapshots, market_errors = _fetch_snapshots(symbols, int(config.get("market_data_workers", 4)))
+        try:
+            screening_outcome = _screening_outcome(market, account, config, current)
+            symbols = screening_outcome.symbols
+            snapshots = screening_outcome.snapshots
+            market_errors = screening_outcome.market_data_errors
+            screening_audit = screening_outcome.audit
+        except Exception as exc:
+            logger.exception("Stock screening failed for %s; using the legacy universe", market)
+            symbols = _universe(market, account, config)
+            snapshots, market_errors = _fetch_snapshots(symbols, int(config.get("market_data_workers", 4)))
+            screening_audit = {
+                "generated_at": current.isoformat(timespec="seconds"),
+                "market": market,
+                "status": "error_fallback",
+                "source": "legacy-universe",
+                "selected_symbols": symbols,
+                "allowed_symbols": symbols,
+                "error": str(exc)[:1000],
+            }
         prices = {symbol: _price(snapshot) for symbol, snapshot in snapshots.items()}
         prices = {symbol: price for symbol, price in prices.items() if price > 0}
         minimum_prices = int(config.get("minimum_priced_symbols", 2))
@@ -283,6 +351,7 @@ def run_autonomous_cycle(
                 "status": "blocked",
                 "reason": f"有效行情不足 {minimum_prices} 个标的",
                 "allowed_symbols": symbols,
+                "screening": screening_audit,
                 "market_data_errors": market_errors,
             }
             path = _write_audit(audit, current, market, label)
@@ -307,6 +376,7 @@ def run_autonomous_cycle(
             "market_data_errors": market_errors,
             "macro_excerpt": macro_excerpt[:6000],
             "optimizer": dict(optimizer_hint or {}),
+            "screening": screening_audit,
             "market_rules": cfg.market_config(market),
             "autonomous_constraints": dict(config),
         }
@@ -330,6 +400,7 @@ def run_autonomous_cycle(
                 "status": "blocked",
                 "reason": f"独立 Agent 成功数不足 {minimum_agents}",
                 "allowed_symbols": symbols,
+                "screening": screening_audit,
                 "committee": committee,
                 "committee_errors": committee_errors,
                 "market_data_errors": market_errors,
@@ -385,6 +456,7 @@ def run_autonomous_cycle(
                 **base,
                 "status": status,
                 "allowed_symbols": symbols,
+                "screening": screening_audit,
                 "prices": prices,
                 "market_data_errors": market_errors,
                 "committee": committee,
@@ -401,6 +473,7 @@ def run_autonomous_cycle(
                 "status": "error",
                 "error": str(exc),
                 "allowed_symbols": symbols,
+                "screening": screening_audit,
                 "committee": committee,
                 "committee_errors": committee_errors,
                 "market_data_errors": market_errors,

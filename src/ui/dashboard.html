@@ -65,6 +65,10 @@ tr:hover{background:rgba(88,166,255,0.05)}
 .insight-preview table{font-size:.78rem;margin-top:8px}
 .insight-history{position:relative;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:13px;border-top:1px solid rgba(88,166,255,.22);font-size:.75rem;color:var(--text-dim)}
 .insight-date{color:var(--text);background:rgba(15,17,23,.55);padding:4px 9px;border-radius:12px}
+.screening-panel{background:linear-gradient(130deg,rgba(63,185,80,.10),rgba(88,166,255,.06));border-color:rgba(63,185,80,.45);margin-bottom:20px}
+.screening-meta{font-size:.78rem;color:var(--text-dim);line-height:1.6;margin-bottom:12px}
+.factor-chip{display:inline-block;padding:2px 7px;margin:2px 3px 2px 0;border-radius:10px;background:rgba(88,166,255,.12);color:var(--accent);font-size:.7rem;white-space:nowrap}
+.screen-score{font-weight:700;color:var(--success)}
 @media (max-width:640px){.insight-header{flex-direction:column}.insight-link{width:100%;text-align:center}.grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -109,6 +113,12 @@ tr:hover{background:rgba(88,166,255,0.05)}
     </div>
     <div id="macroSummary" class="insight-preview"><div class="loading">加载中...</div></div>
     <div id="macroHistory" class="insight-history"></div>
+  </section>
+
+  <!-- 交易轮次前生成的量化候选池 -->
+  <section class="card screening-panel">
+    <div class="card-header"><h3>🔎 AI 自主选股池</h3><span class="screening-meta">全市场发现 → 硬筛选 → 因子评分 → Agent 复筛</span></div>
+    <div id="screeningResult"><div class="loading">等待首个选股轮次...</div></div>
   </section>
 
   <!-- 图表区域 -->
@@ -186,6 +196,7 @@ async function loadDashboard() {
     renderHoldings(data);
     renderTrades(data);
     renderOptimizer(data);
+    renderScreening(data);
     loadMacroSummary();
   } catch(e) {
     console.error(e);
@@ -228,6 +239,35 @@ async function loadMacroSummary() {
   } catch(e) {
     document.getElementById('macroSummary').innerHTML = '<div class="empty">市场环境研判加载失败</div>';
   }
+}
+
+function renderScreening(data) {
+  const container = document.getElementById('screeningResult');
+  const screening = data.screening || {};
+  if (!screening.available || !screening.markets?.length) {
+    container.innerHTML = '<div class="empty">暂无选股结果；下一次自主交易轮次会自动生成。</div>';
+    return;
+  }
+  const marketNames = {cn:'A股', hk:'港股', us:'美股', etf:'ETF'};
+  const rows = [];
+  const meta = [];
+  for (const result of screening.markets) {
+    meta.push(`${marketNames[result.market] || result.market.toUpperCase()} · ${result.status || '-'} · ${result.source || '-'} · ${result.generated_at || '-'}`);
+    for (const item of (result.selected || [])) {
+      const factors = Object.entries(item.factors || {})
+        .map(([key, value]) => `<span class="factor-chip">${escapeHtml(key)} ${Number(value).toFixed(0)}</span>`)
+        .join('');
+      rows.push(`<tr>
+        <td>${escapeHtml(marketNames[result.market] || result.market.toUpperCase())}</td>
+        <td><strong>${escapeHtml(item.symbol)}</strong><br><small>${escapeHtml(item.name || '')}</small></td>
+        <td class="screen-score">${item.score == null ? '-' : Number(item.score).toFixed(1)}</td>
+        <td>${factors || '-'}</td>
+        <td>${escapeHtml((item.evidence || []).join(' · '))}</td>
+      </tr>`);
+    }
+  }
+  container.innerHTML = `<div class="screening-meta">${meta.map(escapeHtml).join('<br>')}</div>` +
+    (rows.length ? `<div style="overflow-x:auto"><table><thead><tr><th>市场</th><th>候选</th><th>综合分</th><th>因子</th><th>入选证据</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>` : '<div class="empty">本轮没有满足门槛的候选标的。</div>');
 }
 
 function renderStats(data) {

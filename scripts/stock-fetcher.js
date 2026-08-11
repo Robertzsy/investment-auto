@@ -335,6 +335,113 @@ async function searchStock(keyword) {
   }
 }
 
+// ─── 市场候选列表（选股第一阶段） ────────────────────────
+
+function numeric(value) {
+  if (value === null || value === undefined || value === "" || value === "--") return 0;
+  const parsed = Number(String(value).replace(/[$,%，]/g, "").trim());
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeSinaCandidate(row, market) {
+  const price = numeric(row.trade ?? row.lasttrade);
+  const volume = numeric(row.volume);
+  const symbol = market === "hk"
+    ? String(row.symbol || "").padStart(5, "0")
+    : String(row.code || row.symbol || "").replace(/^(sh|sz|bj)/i, "");
+  return {
+    symbol,
+    name: String(row.name || "").trim(),
+    price,
+    prev_close: numeric(row.settlement ?? row.prevclose),
+    change_pct: numeric(row.changepercent),
+    volume,
+    amount: numeric(row.amount),
+    turnover: numeric(row.turnoverratio),
+    pe: numeric(row.per ?? row.pe_ratio),
+    pb: numeric(row.pb),
+    market_cap: market === "cn" || market === "etf" ? numeric(row.mktcap) * 10000 : numeric(row.market_value),
+    float_market_cap: market === "cn" || market === "etf" ? numeric(row.nmc) * 10000 : 0,
+    sector: "",
+    industry: "",
+  };
+}
+
+async function getSinaMarketCandidates(market, limit) {
+  const common = "page=1&num=" + Math.max(20, Math.min(500, limit)) + "&sort=amount&asc=0&_s_r_a=page";
+  let url;
+  if (market === "hk") {
+    url = `https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHKStockData?${common}&node=qbgg_hk`;
+  } else {
+    const node = market === "etf" ? "etf_hq_fund" : "hs_a";
+    url = `https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?${common}&node=${node}&symbol=`;
+  }
+  const text = await fetchText(url, {
+    headers: { Referer: "https://finance.sina.com.cn" },
+    encoding: "utf8",
+  });
+  const rows = JSON.parse(text);
+  if (!Array.isArray(rows)) throw new Error("新浪市场列表返回格式错误");
+  return rows
+    .map((row) => normalizeSinaCandidate(row, market))
+    .filter((row) => row.symbol && row.price > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, limit);
+}
+
+async function getNasdaqMarketCandidates(limit) {
+  const url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&download=true";
+  const text = await fetchText(url, {
+    headers: {
+      Accept: "application/json, text/plain, */*",
+      Origin: "https://www.nasdaq.com",
+      Referer: "https://www.nasdaq.com/market-activity/stocks/screener",
+    },
+    encoding: "utf8",
+  });
+  const payload = JSON.parse(text);
+  const rows = payload?.data?.rows;
+  if (!Array.isArray(rows)) throw new Error("Nasdaq 市场列表返回格式错误");
+  return rows.map((row) => {
+    const price = numeric(row.lastsale);
+    const volume = numeric(row.volume);
+    return {
+      symbol: String(row.symbol || "").trim().toUpperCase().replace("/", "."),
+      name: String(row.name || "").trim(),
+      price,
+      prev_close: price - numeric(row.netchange),
+      change_pct: numeric(row.pctchange),
+      volume,
+      amount: price * volume,
+      turnover: 0,
+      pe: 0,
+      pb: 0,
+      market_cap: numeric(row.marketCap),
+      float_market_cap: 0,
+      sector: String(row.sector || "").trim(),
+      industry: String(row.industry || "").trim(),
+    };
+  })
+    .filter((row) => row.symbol && row.price > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, limit);
+}
+
+async function getMarketCandidates(market, limit = 120) {
+  const normalized = String(market || "").toLowerCase();
+  if (!["cn", "hk", "us", "etf"].includes(normalized)) throw new Error("不支持的市场");
+  const boundedLimit = Math.max(10, Math.min(500, Number(limit) || 120));
+  const data = normalized === "us"
+    ? await getNasdaqMarketCandidates(boundedLimit)
+    : await getSinaMarketCandidates(normalized, boundedLimit);
+  return {
+    market: normalized,
+    source: normalized === "us" ? "nasdaq-screener" : "sina-market-center",
+    count: data.length,
+    data,
+  };
+}
+
 // ─── 自选列表 ──────────────────────────────────────────
 
 function loadWatchlist() {
@@ -600,9 +707,18 @@ async function main() {
         history: "node stock-fetcher.js history <代码> [日K/周K/月K]",
         snapshot: "node stock-fetcher.js snapshot <代码>",
         search: "node stock-fetcher.js search <关键词>",
+        market_list: "node stock-fetcher.js market-list <cn|hk|us|etf> [数量]",
         watchlist: "node stock-fetcher.js watchlist [add|remove <代码>]",
       },
     }));
+    return;
+  }
+
+  // ── 全市场候选列表 ──
+  if (command === "market-list") {
+    if (!input) return console.log(JSON.stringify({ error: "请输入市场" }));
+    const result = await getMarketCandidates(input, Number(option) || 120);
+    console.log(JSON.stringify(result));
     return;
   }
 

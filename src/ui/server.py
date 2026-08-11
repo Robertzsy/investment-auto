@@ -679,6 +679,26 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 except Exception:
                     pass
 
+        screening_results = []
+        try:
+            from src.screening import latest_screening
+
+            for market_name in markets_to_show:
+                latest = latest_screening(market_name)
+                if latest:
+                    screening_results.append({
+                        "market": market_name,
+                        "generated_at": latest.get("generated_at"),
+                        "status": latest.get("status"),
+                        "source": latest.get("source"),
+                        "candidate_count": latest.get("candidate_count", 0),
+                        "scored_count": latest.get("scored_count", 0),
+                        "selected": latest.get("selected", []),
+                        "discovery_error": latest.get("discovery_error"),
+                    })
+        except Exception:
+            screening_results = []
+
         return {
             "stats": {
                 "total_assets": round(total_assets, 2),
@@ -695,6 +715,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
             "holdings": all_holdings,
             "recent_trades": sorted(all_trades, key=lambda t: t.get("date", ""), reverse=True)[:20],
             "optimizer": {"available": bool(optimizer_schemes), "schemes": optimizer_schemes},
+            "screening": {"available": bool(screening_results), "markets": screening_results},
         }
 
     # ── helpers ────────────────────────────────────

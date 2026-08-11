@@ -299,6 +299,35 @@ def get_security_snapshot(code: str) -> Dict[str, Any]:
     return _stock_fetcher("snapshot", code)
 
 
+def get_stock_screening(market: str = "all", refresh: bool = False) -> Dict[str, Any]:
+    """Read or refresh the deterministic stock-screening shortlist.
+
+    Args:
+        market: cn, hk, us, etf, or all. A refresh requires one concrete market.
+        refresh: Run a new non-trading screen instead of reading the latest result.
+    """
+
+    from src.screening import latest_screening
+
+    normalized = str(market or "all").strip().lower()
+    allowed = {"cn", "hk", "us", "etf"}
+    if normalized != "all" and normalized not in allowed:
+        raise ValueError("market 必须是 cn、hk、us、etf 或 all")
+    if refresh:
+        if normalized == "all":
+            raise ValueError("刷新选股时请指定一个具体市场")
+        from src.trading.controller import run_screening_preview
+
+        return run_screening_preview(normalized)
+    markets = cfg.enabled_markets if normalized == "all" else [normalized]
+    results = {market_name: latest_screening(market_name) for market_name in markets}
+    return {
+        "screening_enabled": cfg.screening.get("enabled", True),
+        "results": {key: value for key, value in results.items() if value is not None},
+        "missing_markets": [key for key, value in results.items() if value is None],
+    }
+
+
 MANAGER_AGENT = Agent(
     name="investment_auto_manager",
     deps_type=ChatAgentDeps,
@@ -307,6 +336,7 @@ MANAGER_AGENT = Agent(
         "调用最少数量的专业工具并给出清楚结论。\n"
         "规则：\n"
         "1. 当前账户、报告、调度、风控问题必须调用相应 specialist；证券行情使用 search/security snapshot。\n"
+        "   选股、候选池和筛选分数必须调用 stock screening；用户明确要求立即刷新时设置 refresh=true。\n"
         "2. 一般只调用一个 specialist；只有确实需要跨域综合时才调用多个。\n"
         "3. 你没有 Shell、文件写入、配置修改或交易执行权限，不得虚构已经完成操作。\n"
         "4. 用户要求启动、暂停交易或修改配置时，说明应使用明确控制命令或设置页；"
@@ -321,6 +351,7 @@ MANAGER_AGENT = Agent(
         Tool(consult_ops_agent, sequential=True, timeout=80),
         Tool(search_security, sequential=True, timeout=50),
         Tool(get_security_snapshot, sequential=True, timeout=50),
+        Tool(get_stock_screening, sequential=True, timeout=180),
     ],
     retries=1,
     tool_timeout=90,

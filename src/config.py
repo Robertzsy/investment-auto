@@ -86,6 +86,10 @@ class AppConfig:
     def autonomous(self) -> Dict[str, Any]:
         return self._data.get("autonomous", {})
 
+    @property
+    def screening(self) -> Dict[str, Any]:
+        return self._data.get("screening", {})
+
     # ── trading / notify ─────────────────────
     @property
     def trading(self) -> Dict[str, Any]:

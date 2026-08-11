@@ -99,6 +99,47 @@ optimizer:
     var95: -0.03
     max_drawdown: -0.20
 
+# Stock selection runs before the AI committee. Market-wide discovery is
+# deterministic and auditable; the LLM may only decide inside the shortlist.
+screening:
+  enabled: true
+  refresh_minutes: 30
+  discovery_timeout_seconds: 50
+  discovery_limit: 120
+  snapshot_limit: 24
+  shortlist_size: 8
+  use_for_optimizer: true
+  optimizer_max_age_minutes: 1440
+  min_price:
+    cn: 3
+    hk: 1
+    us: 5
+    etf: 0.5
+  min_amount:
+    cn: 100000000
+    hk: 50000000
+    us: 20000000
+    etf: 50000000
+  min_market_cap:
+    cn: 5000000000
+    hk: 0
+    us: 1000000000
+    etf: 0
+  max_pe: 80
+  max_pb: 20
+  max_abs_change_pct: 15
+  exclude_name_patterns: ["退", "WARRANT", "RIGHT", "UNIT", "PREFERRED"]
+  exclude_patterns_by_market:
+    cn: ["ST", "*ST"]
+    etf: ["货币", "短融", "日利", "现金", "同业存单", "债"]
+  weights:
+    momentum: 0.28
+    trend: 0.22
+    liquidity: 0.20
+    valuation: 0.12
+    volume: 0.10
+    low_volatility: 0.08
+
 # Autonomous paper-trading is opt-in in the repository. Set enabled=true only
 # after configuring API keys and reviewing the hard limits below.
 autonomous:

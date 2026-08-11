@@ -103,7 +103,23 @@ def resolve_universe(market: str, symbols: Optional[Sequence[str]] = None) -> Li
         universe = _dedupe(symbols)
     else:
         holdings = account.account(market).get("holdings", [])
-        universe = _dedupe([holding.get("code") for holding in holdings] + default_symbols(market))
+        held_symbols = [holding.get("code") for holding in holdings]
+        screened_symbols: List[str] = []
+        screening_config = cfg.screening
+        if screening_config.get("enabled", True) and screening_config.get("use_for_optimizer", True):
+            try:
+                from src.screening import latest_screening
+
+                latest = latest_screening(
+                    market,
+                    max_age_minutes=int(screening_config.get("optimizer_max_age_minutes", 1440)),
+                )
+                if latest:
+                    screened_symbols = list(latest.get("selected_symbols", []))
+            except Exception:
+                screened_symbols = []
+        candidates = [*held_symbols, *(screened_symbols or default_symbols(market))]
+        universe = _dedupe(candidates[:MAX_SYMBOLS])
     if len(universe) < 2:
         raise ValueError("组合优化至少需要两个有效标的；请通过 --symbols 或 optimizer.default_symbols 提供标的")
     return universe

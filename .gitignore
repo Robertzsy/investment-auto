@@ -12,6 +12,7 @@ runtime/data/
 runtime/logs/
 runtime/reports/
 runtime/optimizer/
+runtime/screener/
 runtime/macro/
 runtime/trading/
 /runtime/*.lock

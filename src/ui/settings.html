@@ -23,6 +23,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .form-group input:focus,.form-group select:focus{border-color:var(--accent)}
 .form-group input[type=password]{font-family:monospace}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.triple-input{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .checkbox-group{display:flex;flex-wrap:wrap;gap:10px}
 .checkbox-item{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 14px;cursor:pointer;transition:all .15s}
 .checkbox-item:hover{border-color:var(--accent)}
@@ -179,6 +180,49 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     </div>
   </div>
 
+  <!-- 股票筛选 -->
+  <div class="section">
+    <h2>🔎 自主选股</h2>
+    <div class="section-note">先按流动性、价格、市值和估值做硬筛选，再用动量、趋势、成交量和波动率评分。AI 只能在最终候选池内决策，筛选失败时回退到优化器默认标的。</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>启用自动选股</label>
+        <select id="screeningEnabled"><option value="true">启用</option><option value="false">停用，使用固定标的</option></select>
+      </div>
+      <div class="form-group"><label>候选列表刷新间隔（分钟）</label><input type="number" id="screenRefreshMinutes" min="1" max="1440" step="1"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>全市场初始候选数</label><input type="number" id="screenDiscoveryLimit" min="10" max="500" step="10"></div>
+      <div class="form-group"><label>拉取完整历史行情数</label><input type="number" id="screenSnapshotLimit" min="1" max="60" step="1"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>最终候选池大小</label><input type="number" id="screenShortlistSize" min="1" max="30" step="1"></div>
+      <div class="form-group"><label>单日最大绝对涨跌幅（%）</label><input type="number" id="screenMaxAbsChange" min="0" max="100" step="1"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>单轮 AI 研究标的上限</label><input type="number" id="maxUniverseSize" min="1" max="30" step="1"></div>
+      <div class="form-group"><label>优化器使用最新选股池</label><select id="screenUseForOptimizer"><option value="true">是</option><option value="false">否，使用固定标的</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>PE 上限（0 表示不限）</label><input type="number" id="screenMaxPe" min="0" max="1000" step="1"></div>
+      <div class="form-group"><label>PB 上限（0 表示不限）</label><input type="number" id="screenMaxPb" min="0" max="100" step="1"></div>
+    </div>
+    <div class="subheading">分市场最低门槛（成交额单位：万元；市值单位：亿元）</div>
+    <div class="form-row">
+      <div class="form-group"><label>A 股：价格 / 成交额 / 市值</label><div class="form-row triple-input"><input type="number" id="screenMinPrice_cn" min="0" step="0.1"><input type="number" id="screenMinAmount_cn" min="0" step="100"><input type="number" id="screenMinCap_cn" min="0" step="1"></div></div>
+      <div class="form-group"><label>港股：价格 / 成交额 / 市值</label><div class="form-row triple-input"><input type="number" id="screenMinPrice_hk" min="0" step="0.1"><input type="number" id="screenMinAmount_hk" min="0" step="100"><input type="number" id="screenMinCap_hk" min="0" step="1"></div></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>美股：价格 / 成交额 / 市值</label><div class="form-row triple-input"><input type="number" id="screenMinPrice_us" min="0" step="0.1"><input type="number" id="screenMinAmount_us" min="0" step="100"><input type="number" id="screenMinCap_us" min="0" step="1"></div></div>
+      <div class="form-group"><label>ETF：价格 / 成交额 / 市值</label><div class="form-row triple-input"><input type="number" id="screenMinPrice_etf" min="0" step="0.1"><input type="number" id="screenMinAmount_etf" min="0" step="100"><input type="number" id="screenMinCap_etf" min="0" step="1"></div></div>
+    </div>
+    <div class="subheading">综合评分权重（保存时自动按总和归一化）</div>
+    <div class="form-row">
+      <div class="form-group"><label>动量 / 趋势 / 流动性</label><div class="form-row triple-input"><input type="number" id="screenWeightMomentum" min="0" step="0.01"><input type="number" id="screenWeightTrend" min="0" step="0.01"><input type="number" id="screenWeightLiquidity" min="0" step="0.01"></div></div>
+      <div class="form-group"><label>估值 / 量能 / 低波动</label><div class="form-row triple-input"><input type="number" id="screenWeightValuation" min="0" step="0.01"><input type="number" id="screenWeightVolume" min="0" step="0.01"><input type="number" id="screenWeightLowVolatility" min="0" step="0.01"></div></div>
+    </div>
+  </div>
+
   <!-- AI 自主交易 -->
   <div class="section">
     <h2>🤖 AI 自主交易</h2>
@@ -232,7 +276,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </select>
       </div>
     </div>
-    <div class="subheading">AI 可交易标的（留空则使用优化器默认标的）</div>
+    <div class="subheading">AI 可交易标的（填写后作为硬候选池；全部留空时自动从全市场选股）</div>
     <div class="form-row">
       <div class="form-group"><label>A 股</label><input type="text" id="universe_cn" placeholder="600519, 000858, 510300"></div>
       <div class="form-group"><label>港股</label><input type="text" id="universe_hk" placeholder="00700, 09988, 02800"></div>
@@ -375,6 +419,31 @@ function renderConfig() {
   document.getElementById('riskFreeRate').value = config.optimizer?.risk_free_rate || 0.02;
   document.getElementById('costAware').value = String(config.optimizer?.cost_aware ?? true);
 
+  // 自主选股
+  const screening = config.screening || {};
+  document.getElementById('screeningEnabled').value = String(screening.enabled ?? true);
+  document.getElementById('screenRefreshMinutes').value = screening.refresh_minutes ?? 30;
+  document.getElementById('screenDiscoveryLimit').value = screening.discovery_limit ?? 120;
+  document.getElementById('screenSnapshotLimit').value = screening.snapshot_limit ?? 24;
+  document.getElementById('screenShortlistSize').value = screening.shortlist_size ?? 8;
+  document.getElementById('maxUniverseSize').value = config.autonomous?.max_universe_size ?? 10;
+  document.getElementById('screenUseForOptimizer').value = String(screening.use_for_optimizer ?? true);
+  document.getElementById('screenMaxAbsChange').value = screening.max_abs_change_pct ?? 15;
+  document.getElementById('screenMaxPe').value = screening.max_pe ?? 80;
+  document.getElementById('screenMaxPb').value = screening.max_pb ?? 20;
+  for (const market of ['cn', 'hk', 'us', 'etf']) {
+    document.getElementById('screenMinPrice_' + market).value = screening.min_price?.[market] ?? 0;
+    document.getElementById('screenMinAmount_' + market).value = (screening.min_amount?.[market] ?? 0) / 10000;
+    document.getElementById('screenMinCap_' + market).value = (screening.min_market_cap?.[market] ?? 0) / 100000000;
+  }
+  const screeningWeights = screening.weights || {};
+  document.getElementById('screenWeightMomentum').value = screeningWeights.momentum ?? 0.28;
+  document.getElementById('screenWeightTrend').value = screeningWeights.trend ?? 0.22;
+  document.getElementById('screenWeightLiquidity').value = screeningWeights.liquidity ?? 0.20;
+  document.getElementById('screenWeightValuation').value = screeningWeights.valuation ?? 0.12;
+  document.getElementById('screenWeightVolume').value = screeningWeights.volume ?? 0.10;
+  document.getElementById('screenWeightLowVolatility').value = screeningWeights.low_volatility ?? 0.08;
+
   // AI 自主交易
   const autonomy = config.autonomous || {};
   document.getElementById('autonomousEnabled').value = String(autonomy.enabled ?? false);
@@ -448,7 +517,14 @@ function validateTradingControls() {
     'maxCycleTurnoverPct', 'singleStockMaxPct', 'minCashReservePct',
     'hardStopPct', 'trailingStopPct', 'takeProfit1Pct', 'takeProfit1SellRatio',
     'takeProfit2Pct', 'takeProfit2SellRatio', 'maxDrawdownPct', 'maxDailyTrades',
-    'llmRequestTimeout'
+    'llmRequestTimeout', 'screenRefreshMinutes', 'screenDiscoveryLimit',
+    'screenSnapshotLimit', 'screenShortlistSize', 'maxUniverseSize', 'screenMaxAbsChange',
+    'screenMaxPe', 'screenMaxPb', 'screenMinPrice_cn', 'screenMinPrice_hk',
+    'screenMinPrice_us', 'screenMinPrice_etf', 'screenMinAmount_cn',
+    'screenMinAmount_hk', 'screenMinAmount_us', 'screenMinAmount_etf',
+    'screenMinCap_cn', 'screenMinCap_hk', 'screenMinCap_us', 'screenMinCap_etf',
+    'screenWeightMomentum', 'screenWeightTrend', 'screenWeightLiquidity',
+    'screenWeightValuation', 'screenWeightVolume', 'screenWeightLowVolatility'
   ];
   for (const id of ids) {
     const input = document.getElementById(id);
@@ -461,6 +537,17 @@ function validateTradingControls() {
   if (Number(document.getElementById('takeProfit2Pct').value) < Number(document.getElementById('takeProfit1Pct').value)) {
     showToast('❌ 第二档止盈不能低于第一档', 'error');
     document.getElementById('takeProfit2Pct').focus();
+    return false;
+  }
+  const weightIds = ['screenWeightMomentum', 'screenWeightTrend', 'screenWeightLiquidity', 'screenWeightValuation', 'screenWeightVolume', 'screenWeightLowVolatility'];
+  if (weightIds.reduce((sum, id) => sum + Number(document.getElementById(id).value), 0) <= 0) {
+    showToast('❌ 选股评分权重总和必须大于 0', 'error');
+    document.getElementById('screenWeightMomentum').focus();
+    return false;
+  }
+  if (Number(document.getElementById('screenShortlistSize').value) > Number(document.getElementById('maxUniverseSize').value)) {
+    showToast('❌ 最终候选池不能大于单轮 AI 研究标的上限', 'error');
+    document.getElementById('screenShortlistSize').focus();
     return false;
   }
   return true;
@@ -702,12 +789,41 @@ async function saveConfig() {
   config.optimizer.risk_free_rate = parseFloat(document.getElementById('riskFreeRate').value);
   config.optimizer.cost_aware = document.getElementById('costAware').value === 'true';
 
+  // 自主选股
+  config.screening = config.screening || {};
+  config.screening.enabled = document.getElementById('screeningEnabled').value === 'true';
+  config.screening.refresh_minutes = parseInt(document.getElementById('screenRefreshMinutes').value);
+  config.screening.discovery_limit = parseInt(document.getElementById('screenDiscoveryLimit').value);
+  config.screening.snapshot_limit = parseInt(document.getElementById('screenSnapshotLimit').value);
+  config.screening.shortlist_size = parseInt(document.getElementById('screenShortlistSize').value);
+  config.screening.use_for_optimizer = document.getElementById('screenUseForOptimizer').value === 'true';
+  config.screening.max_abs_change_pct = parseFloat(document.getElementById('screenMaxAbsChange').value);
+  config.screening.max_pe = parseFloat(document.getElementById('screenMaxPe').value);
+  config.screening.max_pb = parseFloat(document.getElementById('screenMaxPb').value);
+  config.screening.min_price = {};
+  config.screening.min_amount = {};
+  config.screening.min_market_cap = {};
+  for (const market of ['cn', 'hk', 'us', 'etf']) {
+    config.screening.min_price[market] = parseFloat(document.getElementById('screenMinPrice_' + market).value);
+    config.screening.min_amount[market] = parseFloat(document.getElementById('screenMinAmount_' + market).value) * 10000;
+    config.screening.min_market_cap[market] = parseFloat(document.getElementById('screenMinCap_' + market).value) * 100000000;
+  }
+  config.screening.weights = {
+    momentum: parseFloat(document.getElementById('screenWeightMomentum').value),
+    trend: parseFloat(document.getElementById('screenWeightTrend').value),
+    liquidity: parseFloat(document.getElementById('screenWeightLiquidity').value),
+    valuation: parseFloat(document.getElementById('screenWeightValuation').value),
+    volume: parseFloat(document.getElementById('screenWeightVolume').value),
+    low_volatility: parseFloat(document.getElementById('screenWeightLowVolatility').value)
+  };
+
   // AI 自主交易
   config.autonomous = config.autonomous || {};
   config.autonomous.enabled = document.getElementById('autonomousEnabled').value === 'true';
   config.autonomous.auto_execute = document.getElementById('autoExecute').value === 'true';
   config.autonomous.trade_on_catch_up = document.getElementById('tradeOnCatchUp').value === 'true';
   config.autonomous.min_confidence = parseFloat(document.getElementById('minConfidence').value);
+  config.autonomous.max_universe_size = parseInt(document.getElementById('maxUniverseSize').value);
   config.autonomous.max_orders_per_cycle = parseInt(document.getElementById('maxOrdersPerCycle').value);
   config.autonomous.max_position_pct = parseFloat(document.getElementById('maxPositionPct').value);
   config.autonomous.max_order_value_pct = parseFloat(document.getElementById('maxOrderValuePct').value);
