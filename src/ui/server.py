@@ -343,6 +343,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
     def _handle_autonomy_status(self):
         try:
+            from src.config import cfg
             from src.trading.control import load_state
             from src.trading.controller import AUDIT_DIR, autonomous_enabled
 

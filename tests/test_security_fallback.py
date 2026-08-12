@@ -94,6 +94,21 @@ def test_operation_mode_api_enables_complete_cycle_execution(monkeypatch: pytest
     assert invalid.responses[-1][0] == 400
 
 
+def test_autonomy_status_api_exposes_operation_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from src.trading import controller
+
+    monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
+    handler = _FakeHandler()
+
+    server.ChatHandler._handle_autonomy_status(handler)  # type: ignore[arg-type]
+
+    status, payload = handler.responses[-1]
+    assert status == 200
+    assert payload["operation_mode"] in {"manual", "automatic"}
+    assert isinstance(payload["auto_execute"], bool)
+    assert "control" in payload
+
+
 def test_market_config_api_exposes_rules_and_updates_only_risk_controls(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
