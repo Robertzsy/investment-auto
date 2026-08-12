@@ -210,4 +210,35 @@ def test_call_role_retries_truncated_json_and_persists_own_memory(monkeypatch, t
 
     assert result["summary"] == "ok"
     assert calls[0]["extra_body"] == {"thinking": {"type": "disabled"}}
+    assert calls[0]["response_format"] == {"type": "json_object"}
+    assert calls[1]["max_tokens"] > calls[0]["max_tokens"]
+    assert calls[1]["temperature"] == 0
     assert store.load("cn", "technical_analyst", 3)[0]["memory_note"] == "下一轮继续核验价格"
+
+
+def test_invalid_agent_output_is_saved_for_diagnosis(monkeypatch, tmp_path):
+    class LLM:
+        provider_name = "deepseek"
+
+        def chat(self, messages, **kwargs):
+            return '{"summary":"broken"'
+
+    monkeypatch.setattr(agent_workflow, "resolve_llm", lambda role: LLM())
+    monkeypatch.setattr(agent_workflow, "AGENT_FAILURE_DIR", tmp_path / "failures")
+
+    with pytest.raises(RuntimeError, match="原始输出诊断"):
+        agent_workflow._call_role(
+            "research_manager",
+            stage="research_judgement",
+            context=_context(),
+            evidence={"AGENT:BULL_RESEARCHER:R1": {"summary": "bull"}},
+            settings={**_config()["agent_workflow"], "json_retries": 1},
+            memory_store=agent_workflow.AgentMemoryStore(tmp_path / "memory"),
+            generated_at="2026-08-13T02:00:00+08:00",
+        )
+
+    diagnostics = list((tmp_path / "failures").glob("*.json"))
+    assert len(diagnostics) == 2
+    saved = json.loads(diagnostics[-1].read_text(encoding="utf-8"))
+    assert saved["role"] == "research_manager"
+    assert saved["output_chars"] == len('{"summary":"broken"')

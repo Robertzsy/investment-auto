@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +16,8 @@ from src.llm.registry import resolve_llm
 logger = logging.getLogger("investment-auto.agent-workflow")
 ROOT = Path(__file__).resolve().parents[2]
 MEMORY_DIR = ROOT / "runtime" / "trading" / "agent_memory"
+AGENT_FAILURE_DIR = ROOT / "runtime" / "trading" / "agent_failures"
+_failure_lock = threading.RLock()
 
 ROLE_GROUPS: Dict[str, Sequence[str]] = {
     "base": ("technical_analyst", "sentiment_analyst", "news_analyst", "fundamentals_analyst"),
@@ -201,6 +205,41 @@ def _parse_json_object(text: str) -> Dict[str, Any]:
     return payload
 
 
+def _save_invalid_output(
+    *,
+    role: str,
+    stage: str,
+    attempt: int,
+    text: str,
+    error: Exception,
+    generated_at: str,
+) -> str:
+    """Persist malformed model output so the next failure is diagnosable."""
+
+    safe_role = re.sub(r"[^a-z0-9_-]", "_", role.lower())[:40] or "agent"
+    filename = f"{generated_at[:10].replace('-', '')}-{safe_role}-{uuid.uuid4().hex[:10]}.json"
+    path = AGENT_FAILURE_DIR / filename
+    payload = {
+        "generated_at": generated_at,
+        "role": role,
+        "stage": stage,
+        "attempt": attempt,
+        "error": str(error),
+        "output_chars": len(text),
+        "raw_output": text[:24000],
+        "truncated_for_diagnostic": len(text) > 24000,
+    }
+    try:
+        with _failure_lock:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_suffix(".json.tmp")
+            temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            temporary.replace(path)
+        return str(path)
+    except OSError:
+        return ""
+
+
 def _citation_ids(payload: Mapping[str, Any]) -> List[str]:
     values: List[Any] = list(payload.get("citations", [])) if isinstance(payload.get("citations"), list) else []
     findings = payload.get("findings", [])
@@ -368,6 +407,7 @@ def _call_role(
         f"你是{ROLE_NAMES[role]}。{ROLE_INSTRUCTIONS[role]}"
         "只允许依据本轮证据目录和明确列出的上游 Agent 报告作判断。"
         "不得引用训练知识、猜测来源或制造事实。输出纯 JSON，不要 Markdown，不调用工具。"
+        "必须返回一个语法完整的 JSON 对象并以右花括号结束；字符串内部的双引号必须转义。"
         "每个事实判断都要填写 evidence_ids；引用 ID 必须与目录完全一致。"
     )
     mandate = context.get("investment_mandate", {})
@@ -386,11 +426,14 @@ def _call_role(
         f"\n附加任务：{extra_instruction or '无'}"
         f"\n本轮可引用证据目录：{evidence_text}"
         f"\n严格输出结构：{json.dumps(schema, ensure_ascii=False)}"
+        "\n输出必须精简：summary/thesis 不超过180字，findings最多6条，每条claim/reason不超过120字，"
+        "data_gaps最多5条，memory_note不超过160字；不要复制证据原文，不要添加结构外字段。"
     )
     llm = resolve_llm(role=role)
     chat_kwargs: Dict[str, Any] = {
         "temperature": 0.1,
-        "max_tokens": 2600 if portfolio else 2000,
+        "max_tokens": 4200 if portfolio else 3200,
+        "response_format": {"type": "json_object"},
     }
     # DeepSeek thinking models may spend the entire token budget in
     # reasoning_content and return an empty structured answer. Agent stages
@@ -398,14 +441,23 @@ def _call_role(
     if getattr(llm, "provider_name", "") == "deepseek":
         chat_kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
     last_error: Optional[Exception] = None
+    last_diagnostic = ""
     for attempt in range(retries + 1):
+        text = ""
         prompt = user
         if attempt:
-            prompt += f"\n上次输出无效：{last_error}。请重新输出完整、闭合且可解析的 JSON。"
+            prompt += (
+                f"\n上次输出无效：{last_error}。这是一次全新重试：请压缩措辞，"
+                "从头重新输出完整、闭合且可解析的 JSON，不要延续或解释上次输出。"
+            )
         try:
+            attempt_kwargs = dict(chat_kwargs)
+            if attempt:
+                attempt_kwargs["temperature"] = 0
+                attempt_kwargs["max_tokens"] = min(6000, int(chat_kwargs["max_tokens"]) + 1400 * attempt)
             text = llm.chat(
                 [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-                **chat_kwargs,
+                **attempt_kwargs,
             )
             payload = _parse_json_object(text)
             citations = validate_citations(
@@ -433,7 +485,19 @@ def _call_role(
             return payload
         except Exception as exc:
             last_error = exc
-    raise RuntimeError(f"{ROLE_NAMES[role]}输出校验失败: {last_error}")
+            if text:
+                last_diagnostic = _save_invalid_output(
+                    role=role,
+                    stage=stage,
+                    attempt=attempt + 1,
+                    text=text,
+                    error=exc,
+                    generated_at=generated_at,
+                )
+    diagnostic_note = f"；原始输出诊断: {last_diagnostic}" if last_diagnostic else ""
+    raise RuntimeError(
+        f"{ROLE_NAMES[role]}输出校验失败（已尝试 {retries + 1} 次）: {last_error}{diagnostic_note}"
+    )
 
 
 def _parallel_roles(
