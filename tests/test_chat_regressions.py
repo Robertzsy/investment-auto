@@ -21,7 +21,7 @@ def test_chat_ui_sanitizes_all_markdown_before_inner_html():
     assert "dompurify@" in html.lower()
     assert "return sanitizeHtml(rendered);" in html
     assert "body.innerHTML = sanitizeHtml(html);" in html
-    assert "appendMessage('user', renderMarkdown(text, true));" in html
+    assert "appendMessage('user', renderMarkdown(displayText, true));" in html
     assert "appendMessage(m.role, renderMarkdown(m.content || ''));" in html
 
     marked_lines = [line.strip() for line in html.splitlines() if "marked.parse" in line]
@@ -162,78 +162,46 @@ def test_typed_agent_catalog_excludes_shell_file_write_and_trading_execution():
         "search_security",
         "get_security_snapshot",
         "get_stock_screening",
+        "run_complete_investment_cycle",
+        "remember_user_preference",
     }
     assert not ({"run_shell", "write_file", "execute_orders"} & tool_names)
 
 
-def test_run_one_market_round_routes_to_complete_investment_cycle(monkeypatch):
-    captured = {}
+@pytest.mark.parametrize(
+    "message",
+    ["跑一次美股分析", "进行一次美股分析", "跑一轮美股", "开始美股交易", "跑一轮完整的分析"],
+)
+def test_investment_language_is_understood_by_agent_not_keyword_router(monkeypatch, message):
+    captured = []
 
-    def fake_cycle(market, *, label, progress_callback=None):
-        captured.update({"market": market, "label": label})
-        if progress_callback:
-            progress_callback("正在分析")
-        return {
-            "status": "generated", "market": market, "report": "/tmp/report.md",
-            "autonomous": {"fills": []}, "notification": {"status": "disabled"},
-        }
+    def fake_agent_events(value, **kwargs):
+        captured.append(value)
+        yield {"type": "result", "content": "由常驻 Agent 理解并处理"}
 
-    monkeypatch.setattr("src.scheduler.run_investment_cycle", fake_cycle)
-    events = list(chat_server.handle_chat_stream("跑一轮美股", request_id="complete-cycle"))
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", fake_agent_events)
+    events = list(chat_server.handle_chat_stream(message, request_id="semantic-agent"))
 
-    assert captured == {"market": "us", "label": "chat"}
-    assert events[0] == {"type": "tool", "name": "full_investment_cycle", "params": {"market": "us"}}
-    assert any(event == {"type": "status", "content": "正在分析"} for event in events)
-    assert "全市场选股" in events[-1]["content"]
+    assert captured == [message]
+    assert events[-1]["content"] == "由常驻 Agent 理解并处理"
+    assert not hasattr(chat_server, "_full_cycle_request")
 
 
-def test_run_one_us_analysis_routes_to_complete_investment_cycle(monkeypatch):
+def test_button_cycle_stream_runs_directly_without_llm(monkeypatch):
     monkeypatch.setattr("src.scheduler.run_investment_cycle", lambda market, **kwargs: {
         "status": "generated", "market": market, "report": "",
         "autonomous": {"status": "no_trade", "fills": []},
         "notification": {"status": "disabled"},
     })
-
-    events = list(chat_server.handle_chat_stream("跑一次美股分析", request_id="one-us-analysis"))
-
-    assert events[0] == {"type": "tool", "name": "full_investment_cycle", "params": {"market": "us"}}
-    assert "完整投资轮次" in events[-1]["content"]
-
-
-def test_conduct_one_us_analysis_is_complete_cycle_intent():
-    assert chat_server._full_cycle_request("进行一次美股分析") == {"market": "us"}
-
-
-def test_complete_analysis_without_market_reuses_recent_user_market(monkeypatch):
-    monkeypatch.setattr(chat_server, "load_history", lambda limit=20: [
-        {"role": "user", "content": "跑一次美股分析"},
-        {"role": "assistant", "content": "上次结果"},
-        {"role": "user", "content": "跑一轮完整的分析"},
-    ])
-    monkeypatch.setattr("src.scheduler.run_investment_cycle", lambda market, **kwargs: {
-        "status": "generated", "market": market, "report": "",
-        "autonomous": {"status": "no_trade", "fills": []},
-        "notification": {"status": "disabled"},
-    })
-
-    events = list(chat_server.handle_chat_stream("跑一轮完整的分析", request_id="context-market"))
-
-    assert events[0]["params"] == {"market": "us"}
-
-
-def test_complete_analysis_without_any_market_asks_instead_of_running_agent(monkeypatch):
-    monkeypatch.setattr(chat_server, "load_history", lambda limit=20: [
-        {"role": "user", "content": "跑一轮完整的分析"},
-    ])
     monkeypatch.setattr(
         "src.ui.agent_runtime.run_agent_events",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("generic agent must not run")),
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not run")),
     )
 
-    events = list(chat_server.handle_chat_stream("跑一轮完整的分析", request_id="missing-market"))
+    events = list(chat_server.handle_investment_cycle_stream("us", request_id="button-cycle"))
 
-    assert events[-1]["type"] == "final"
-    assert "请指定" in events[-1]["content"]
+    assert events[0] == {"type": "tool", "name": "run_complete_investment_cycle", "params": {"market": "us"}}
+    assert "美股完整投资轮次" in events[-1]["content"]
 
 
 def test_agent_limit_question_has_deterministic_answer():
@@ -243,15 +211,6 @@ def test_agent_limit_question_has_deterministic_answer():
     assert "模型请求**：每轮最多 6 次" in events[-1]["content"]
     assert "工具调用**：每轮最多 8 次" in events[-1]["content"]
     assert "32,000" in events[-1]["content"]
-
-
-def test_explicit_screen_only_request_does_not_trigger_complete_cycle():
-    assert chat_server._full_cycle_request("只筛选一轮美股") is None
-
-
-def test_start_market_trading_means_one_complete_round_not_permission_change():
-    assert chat_server._full_cycle_request("开始美股交易") == {"market": "us"}
-    assert chat_server._full_cycle_request("美股开始了吗") is None
 
 
 class _MarketStatusConfig:
@@ -366,7 +325,7 @@ class _AutonomyControlConfig:
     enabled_markets = ["cn", "hk", "us", "etf"]
 
 
-def test_market_scoped_start_command_runs_complete_cycle_without_unlocking_pause(
+def test_market_scoped_start_language_does_not_unlock_runtime_pause(
     monkeypatch, tmp_path
 ):
     from src.trading import control
@@ -375,19 +334,13 @@ def test_market_scoped_start_command_runs_complete_cycle_without_unlocking_pause
     monkeypatch.setattr(control, "CONTROL_FILE", control_file)
     monkeypatch.setattr(chat_server, "cfg", _AutonomyControlConfig())
     control.set_paused(True, reason="等待人工确认")
-    monkeypatch.setattr("src.scheduler.run_investment_cycle", lambda market, **kwargs: {
-        "status": "generated", "market": market, "report": "",
-        "autonomous": {"status": "paused", "fills": []},
-        "notification": {"status": "disabled"},
-    })
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", _immediate_agent_events)
 
     events = list(
         chat_server.handle_chat_stream("开始美股交易", request_id="market-scoped-resume")
     )
 
-    assert events[0] == {"type": "tool", "name": "full_investment_cycle", "params": {"market": "us"}}
     assert events[-1]["type"] == "final"
-    assert "完整投资轮次" in events[-1]["content"]
     assert control.load_state()["paused"] is True
 
 

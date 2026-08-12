@@ -33,6 +33,7 @@ HISTORY_FILE = RUNTIME_DIR / "chat_history.json"
 MEMORY_FILE = RUNTIME_DIR / "chat_memory.md"
 
 _history_lock = threading.RLock()
+_memory_lock = threading.RLock()
 _cancel_lock = threading.RLock()
 _cancel_events: "OrderedDict[str, threading.Event]" = OrderedDict()
 _active_request_ids: List[str] = []
@@ -117,15 +118,107 @@ def clear_history() -> None:
 
 
 def load_memory() -> str:
-    if not MEMORY_FILE.exists():
-        return ""
-    return MEMORY_FILE.read_text(encoding="utf-8")[:8000]
+    with _memory_lock:
+        if not MEMORY_FILE.exists():
+            return ""
+        return MEMORY_FILE.read_text(encoding="utf-8")[-12000:]
 
 
-def append_memory(note: str) -> None:
-    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-    with MEMORY_FILE.open("a", encoding="utf-8") as f:
-        f.write(f"\n- {datetime.now().isoformat(timespec='seconds')}: {note}\n")
+def append_memory(note: str, *, source: str = "user") -> Dict[str, Any]:
+    """Persist a bounded, non-sensitive operating preference for future chats."""
+    cleaned = re.sub(r"\s+", " ", str(note or "")).strip()[:800]
+    if not cleaned:
+        raise ValueError("记忆内容不能为空")
+    if re.search(
+        r"api[_ -]?key|token|secret|password|passwd|webhook|mongodb(?:\+srv)?://|"
+        r"(?:sk|key)-[A-Za-z0-9_-]{12,}|https?://[^\s]+@",
+        cleaned,
+        re.I,
+    ):
+        raise ValueError("记忆中不能保存密钥、令牌、密码、Webhook 或数据库连接地址")
+    safe_source = re.sub(r"[^A-Za-z0-9_-]", "", str(source))[:24] or "user"
+    with _memory_lock:
+        existing = load_memory()
+        normalized = cleaned.casefold()
+        if any(normalized == line.split("] ", 1)[-1].strip().casefold() for line in existing.splitlines() if line.startswith("- ")):
+            return {"status": "exists", "memory": cleaned}
+        RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+        lines = [line for line in existing.splitlines() if line.strip()]
+        lines.append(f"- {datetime.now().isoformat(timespec='seconds')} [{safe_source}] {cleaned}")
+        content = "# Investment-Auto 长期记忆\n\n" + "\n".join(
+            line for line in lines if not line.startswith("# ")
+        )[-11500:] + "\n"
+        temporary = MEMORY_FILE.with_suffix(MEMORY_FILE.suffix + ".tmp")
+        temporary.write_text(content, encoding="utf-8")
+        temporary.replace(MEMORY_FILE)
+    return {"status": "stored", "memory": cleaned}
+
+
+def handle_investment_cycle_stream(
+    market: str,
+    *,
+    request_id: Optional[str] = None,
+    label: str = "button",
+) -> Generator[Dict[str, Any], None, None]:
+    """Run one complete paper-investment cycle without natural-language routing."""
+    normalized = str(market or "").strip().lower()
+    if normalized not in {"cn", "hk", "us", "etf"}:
+        yield {"type": "error", "content": "market 必须是 cn、hk、us 或 etf"}
+        return
+    key, cancel_event = _register_cancel_event(request_id)
+    names = {"cn": "A 股", "hk": "港股", "us": "美股", "etf": "ETF"}
+    append_history("user", f"一键执行{names[normalized]}完整投资轮次")
+    try:
+        yield from _investment_cycle_events(normalized, label=label, cancel_event=cancel_event)
+    finally:
+        _unregister_cancel_event(key)
+
+
+def _investment_cycle_events(
+    market: str,
+    *,
+    label: str,
+    cancel_event: threading.Event,
+) -> Generator[Dict[str, Any], None, None]:
+    yield {"type": "tool", "name": "run_complete_investment_cycle", "params": {"market": market}}
+    updates: "queue.Queue[Dict[str, Any]]" = queue.Queue()
+
+    def run_complete_cycle() -> None:
+        try:
+            from src.scheduler import run_investment_cycle
+
+            result = run_investment_cycle(
+                market,
+                label=label,
+                progress_callback=lambda value: updates.put({"type": "status", "content": value}),
+            )
+            updates.put({"type": "result", "value": result})
+        except Exception as exc:
+            logger.exception("Complete investment cycle failed")
+            updates.put({"type": "error", "value": str(exc)[:1000]})
+
+    worker = threading.Thread(target=run_complete_cycle, name=f"investment-cycle-{market}", daemon=True)
+    worker.start()
+    result: Dict[str, Any] = {}
+    error = ""
+    while worker.is_alive() or not updates.empty():
+        try:
+            update = updates.get(timeout=0.5)
+        except queue.Empty:
+            continue
+        if update["type"] == "status":
+            yield update
+        elif update["type"] == "result":
+            result = update["value"]
+        elif update["type"] == "error":
+            error = update["value"]
+    final_answer = _format_full_cycle_result(result) if result else f"## ❌ 完整投资轮次失败\n\n{error or '未知错误'}"
+    emitted = ""
+    for chunk in _chunk_text(final_answer, 18):
+        emitted += chunk
+        yield {"type": "token", "content": chunk}
+    append_history("assistant", final_answer)
+    yield {"type": "final", "content": final_answer}
 
 # ── public handlers ─────────────────────────────────
 def _trim_cancel_events() -> None:
@@ -237,56 +330,6 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
             if item["role"] == "assistant" and _parse_tool_call(content):
                 continue
             clean_history.append({"role": item["role"], "content": content})
-
-    recent_market = _recent_user_market(clean_history)
-    full_cycle_request = _full_cycle_request(message, default_market=recent_market)
-    if full_cycle_request is not None:
-        yield {"type": "tool", "name": "full_investment_cycle", "params": full_cycle_request}
-        updates: "queue.Queue[Dict[str, Any]]" = queue.Queue()
-
-        def run_complete_cycle() -> None:
-            try:
-                from src.scheduler import run_investment_cycle
-
-                result = run_investment_cycle(
-                    full_cycle_request["market"],
-                    label="chat",
-                    progress_callback=lambda value: updates.put({"type": "status", "content": value}),
-                )
-                updates.put({"type": "result", "value": result})
-            except Exception as exc:
-                logger.exception("Manual full investment cycle failed")
-                updates.put({"type": "error", "value": str(exc)[:1000]})
-
-        worker = threading.Thread(target=run_complete_cycle, name="manual-investment-cycle", daemon=True)
-        worker.start()
-        result: Dict[str, Any] = {}
-        error = ""
-        while worker.is_alive() or not updates.empty():
-            try:
-                update = updates.get(timeout=0.5)
-            except queue.Empty:
-                continue
-            if update["type"] == "status":
-                yield update
-            elif update["type"] == "result":
-                result = update["value"]
-            elif update["type"] == "error":
-                error = update["value"]
-        final_answer = _format_full_cycle_result(result) if result else f"## ❌ 完整投资轮次失败\n\n{error or '未知错误'}"
-        emitted = ""
-        for chunk in _chunk_text(final_answer, 18):
-            emitted += chunk
-            yield {"type": "token", "content": chunk}
-        append_history("assistant", final_answer)
-        yield {"type": "final", "content": final_answer}
-        return
-
-    if _full_cycle_intent(message):
-        final_answer = "请指定要运行完整投资轮次的市场：A 股、港股、美股或 ETF。"
-        append_history("assistant", final_answer)
-        yield {"type": "final", "content": final_answer}
-        return
 
     agent_limit_answer = _build_agent_limit_answer(message)
     if agent_limit_answer is not None:
@@ -432,8 +475,6 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
         emitted += chunk
         yield {"type": "token", "content": chunk}
     append_history("assistant", final_answer)
-    if "记住" in message or "remember" in message.lower():
-        append_memory(message)
     yield {"type": "final", "content": final_answer}
 
 
@@ -485,43 +526,6 @@ def _named_market(user_text: str) -> Optional[str]:
         return "etf"
     if re.search(r"A股|沪深|中国股市|(?<![A-Za-z])CN(?![A-Za-z])", user_text, re.I):
         return "cn"
-    return None
-
-
-def _full_cycle_intent(user_text: str) -> bool:
-    text = re.sub(r"\s+", "", str(user_text or ""))
-    if re.search(r"优化器|组合优化|回测|压力测试", text, re.I):
-        return False
-    question = bool(re.search(r"吗|么|是否|状态|开始了没|开始了吗|交易了吗|操作了吗", text, re.I))
-    one_round = bool(re.search(
-        r"(?:跑|运行|执行|开始|触发|做|进行).{0,12}(?:一轮|一次|整轮|完整(?:的)?(?:轮次|分析)|投资轮次)",
-        text,
-        re.I,
-    ))
-    start_trading = bool(re.search(r"(?:开始|启动).{0,12}(?:交易|投资|操作)$", text, re.I))
-    if question or not (one_round or start_trading):
-        return False
-    if re.search(r"筛选|选股", text, re.I) and not re.search(r"完整(?:的)?(?:分析|轮次)", text, re.I):
-        return False
-    return True
-
-
-def _full_cycle_request(user_text: str, *, default_market: Optional[str] = None) -> Optional[Dict[str, str]]:
-    if not _full_cycle_intent(user_text):
-        return None
-    market = _named_market(user_text) or default_market
-    if market is None:
-        return None
-    return {"market": market}
-
-
-def _recent_user_market(history: List[Dict[str, Any]]) -> Optional[str]:
-    for item in reversed(history):
-        if item.get("role") != "user":
-            continue
-        market = _named_market(str(item.get("content", "")))
-        if market is not None:
-            return market
     return None
 
 
@@ -604,8 +608,8 @@ def _autonomy_control_request(user_text: str) -> Optional[Dict[str, Any]]:
 
     explicit_resume = bool(
         re.search(r"解除.{0,8}暂停", text)
-        or re.search(r"(?:开始|启动|开启|恢复|继续).{0,20}(?:交易|下单)", text)
-        or re.search(r"(?:交易|下单).{0,12}(?:开始|启动|开启|恢复|继续)", text)
+        or re.search(r"(?:恢复|继续).{0,20}(?:自主|自动|交易|下单)", text)
+        or re.search(r"(?:自主|自动|交易|下单).{0,12}(?:恢复|继续)", text)
     )
     explicit_pause = bool(
         re.search(r"(?:暂停|停止|关闭).{0,20}(?:交易|下单)", text)

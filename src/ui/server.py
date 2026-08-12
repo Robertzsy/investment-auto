@@ -118,6 +118,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/chat":
             return self._handle_chat()
+        if path == "/api/investment-cycle":
+            return self._handle_investment_cycle()
         if path == "/api/history/clear":
             return self._handle_clear_history()
         if path == "/api/chat/cancel":
@@ -194,6 +196,51 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 self.wfile.flush()
             except BrokenPipeError:
                 logger.warning("SSE client disconnected while sending error")
+        finally:
+            self.close_connection = True
+
+    def _handle_investment_cycle(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"error": "payload must be a JSON object"})
+        market = str(data.get("market", "")).strip().lower()
+        if market not in {"cn", "hk", "us", "etf"}:
+            return self._json_response(400, {"error": "market must be cn, hk, us, or etf"})
+        request_id = data.get("request_id")
+        if request_id is not None and (
+            not isinstance(request_id, str) or not _REQUEST_ID_RE.fullmatch(request_id)
+        ):
+            return self._json_response(400, {"error": "invalid request_id"})
+
+        from .chat_server import handle_investment_cycle_stream
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        try:
+            for event in handle_investment_cycle_stream(market, request_id=request_id):
+                payload = json.dumps(event, ensure_ascii=False)
+                self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                self.wfile.flush()
+                if event.get("type") in {"final", "cancelled", "error"}:
+                    break
+        except BrokenPipeError:
+            logger.warning("Investment-cycle SSE client disconnected")
+        except Exception as exc:
+            logger.exception("investment cycle stream error")
+            try:
+                payload = json.dumps({"type": "error", "content": str(exc)}, ensure_ascii=False)
+                self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                self.wfile.flush()
+            except BrokenPipeError:
+                pass
         finally:
             self.close_connection = True
 

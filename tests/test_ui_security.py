@@ -69,7 +69,11 @@ def test_operation_mode_switch_is_prominent_on_chat_and_settings():
     settings = (UI / "settings.html").read_text(encoding="utf-8")
 
     assert 'id="operationModeQuick"' in chat
-    assert "跑一轮美股" in chat
+    assert 'id="cycleRunBtn"' in chat
+    assert 'id="cycleMarket"' in chat
+    assert "一键完整投资轮次" in chat
+    assert "fetch('/api/investment-cycle'" not in chat
+    assert "runStreamingRequest('/api/investment-cycle'" in chat
     assert 'id="operationMode"' in settings
     assert "全自动：定时执行完整投资轮次" in settings
     assert "手动整轮：只在我触发时执行完整投资轮次" in settings

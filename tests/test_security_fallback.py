@@ -415,6 +415,33 @@ def test_chat_and_cancel_handlers_forward_valid_request_id(monkeypatch: pytest.M
     assert responses[-1] == (200, {"ok": True, "cancelled": True})
 
 
+def test_investment_cycle_endpoint_validates_and_forwards_market(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = b'{"market":"us","request_id":"cycle-123"}'
+    handler = server.ChatHandler.__new__(server.ChatHandler)
+    handler.headers = {"Content-Length": str(len(payload))}
+    handler.rfile = io.BytesIO(payload)
+    handler.wfile = io.BytesIO()
+    handler.send_response = lambda status: None  # type: ignore[method-assign]
+    handler.send_header = lambda key, value: None  # type: ignore[method-assign]
+    handler.end_headers = lambda: None  # type: ignore[method-assign]
+    forwarded = []
+    monkeypatch.setattr(
+        "src.ui.chat_server.handle_investment_cycle_stream",
+        lambda market, request_id=None: forwarded.append((market, request_id)) or iter([
+            {"type": "final", "content": "done"}
+        ]),
+    )
+
+    handler._handle_investment_cycle()
+
+    assert forwarded == [("us", "cycle-123")]
+    assert b'"type": "final"' in handler.wfile.getvalue()
+
+    invalid = _FakeHandler(b'{"market":"mars"}')
+    server.ChatHandler._handle_investment_cycle(invalid)  # type: ignore[arg-type]
+    assert invalid.responses[-1][0] == 400
+
+
 def test_invalid_request_id_is_rejected() -> None:
     payload = b'{"message":"hello","request_id":"bad id with spaces"}'
     handler = server.ChatHandler.__new__(server.ChatHandler)

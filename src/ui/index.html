@@ -47,6 +47,14 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .run-mode{display:flex;align-items:center;gap:8px;margin-left:auto;padding:5px 10px;border:1px solid var(--accent);border-radius:8px;background:rgba(88,166,255,.10)}
 .run-mode strong{color:var(--text);font-size:.78rem}
 .run-mode select{padding:5px 8px;font-weight:700;border-color:var(--accent)}
+.cycle-launcher{display:flex;align-items:center;gap:12px;margin:10px 20px;padding:12px 14px;border:2px solid var(--success);border-radius:10px;background:linear-gradient(120deg,rgba(63,185,80,.16),rgba(88,166,255,.10));box-shadow:0 0 22px rgba(63,185,80,.12)}
+.cycle-launcher .cycle-copy{display:flex;flex-direction:column;gap:2px;flex:1}
+.cycle-launcher strong{font-size:.95rem;color:var(--text)}
+.cycle-launcher small{color:var(--text-dim);line-height:1.35}
+.cycle-launcher select{background:var(--surface);color:var(--text);border:1px solid var(--success);border-radius:7px;padding:9px 11px;font-weight:700}
+.cycle-launcher button{background:var(--success);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:800;cursor:pointer;white-space:nowrap}
+.cycle-launcher button:hover{filter:brightness(1.12)}
+.cycle-launcher button:disabled{opacity:.5;cursor:not-allowed}
 /* suggestions */
 .suggestions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 10px; }
 .suggestion { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 6px 14px; font-size: 0.82rem; color: var(--text-dim); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
@@ -59,7 +67,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .input-bar button:hover { background: var(--accent-hover); }
 .input-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Mobile */
-@media (max-width: 600px) { .msg { max-width: 92%; } .header h1 { font-size: 0.95rem; } }
+@media (max-width: 600px) { .msg { max-width: 92%; } .header h1 { font-size: 0.95rem; } .cycle-launcher{align-items:stretch;flex-direction:column}.cycle-launcher button,.cycle-launcher select{width:100%} }
 </style>
 </head>
 <body>
@@ -98,9 +106,19 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
   <div class="run-mode"><strong>投资模式</strong><select id="operationModeQuick" onchange="saveOperationMode(this.value)"><option value="automatic">🤖 全自动</option><option value="manual">🖱️ 手动整轮</option></select></div>
 </div>
 
+<div class="cycle-launcher">
+  <div class="cycle-copy">
+    <strong>▶ 一键完整投资轮次</strong>
+    <small>自动完成全市场选股、候选与持仓分析、组合决策、硬风控、模拟下单和报告，无需逐步确认。</small>
+  </div>
+  <select id="cycleMarket" aria-label="完整投资轮次市场">
+    <option value="cn">🇨🇳 A 股</option><option value="hk">🇭🇰 港股</option><option value="us" selected>🇺🇸 美股</option><option value="etf">📊 ETF</option>
+  </select>
+  <button id="cycleRunBtn" onclick="runInvestmentCycle()">立即自动分析并模拟执行</button>
+</div>
+
 <div class="suggestions" id="suggestions">
   <span class="suggestion" onclick="sendSuggestion(this.textContent)">查看当前 A 股持仓</span>
-  <span class="suggestion" onclick="sendSuggestion(this.textContent)">跑一轮美股</span>
   <span class="suggestion" onclick="sendSuggestion(this.textContent)">调整风控参数中的止损线</span>
   <span class="suggestion" onclick="sendSuggestion(this.textContent)">检查所有市场数据源是否正常</span>
   <span class="suggestion" onclick="sendSuggestion(this.textContent)">生成今天的投资报告</span>
@@ -234,9 +252,27 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
+  return runStreamingRequest('/api/chat', {
+    message: text,
+    thinking: thinking_enabled,
+    stream: true,
+    provider: document.getElementById('providerSelect').value,
+    model: document.getElementById('modelSelect').value
+  }, text);
+}
+
+async function runInvestmentCycle() {
+  if (isGenerating) return;
+  const market = document.getElementById('cycleMarket').value;
+  const labels = {cn:'A 股', hk:'港股', us:'美股', etf:'ETF'};
+  return runStreamingRequest('/api/investment-cycle', {market}, `一键执行${labels[market]}完整投资轮次`);
+}
+
+async function runStreamingRequest(endpoint, payload, displayText) {
+  if (isGenerating) return;
   setInputLocked(true);
 
-  appendMessage('user', renderMarkdown(text, true));
+  appendMessage('user', renderMarkdown(displayText, true));
   const assistantMsg = appendMessage('assistant', '<div class="dot-bounce"><span></span><span></span><span></span></div>', true);
   const body = assistantMsg.querySelector('.body');
   let raw = '';
@@ -245,17 +281,13 @@ async function sendMessage() {
 
   try {
     currentController = new AbortController();
-    const res = await fetch('/api/chat', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       signal: currentController.signal,
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        message: text,
-        thinking: thinking_enabled,
-        stream: true,
         request_id: requestId,
-        provider: document.getElementById('providerSelect').value,
-        model: document.getElementById('modelSelect').value
+        ...payload
       })
     });
     if (!res.ok || !res.body) {
@@ -333,6 +365,8 @@ function setInputLocked(locked) {
   stopBtn.style.display = locked ? 'inline-block' : 'none';
   document.getElementById('providerSelect').disabled = locked;
   document.getElementById('modelSelect').disabled = locked;
+  document.getElementById('cycleMarket').disabled = locked;
+  document.getElementById('cycleRunBtn').disabled = locked;
   document.querySelectorAll('.suggestion').forEach(s => s.style.pointerEvents = locked ? 'none' : 'auto');
 }
 
