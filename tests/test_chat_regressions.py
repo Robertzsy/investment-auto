@@ -187,6 +187,64 @@ def test_run_one_market_round_routes_to_complete_investment_cycle(monkeypatch):
     assert "全市场选股" in events[-1]["content"]
 
 
+def test_run_one_us_analysis_routes_to_complete_investment_cycle(monkeypatch):
+    monkeypatch.setattr("src.scheduler.run_investment_cycle", lambda market, **kwargs: {
+        "status": "generated", "market": market, "report": "",
+        "autonomous": {"status": "no_trade", "fills": []},
+        "notification": {"status": "disabled"},
+    })
+
+    events = list(chat_server.handle_chat_stream("跑一次美股分析", request_id="one-us-analysis"))
+
+    assert events[0] == {"type": "tool", "name": "full_investment_cycle", "params": {"market": "us"}}
+    assert "完整投资轮次" in events[-1]["content"]
+
+
+def test_conduct_one_us_analysis_is_complete_cycle_intent():
+    assert chat_server._full_cycle_request("进行一次美股分析") == {"market": "us"}
+
+
+def test_complete_analysis_without_market_reuses_recent_user_market(monkeypatch):
+    monkeypatch.setattr(chat_server, "load_history", lambda limit=20: [
+        {"role": "user", "content": "跑一次美股分析"},
+        {"role": "assistant", "content": "上次结果"},
+        {"role": "user", "content": "跑一轮完整的分析"},
+    ])
+    monkeypatch.setattr("src.scheduler.run_investment_cycle", lambda market, **kwargs: {
+        "status": "generated", "market": market, "report": "",
+        "autonomous": {"status": "no_trade", "fills": []},
+        "notification": {"status": "disabled"},
+    })
+
+    events = list(chat_server.handle_chat_stream("跑一轮完整的分析", request_id="context-market"))
+
+    assert events[0]["params"] == {"market": "us"}
+
+
+def test_complete_analysis_without_any_market_asks_instead_of_running_agent(monkeypatch):
+    monkeypatch.setattr(chat_server, "load_history", lambda limit=20: [
+        {"role": "user", "content": "跑一轮完整的分析"},
+    ])
+    monkeypatch.setattr(
+        "src.ui.agent_runtime.run_agent_events",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("generic agent must not run")),
+    )
+
+    events = list(chat_server.handle_chat_stream("跑一轮完整的分析", request_id="missing-market"))
+
+    assert events[-1]["type"] == "final"
+    assert "请指定" in events[-1]["content"]
+
+
+def test_agent_limit_question_has_deterministic_answer():
+    events = list(chat_server.handle_chat_stream("现在的工具请求上限是多少", request_id="agent-limits"))
+
+    assert events[0]["name"] == "agent_limits"
+    assert "模型请求**：每轮最多 6 次" in events[-1]["content"]
+    assert "工具调用**：每轮最多 8 次" in events[-1]["content"]
+    assert "32,000" in events[-1]["content"]
+
+
 def test_explicit_screen_only_request_does_not_trigger_complete_cycle():
     assert chat_server._full_cycle_request("只筛选一轮美股") is None
 

@@ -238,7 +238,8 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
                 continue
             clean_history.append({"role": item["role"], "content": content})
 
-    full_cycle_request = _full_cycle_request(message)
+    recent_market = _recent_user_market(clean_history)
+    full_cycle_request = _full_cycle_request(message, default_market=recent_market)
     if full_cycle_request is not None:
         yield {"type": "tool", "name": "full_investment_cycle", "params": full_cycle_request}
         updates: "queue.Queue[Dict[str, Any]]" = queue.Queue()
@@ -279,6 +280,20 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
             yield {"type": "token", "content": chunk}
         append_history("assistant", final_answer)
         yield {"type": "final", "content": final_answer}
+        return
+
+    if _full_cycle_intent(message):
+        final_answer = "请指定要运行完整投资轮次的市场：A 股、港股、美股或 ETF。"
+        append_history("assistant", final_answer)
+        yield {"type": "final", "content": final_answer}
+        return
+
+    agent_limit_answer = _build_agent_limit_answer(message)
+    if agent_limit_answer is not None:
+        yield {"type": "tool", "name": "agent_limits", "params": {}}
+        append_history("assistant", agent_limit_answer)
+        yield {"type": "token", "content": agent_limit_answer}
+        yield {"type": "final", "content": agent_limit_answer}
         return
 
     autonomy_control_answer = _handle_autonomy_control_command(message)
@@ -473,19 +488,59 @@ def _named_market(user_text: str) -> Optional[str]:
     return None
 
 
-def _full_cycle_request(user_text: str) -> Optional[Dict[str, str]]:
+def _full_cycle_intent(user_text: str) -> bool:
     text = re.sub(r"\s+", "", str(user_text or ""))
-    market = _named_market(text)
-    if market is None:
-        return None
+    if re.search(r"优化器|组合优化|回测|压力测试", text, re.I):
+        return False
     question = bool(re.search(r"吗|么|是否|状态|开始了没|开始了吗|交易了吗|操作了吗", text, re.I))
-    one_round = bool(re.search(r"(?:跑|运行|执行|开始|触发|做).{0,8}(?:一轮|整轮|完整轮次|完整分析|投资轮次)", text, re.I))
+    one_round = bool(re.search(
+        r"(?:跑|运行|执行|开始|触发|做|进行).{0,12}(?:一轮|一次|整轮|完整(?:的)?(?:轮次|分析)|投资轮次)",
+        text,
+        re.I,
+    ))
     start_trading = bool(re.search(r"(?:开始|启动).{0,12}(?:交易|投资|操作)$", text, re.I))
     if question or not (one_round or start_trading):
+        return False
+    if re.search(r"筛选|选股", text, re.I) and not re.search(r"完整(?:的)?(?:分析|轮次)", text, re.I):
+        return False
+    return True
+
+
+def _full_cycle_request(user_text: str, *, default_market: Optional[str] = None) -> Optional[Dict[str, str]]:
+    if not _full_cycle_intent(user_text):
         return None
-    if re.search(r"(?:只|仅).{0,4}(?:筛选|选股)|筛选一下|刷新选股", text, re.I):
+    market = _named_market(user_text) or default_market
+    if market is None:
         return None
     return {"market": market}
+
+
+def _recent_user_market(history: List[Dict[str, Any]]) -> Optional[str]:
+    for item in reversed(history):
+        if item.get("role") != "user":
+            continue
+        market = _named_market(str(item.get("content", "")))
+        if market is not None:
+            return market
+    return None
+
+
+def _build_agent_limit_answer(user_text: str) -> Optional[str]:
+    text = re.sub(r"\s+", "", str(user_text or ""))
+    if not re.search(r"(?:工具|请求|调用).{0,8}(?:上限|限制)|(?:上限|限制).{0,8}(?:工具|请求|调用)", text):
+        return None
+    from src.ui.agent_runtime import _REQUEST_LIMIT, _TOOL_CALL_LIMIT, _TOTAL_TOKEN_LIMIT
+
+    return "\n".join([
+        "## 当前通用对话 Agent 上限",
+        "",
+        f"- **模型请求**：每轮最多 {_REQUEST_LIMIT} 次",
+        f"- **工具调用**：每轮最多 {_TOOL_CALL_LIMIT} 次",
+        f"- **总 Token**：每轮最多 {_TOTAL_TOKEN_LIMIT:,}",
+        "",
+        "这些限制用于阻止通用对话陷入工具循环。完整投资轮次走独立的确定性入口，"
+        "会自行完成选股、候选与持仓分析、组合决策、硬风控、模拟下单和报告，不受这 8 次工具调用上限约束。",
+    ])
 
 
 def _format_full_cycle_result(result: Mapping[str, Any]) -> str:
