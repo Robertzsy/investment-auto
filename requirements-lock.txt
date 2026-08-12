@@ -4,6 +4,7 @@ APScheduler==3.11.3
 certifi==2026.7.22
 charset-normalizer==3.4.9
 distro==1.9.0
+dnspython==2.8.0
 genai-prices==0.1.1
 griffelib==2.1.0
 h11==0.16.0
@@ -24,6 +25,7 @@ packaging==26.3
 pandas==3.0.5; python_version >= "3.11"
 pandas==2.2.3; python_version < "3.11"
 pluggy==1.6.0
+pymongo==4.17.0
 pydantic==2.13.4
 pydantic-ai-slim==2.27.1
 pydantic_core==2.46.4

@@ -103,6 +103,14 @@ optimizer:
 # deterministic and auditable; the LLM may only decide inside the shortlist.
 screening:
   enabled: true
+  # auto: use MongoDB when MONGODB_URI is configured, otherwise JSON.
+  # mongodb: require an attempted local/remote MongoDB connection, with JSON fallback.
+  storage:
+    backend: auto
+    mongodb_uri_env: MONGODB_URI
+    mongodb_database: investment_auto
+    connect_timeout_ms: 1500
+    retry_seconds: 60
   refresh_minutes: 30
   discovery_timeout_seconds: 50
   discovery_limit: 120

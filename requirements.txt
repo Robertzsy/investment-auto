@@ -6,3 +6,4 @@ python-dotenv>=1.0.1
 pandas>=2.2.0
 numpy>=1.26.0
 pydantic-ai-slim[openai]>=2.0,<3
+pymongo>=4.8,<5

@@ -8,7 +8,7 @@
 - 全市场自主选股：流动性/价格/市值/估值硬筛选，多因子评分后交给 Agent 复筛
 - 组合优化层：马科维茨、Black-Litterman、风险平价、压力测试
 - 多模型接入：OpenAI (GPT)、DeepSeek、GLM (智谱)、Kimi (月之暗面)
-- Python + Docker 一键部署，所有配置通过 YAML 文件自定义
+- Python + Docker 一键部署，MongoDB 加速选股查询并在不可用时自动回退 JSON
 
 ## 快速开始
 
@@ -71,6 +71,7 @@ python -m src.main reset-kill
 - `config/market/`：各市场风控参数、手续费、交易规则
 - `runtime/optimizer/`：组合优化结果；仪表盘会读取最新结果
 - `runtime/screener/`：全市场候选缓存、因子分数和各市场最新入选结果
+- MongoDB（可选）：`securities`、`market_snapshots`、`screening_factors`、`screening_runs` 保存可索引的选股数据；连接异常不阻断调度
 - `runtime/macro/`：独立宏观日报数据与报告
 - `runtime/trading/control.json`：人工暂停与紧急停止状态
 - `runtime/trading/audit/`：每轮 Agent 意见、主席决策、风控拒绝与真实模拟成交审计
@@ -89,6 +90,10 @@ python -m src.main reset-kill
 6. 模拟经纪处理滑点、佣金、印花税、整手、T+1 可卖数量、现金、持仓成本和成交历史；代码止损止盈优先于 AI 主观决策。
 
 在设置页的“自主选股”区域可修改候选数量、刷新频率、分市场价格/成交额/市值门槛、估值上限和因子权重。`autonomous.universe` 一旦填写就作为硬候选池；全部留空时才启用全市场发现。最近结果会显示在 Dashboard 的“AI 自主选股池”，也会写入每轮交易审计。
+
+同一区域可以选择选股存储后端。默认 `auto`：设置 `MONGODB_URI` 后优先使用 MongoDB，并自动创建复合唯一索引和市场/时间/分数查询索引；未配置、连接超时或写入失败时继续使用 `runtime/screener/` 中的 JSON，不会阻塞交易。直接使用 Docker Compose 时已内置 MongoDB，无需单独配置 URI；本地 Python 运行可填 `mongodb://127.0.0.1:27017`。
+
+如果本机 27017 已被其他项目占用，可以单独启动在其他仅回环端口，例如 `docker run -d --name investment-auto-mongodb --restart unless-stopped -p 127.0.0.1:27018:27017 -v investment-auto-mongodb-data:/data/db mongo:7 --bind_ip_all --quiet`，再设置 `MONGODB_URI=mongodb://127.0.0.1:27018`。
 
 公开仓库默认 `autonomous.enabled: false`。首次启用建议：
 

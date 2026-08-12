@@ -3,12 +3,21 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from src import screening
 from src.optimizer import runner
 from src.screening import engine
+from src.screening import storage
 
 
 NOW = datetime(2026, 8, 12, 10, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
+
+
+@pytest.fixture(autouse=True)
+def _isolate_screening_storage(monkeypatch):
+    """Unit tests must not read a developer's or deployment's MongoDB URI."""
+    monkeypatch.setattr(engine, "get_screening_store", lambda settings: None)
 
 
 def _snapshot(symbol: str, d20: float, amount: float) -> dict:
@@ -158,3 +167,104 @@ def test_node_fetcher_exposes_bounded_market_list_contract():
     assert "Math.min(500" in source
     assert "nasdaq-screener" in source
     assert "sina-market-center" in source
+
+
+def test_discovery_uses_mongodb_cache_before_json_or_provider(monkeypatch, tmp_path):
+    monkeypatch.setattr(engine, "SCREENING_DIR", tmp_path)
+    expected = {
+        "generated_at": NOW.isoformat(timespec="seconds"),
+        "market": "cn",
+        "source": "test-mongodb",
+        "cached": True,
+        "cache_backend": "mongodb",
+        "data": [{"symbol": "600519", "price": 100}],
+    }
+
+    class Store:
+        def read_discovery(self, market, **kwargs):
+            assert market == "cn"
+            assert kwargs["limit"] == 20
+            return expected
+
+    monkeypatch.setattr(
+        engine.fetcher,
+        "market_list",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("must not fetch")),
+    )
+
+    assert engine._discover(
+        "cn", {"discovery_limit": 20, "refresh_minutes": 30}, NOW, Store()
+    ) == expected
+
+
+def test_discovery_falls_back_to_json_when_mongodb_read_fails(monkeypatch, tmp_path):
+    monkeypatch.setattr(engine, "SCREENING_DIR", tmp_path)
+    engine._write_json(tmp_path / "discovery-us.json", {
+        "generated_at": NOW.isoformat(timespec="seconds"),
+        "market": "us",
+        "source": "test-json",
+        "cached": False,
+        "data": [{"symbol": "AAPL", "price": 100}],
+    })
+
+    class Store:
+        def read_discovery(self, *args, **kwargs):
+            raise RuntimeError("mongodb unavailable")
+
+        def write_discovery(self, *args, **kwargs):
+            raise RuntimeError("mongodb unavailable")
+
+    result = engine._discover(
+        "us", {"discovery_limit": 20, "refresh_minutes": 30}, NOW, Store()
+    )
+
+    assert result["source"] == "test-json"
+    assert result["cache_backend"] == "json"
+
+
+def test_screening_store_auto_mode_without_uri_uses_json(monkeypatch):
+    monkeypatch.delenv("MONGODB_URI", raising=False)
+    assert storage.get_screening_store({"storage": {"backend": "auto"}}) is None
+
+
+def test_screening_persists_snapshots_factors_and_run_to_store(monkeypatch, tmp_path):
+    monkeypatch.setattr(engine, "SCREENING_DIR", tmp_path)
+    monkeypatch.setattr(engine.fetcher, "market_list", lambda market, **kwargs: {
+        "source": "test-market",
+        "data": [{"symbol": "AAPL", "name": "Apple", "price": 100, "amount": 1e9}],
+    })
+
+    class Store:
+        def __init__(self):
+            self.calls = []
+
+        def read_discovery(self, *args, **kwargs):
+            return None
+
+        def write_discovery(self, market, payload):
+            self.calls.append(("discovery", market, len(payload["data"])))
+
+        def write_snapshots(self, market, snapshots, generated_at):
+            self.calls.append(("snapshots", market, sorted(snapshots)))
+
+        def write_factors(self, market, factors, generated_at):
+            self.calls.append(("factors", market, [item["symbol"] for item in factors]))
+
+        def write_run(self, audit):
+            self.calls.append(("run", audit["market"], audit["storage_backend"]))
+
+    store = Store()
+    monkeypatch.setattr(engine, "get_screening_store", lambda settings: store)
+    result = engine.run_screening(
+        "us",
+        held_symbols=[],
+        configured_symbols=[],
+        fallback_symbols=["MSFT"],
+        settings={"enabled": True, "discovery_limit": 20, "snapshot_limit": 5, "shortlist_size": 1},
+        autonomous_config={"max_universe_size": 2, "market_data_workers": 1},
+        snapshot_loader=lambda symbols, workers: ({"AAPL": _snapshot("AAPL", 5, 1e9)}, {}),
+        now=NOW,
+    )
+
+    assert result.audit["storage_backend"] == "mongodb+json"
+    assert [call[0] for call in store.calls] == ["discovery", "snapshots", "factors", "run"]

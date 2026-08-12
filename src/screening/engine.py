@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 from dataclasses import dataclass
@@ -9,9 +10,15 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from src.data import fetcher
+from src.screening.storage import (
+    MongoScreeningStore,
+    get_screening_store,
+    mark_screening_store_failed,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 SCREENING_DIR = ROOT / "runtime" / "screener"
+logger = logging.getLogger("investment-auto.screening")
 
 SnapshotLoader = Callable[[Sequence[str], int], tuple[Dict[str, Any], Dict[str, str]]]
 
@@ -100,11 +107,39 @@ def _discovery_cache(market: str, now: datetime, refresh_minutes: int) -> Option
         return None
 
 
-def _discover(market: str, settings: Mapping[str, Any], now: datetime) -> Dict[str, Any]:
+def _discover(
+    market: str,
+    settings: Mapping[str, Any],
+    now: datetime,
+    store: Optional[MongoScreeningStore] = None,
+) -> Dict[str, Any]:
     limit = max(10, min(500, int(settings.get("discovery_limit", 120))))
     refresh_minutes = max(1, int(settings.get("refresh_minutes", 30)))
+    if store is not None:
+        try:
+            cached = store.read_discovery(
+                market,
+                now=now,
+                refresh_minutes=refresh_minutes,
+                limit=limit,
+            )
+            if cached is not None:
+                return cached
+        except Exception as exc:
+            mark_screening_store_failed(settings, store, exc)
+            logger.warning("MongoDB discovery read failed; trying JSON/provider: %s", exc)
+            store = None
     cached = _discovery_cache(market, now, refresh_minutes)
     if cached is not None:
+        cached["cache_backend"] = "json"
+        if store is not None:
+            try:
+                store.write_discovery(market, cached)
+                cached["cache_backend"] = "mongodb+json"
+            except Exception as exc:
+                mark_screening_store_failed(settings, store, exc)
+                logger.warning("MongoDB discovery hydration failed; using JSON: %s", exc)
+                store = None
         return cached
     payload = fetcher.market_list(
         market,
@@ -116,9 +151,17 @@ def _discover(market: str, settings: Mapping[str, Any], now: datetime) -> Dict[s
         "market": market,
         "source": payload.get("source", "market-data-provider"),
         "cached": False,
+        "cache_backend": "provider",
         "data": payload.get("data", [])[:limit],
     }
     _write_json(SCREENING_DIR / f"discovery-{market}.json", result)
+    if store is not None:
+        try:
+            store.write_discovery(market, result)
+            result["cache_backend"] = "mongodb+json"
+        except Exception as exc:
+            mark_screening_store_failed(settings, store, exc)
+            logger.warning("MongoDB discovery write failed; JSON copy is intact: %s", exc)
     return result
 
 
@@ -364,10 +407,25 @@ def _latest_path(market: str) -> Path:
 
 def latest_screening(market: str, *, max_age_minutes: Optional[int] = None, now: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
     normalized = str(market or "").strip().lower()
+    payload = None
+    settings: Mapping[str, Any] = {}
+    store: Optional[MongoScreeningStore] = None
     try:
-        payload = json.loads(_latest_path(normalized).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
+        from src.config import cfg
+
+        settings = cfg.screening
+        store = get_screening_store(settings)
+        if store is not None:
+            payload = store.latest_run(normalized)
+    except Exception as exc:
+        if store is not None:
+            mark_screening_store_failed(settings, store, exc)
+        logger.warning("MongoDB latest-screening read failed; trying JSON: %s", exc)
+    if payload is None:
+        try:
+            payload = json.loads(_latest_path(normalized).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
     if max_age_minutes is not None:
         generated = _parse_time(payload.get("generated_at"))
         current = now or datetime.now().astimezone()
@@ -400,6 +458,7 @@ def run_screening(
     snapshot_limit = max(1, min(60, int(settings.get("snapshot_limit", 24))))
     shortlist_size = max(1, min(max_universe, int(settings.get("shortlist_size", 8))))
     workers = max(1, int(autonomous_config.get("market_data_workers", 4)))
+    store = get_screening_store(settings)
     discovery_error = ""
     rejected: Dict[str, int] = {}
 
@@ -413,7 +472,7 @@ def run_screening(
         rows = [{"symbol": item, "name": ""} for item in configured]
     else:
         try:
-            discovery = _discover(market, settings, now)
+            discovery = _discover(market, settings, now, store)
             source = str(discovery.get("source", "market-data-provider"))
             status = "screened"
             rows, rejected = _filter_candidates(discovery.get("data", []), market, settings)
@@ -430,6 +489,16 @@ def run_screening(
     requested = _dedupe([*held, *(row.get("symbol") for row in preselected)])
     snapshots, errors = snapshot_loader(requested, workers)
     scored = _factor_rows(preselected, snapshots, settings) if enabled else []
+    mongo_snapshots_written = False
+    if store is not None:
+        try:
+            store.write_snapshots(market, snapshots, now)
+            store.write_factors(market, scored, now)
+            mongo_snapshots_written = True
+        except Exception as exc:
+            mark_screening_store_failed(settings, store, exc)
+            logger.warning("MongoDB screening snapshot/factor write failed: %s", exc)
+            store = None
     selected = scored[:shortlist_size]
     selected_symbols = [item["symbol"] for item in selected]
     if not selected_symbols:
@@ -466,8 +535,15 @@ def run_screening(
         "rejected": rejected,
         "discovery_error": discovery_error or None,
         "market_data_errors": selected_errors,
+        "storage_backend": "mongodb+json" if mongo_snapshots_written else "json",
     }
     _write_json(_latest_path(market), audit)
+    if store is not None:
+        try:
+            store.write_run(audit)
+        except Exception as exc:
+            mark_screening_store_failed(settings, store, exc)
+            logger.warning("MongoDB screening run write failed; JSON audit is intact: %s", exc)
     return ScreeningOutcome(
         symbols=symbols,
         snapshots=selected_snapshots,

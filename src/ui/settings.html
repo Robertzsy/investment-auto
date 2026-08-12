@@ -191,6 +191,33 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       </div>
       <div class="form-group"><label>候选列表刷新间隔（分钟）</label><input type="number" id="screenRefreshMinutes" min="1" max="1440" step="1"></div>
     </div>
+    <div class="subheading">选股数据存储</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>存储后端</label>
+        <select id="screenStorageBackend">
+          <option value="auto">自动（优先 MongoDB）</option>
+          <option value="mongodb">MongoDB（异常时回退 JSON）</option>
+          <option value="json">仅本地 JSON</option>
+        </select>
+        <div class="help-text">MongoDB 保存证券、行情快照、因子分数和筛选批次；JSON 审计副本始终保留。</div>
+      </div>
+      <div class="form-group">
+        <label>MongoDB 数据库名</label>
+        <input type="text" id="screenMongoDatabase" maxlength="63" placeholder="investment_auto">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>MongoDB 连接地址</label>
+        <input type="password" id="screenMongoUri" value="" autocomplete="new-password" placeholder="留空保持现有 MONGODB_URI">
+        <div class="help-text" id="screenMongoStatus">未配置时自动使用 JSON；选择 MongoDB 时会尝试本机 127.0.0.1:27017。</div>
+      </div>
+      <div class="form-group">
+        <label>连接超时 / 失败重试（毫秒 / 秒）</label>
+        <div class="form-row"><input type="number" id="screenMongoTimeout" min="250" max="10000" step="250"><input type="number" id="screenMongoRetry" min="5" max="3600" step="5"></div>
+      </div>
+    </div>
     <div class="form-row">
       <div class="form-group"><label>全市场初始候选数</label><input type="number" id="screenDiscoveryLimit" min="10" max="500" step="10"></div>
       <div class="form-group"><label>拉取完整历史行情数</label><input type="number" id="screenSnapshotLimit" min="1" max="60" step="1"></div>
@@ -422,6 +449,14 @@ function renderConfig() {
   // 自主选股
   const screening = config.screening || {};
   document.getElementById('screeningEnabled').value = String(screening.enabled ?? true);
+  const screeningStorage = screening.storage || {};
+  document.getElementById('screenStorageBackend').value = screeningStorage.backend ?? 'auto';
+  document.getElementById('screenMongoDatabase').value = screeningStorage.mongodb_database ?? 'investment_auto';
+  document.getElementById('screenMongoTimeout').value = screeningStorage.connect_timeout_ms ?? 1500;
+  document.getElementById('screenMongoRetry').value = screeningStorage.retry_seconds ?? 60;
+  document.getElementById('screenMongoStatus').textContent = envVars.MONGODB_URI
+    ? 'MONGODB_URI 已配置；输入框留空会保留现有连接地址。'
+    : 'MONGODB_URI 未配置；自动模式使用 JSON，MongoDB 模式会尝试本机 127.0.0.1:27017。';
   document.getElementById('screenRefreshMinutes').value = screening.refresh_minutes ?? 30;
   document.getElementById('screenDiscoveryLimit').value = screening.discovery_limit ?? 120;
   document.getElementById('screenSnapshotLimit').value = screening.snapshot_limit ?? 24;
@@ -518,6 +553,7 @@ function validateTradingControls() {
     'hardStopPct', 'trailingStopPct', 'takeProfit1Pct', 'takeProfit1SellRatio',
     'takeProfit2Pct', 'takeProfit2SellRatio', 'maxDrawdownPct', 'maxDailyTrades',
     'llmRequestTimeout', 'screenRefreshMinutes', 'screenDiscoveryLimit',
+    'screenMongoTimeout', 'screenMongoRetry',
     'screenSnapshotLimit', 'screenShortlistSize', 'maxUniverseSize', 'screenMaxAbsChange',
     'screenMaxPe', 'screenMaxPb', 'screenMinPrice_cn', 'screenMinPrice_hk',
     'screenMinPrice_us', 'screenMinPrice_etf', 'screenMinAmount_cn',
@@ -722,6 +758,8 @@ async function saveConfig() {
     const value = document.getElementById(`apikey_${key}`).value;
     if (value) newEnv[envKey] = value;
   }
+  const mongoUri = document.getElementById('screenMongoUri').value.trim();
+  if (mongoUri) newEnv.MONGODB_URI = mongoUri;
   
   // 保存到 .env
   try {
@@ -792,6 +830,12 @@ async function saveConfig() {
   // 自主选股
   config.screening = config.screening || {};
   config.screening.enabled = document.getElementById('screeningEnabled').value === 'true';
+  config.screening.storage = config.screening.storage || {};
+  config.screening.storage.backend = document.getElementById('screenStorageBackend').value;
+  config.screening.storage.mongodb_uri_env = 'MONGODB_URI';
+  config.screening.storage.mongodb_database = document.getElementById('screenMongoDatabase').value.trim() || 'investment_auto';
+  config.screening.storage.connect_timeout_ms = parseInt(document.getElementById('screenMongoTimeout').value);
+  config.screening.storage.retry_seconds = parseInt(document.getElementById('screenMongoRetry').value);
   config.screening.refresh_minutes = parseInt(document.getElementById('screenRefreshMinutes').value);
   config.screening.discovery_limit = parseInt(document.getElementById('screenDiscoveryLimit').value);
   config.screening.snapshot_limit = parseInt(document.getElementById('screenSnapshotLimit').value);

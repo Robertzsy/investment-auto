@@ -52,6 +52,7 @@ _SENSITIVE_ENV_MARKERS = (
     "SECRET",
     "TOKEN",
     "WEBHOOK",
+    "MONGODB_URI",
 )
 
 

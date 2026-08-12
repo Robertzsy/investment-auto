@@ -77,7 +77,10 @@ def test_compose_runs_scheduler_and_loopback_only_chat():
     compose = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     services = compose["services"]
 
-    assert set(services) == {"scheduler", "chat"}
+    assert set(services) == {"mongodb", "scheduler", "chat"}
+    assert services["mongodb"]["image"] == "mongo:7"
+    assert services["mongodb"]["volumes"] == ["mongodb-data:/data/db"]
+    assert "ports" not in services["mongodb"]
     assert services["scheduler"]["command"][-1] == "run"
     assert services["chat"]["command"][-1] == "chat"
     assert services["chat"]["environment"] == {
@@ -85,13 +88,18 @@ def test_compose_runs_scheduler_and_loopback_only_chat():
         "CHAT_PORT": 8080,
         "CHAT_OPEN_BROWSER": "false",
         "CHAT_START_SCHEDULER": "false",
+        "MONGODB_URI": "mongodb://mongodb:27017",
     }
+    assert services["scheduler"]["environment"]["MONGODB_URI"] == "mongodb://mongodb:27017"
+    assert services["scheduler"]["depends_on"] == ["mongodb"]
+    assert services["chat"]["depends_on"] == ["mongodb"]
     assert services["chat"]["ports"] == ["127.0.0.1:8080:8080"]
     assert "ports" not in services["scheduler"]
 
     expected_volumes = {"./config:/app/config", "./runtime:/app/runtime"}
     assert set(services["scheduler"]["volumes"]) == expected_volumes
     assert set(services["chat"]["volumes"]) == expected_volumes
+    assert "mongodb-data" in compose["volumes"]
 
 
 def test_container_context_and_runtime_chat_files_are_excluded():
