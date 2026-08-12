@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler as _BgScheduler
@@ -176,6 +176,59 @@ def _complete_report(llm: Any, messages: List[Dict[str, str]]) -> str:
     return text
 
 
+def _compact_agent_report(report: Any) -> Dict[str, Any]:
+    """Keep the auditable conclusions while bounding report-prompt size."""
+    if not isinstance(report, Mapping):
+        return {}
+    compact: Dict[str, Any] = {}
+    for key in ("role", "role_name", "stage", "thesis", "summary", "stance", "confidence"):
+        if key in report:
+            compact[key] = report[key]
+    findings = report.get("findings")
+    if isinstance(findings, list):
+        compact["findings"] = findings[:6]
+    decisions = report.get("decisions")
+    if isinstance(decisions, list):
+        compact["decisions"] = decisions[:20]
+    citations = report.get("citations")
+    if isinstance(citations, list):
+        compact["citations"] = citations[:20]
+    data_gaps = report.get("data_gaps")
+    if isinstance(data_gaps, list):
+        compact["data_gaps"] = data_gaps[:8]
+    return compact
+
+
+def _compact_autonomous_for_report(autonomous: Mapping[str, Any]) -> Dict[str, Any]:
+    """Prioritize decisions and execution over verbose multi-agent transcripts."""
+    result: Dict[str, Any] = {
+        key: autonomous.get(key)
+        for key in ("status", "audit_file", "chair", "risk", "execution", "control")
+        if key in autonomous
+    }
+    workflow = autonomous.get("agent_workflow")
+    if isinstance(workflow, Mapping) and workflow:
+        base_reports = workflow.get("base_reports", {})
+        result["agent_workflow"] = {
+            "workflow": workflow.get("workflow"),
+            "portfolio_manager": _compact_agent_report(workflow.get("portfolio_manager")),
+            "risk_manager": _compact_agent_report(workflow.get("risk_manager")),
+            "research_manager": _compact_agent_report(workflow.get("research_manager")),
+            "investment_advice": _compact_agent_report(workflow.get("investment_advice")),
+            "base_reports": {
+                str(role): _compact_agent_report(report)
+                for role, report in base_reports.items()
+            } if isinstance(base_reports, Mapping) else {},
+            "errors": workflow.get("errors", {}),
+            "timings_seconds": workflow.get("timings_seconds", {}),
+            "memory": workflow.get("memory", {}),
+        }
+    for key in ("screening", "prices", "market_data_errors", "error"):
+        if key in autonomous:
+            result[key] = autonomous[key]
+    return result
+
+
 def _run_intraday_job(
     market: str,
     time_str: str,
@@ -216,7 +269,7 @@ def _run_intraday_job(
             f"（计划时间 {scheduled.isoformat(timespec='minutes')}，{'补跑' if catch_up else '准时运行'}）。\n"
             f"账户及持仓行情：\n{json.dumps(context, ensure_ascii=False)[:8000]}\n\n"
             f"最新宏观摘要：\n{(macro or '暂无宏观日报')[:2500]}\n\n"
-            f"自主模拟交易执行结果：\n{json.dumps(autonomous, ensure_ascii=False)[:9000]}\n\n"
+            f"自主模拟交易执行结果：\n{json.dumps(_compact_autonomous_for_report(autonomous), ensure_ascii=False)[:12000]}\n\n"
             "请直接输出不超过 800 字的可审计最终报告，不展示思考过程。包括行情与持仓检查、"
             "止损止盈、风险暴露和已执行/被拒绝订单；数据不足时明确说明，不得虚构成交。"
         )
@@ -283,7 +336,7 @@ def _run_close_job(
             f"（计划时间 {scheduled.isoformat(timespec='minutes')}，{'补跑' if catch_up else '准时运行'}）。\n"
             f"账户及持仓行情：\n{json.dumps(context, ensure_ascii=False)[:7000]}\n\n"
             f"组合优化结果：\n{json.dumps(optimizer_result, ensure_ascii=False)[:9000]}\n\n"
-            f"自主模拟交易执行结果：\n{json.dumps(autonomous, ensure_ascii=False)[:9000]}\n\n"
+            f"自主模拟交易执行结果：\n{json.dumps(_compact_autonomous_for_report(autonomous), ensure_ascii=False)[:12000]}\n\n"
             "请直接输出不超过 1200 字的收盘复盘、压力测试解读和下一交易日计划，"
             "同时列出真实执行与被风控拒绝的订单，不展示思考过程，不得虚构成交。"
         )

@@ -277,6 +277,11 @@ def _chair_decision(
     return payload
 
 
+def _staged_workflow_enabled(config: Mapping[str, Any]) -> bool:
+    settings = config.get("agent_workflow", {})
+    return isinstance(settings, Mapping) and bool(settings.get("enabled", False))
+
+
 def _write_audit(audit: Mapping[str, Any], now: datetime, market: str, label: str) -> Path:
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
     safe_label = re.sub(r"[^A-Za-z0-9_-]+", "-", label)[:40] or "cycle"
@@ -384,32 +389,44 @@ def run_autonomous_cycle(
         roles = [role for role in config.get("committee_roles", list(_ROLE_INSTRUCTIONS)) if role in _ROLE_INSTRUCTIONS]
         committee: List[Dict[str, Any]] = []
         committee_errors: Dict[str, str] = {}
-        with ThreadPoolExecutor(max_workers=max(1, min(len(roles), int(config.get("agent_workers", 4))))) as executor:
-            futures = {executor.submit(_run_committee_member, role, context): role for role in roles}
-            for future in as_completed(futures):
-                role = futures[future]
-                try:
-                    committee.append(future.result())
-                except Exception as exc:
-                    committee_errors[role] = str(exc)[:1000]
+        staged_workflow: Dict[str, Any] = {}
+        if not _staged_workflow_enabled(config):
+            with ThreadPoolExecutor(max_workers=max(1, min(len(roles), int(config.get("agent_workers", 4))))) as executor:
+                futures = {executor.submit(_run_committee_member, role, context): role for role in roles}
+                for future in as_completed(futures):
+                    role = futures[future]
+                    try:
+                        committee.append(future.result())
+                    except Exception as exc:
+                        committee_errors[role] = str(exc)[:1000]
 
-        minimum_agents = int(config.get("minimum_agent_responses", 2))
-        if len(committee) < minimum_agents:
-            audit = {
-                **base,
-                "status": "blocked",
-                "reason": f"独立 Agent 成功数不足 {minimum_agents}",
-                "allowed_symbols": symbols,
-                "screening": screening_audit,
-                "committee": committee,
-                "committee_errors": committee_errors,
-                "market_data_errors": market_errors,
-            }
-            path = _write_audit(audit, current, market, label)
-            return {**audit, "audit_file": str(path)}
+            minimum_agents = int(config.get("minimum_agent_responses", 2))
+            if len(committee) < minimum_agents:
+                audit = {
+                    **base,
+                    "status": "blocked",
+                    "reason": f"独立 Agent 成功数不足 {minimum_agents}",
+                    "allowed_symbols": symbols,
+                    "screening": screening_audit,
+                    "committee": committee,
+                    "committee_errors": committee_errors,
+                    "market_data_errors": market_errors,
+                }
+                path = _write_audit(audit, current, market, label)
+                return {**audit, "audit_file": str(path)}
 
         try:
-            chair = _chair_decision(market, context, committee, config)
+            if _staged_workflow_enabled(config):
+                from src.trading.agent_workflow import run_analysis_workflow
+
+                staged_workflow = run_analysis_workflow(context, config)
+                chair = dict(staged_workflow.get("portfolio_manager", {}))
+                chair["decisions"] = _normalize_decisions(
+                    chair,
+                    int(config.get("max_decisions", 10)),
+                )
+            else:
+                chair = _chair_decision(market, context, committee, config)
             risk = build_orders(
                 chair.get("decisions", []),
                 account=account,
@@ -461,6 +478,7 @@ def run_autonomous_cycle(
                 "market_data_errors": market_errors,
                 "committee": committee,
                 "committee_errors": committee_errors,
+                "agent_workflow": staged_workflow,
                 "chair": chair,
                 "risk": risk,
                 "execution": execution,
@@ -476,6 +494,7 @@ def run_autonomous_cycle(
                 "screening": screening_audit,
                 "committee": committee,
                 "committee_errors": committee_errors,
+                "agent_workflow": staged_workflow,
                 "market_data_errors": market_errors,
             }
         path = _write_audit(audit, current, market, label)

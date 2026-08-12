@@ -79,6 +79,19 @@ llm:
     judge: deepseek-v4-pro
     trader: deepseek-v4-pro
     risk_chairman: deepseek-v4-pro
+    technical_analyst: deepseek-v4-flash
+    sentiment_analyst: deepseek-v4-flash
+    news_analyst: deepseek-v4-flash
+    fundamentals_analyst: deepseek-v4-flash
+    bull_researcher: deepseek-v4-flash
+    bear_researcher: deepseek-v4-flash
+    research_manager: deepseek-v4-pro
+    investment_advisor: deepseek-v4-pro
+    aggressive_analyst: deepseek-v4-pro
+    neutral_analyst: deepseek-v4-pro
+    conservative_analyst: deepseek-v4-pro
+    risk_manager: deepseek-v4-pro
+    portfolio_manager: deepseek-v4-pro
 
 optimizer:
   enabled: true
@@ -154,6 +167,35 @@ autonomous:
   enabled: false
   auto_execute: true
   trade_on_catch_up: false
+  # TradingAgents-CN-inspired staged research. Core design is reimplemented;
+  # deterministic risk.py remains the final authority over every order.
+  agent_workflow:
+    enabled: true
+    require_citations: true
+    minimum_citations: 1
+    minimum_base_analysts: 2
+    research_debate_rounds: 1
+    risk_debate_rounds: 1
+    max_parallel_workers: 4
+    json_retries: 1
+    memory_enabled: true
+    memory_entries_per_role: 6
+    memory_chars_per_entry: 1200
+    roles:
+      technical_analyst: true
+      sentiment_analyst: true
+      news_analyst: true
+      fundamentals_analyst: true
+      bull_researcher: true
+      bear_researcher: true
+      research_manager: true
+      investment_advisor: true
+      aggressive_analyst: true
+      neutral_analyst: true
+      conservative_analyst: true
+      risk_manager: true
+      portfolio_manager: true
+  # Legacy committee is retained for compatibility when agent_workflow is off.
   committee_roles: [analyst, researcher, quant_analyst, risk_chairman]
   minimum_agent_responses: 2
   min_confidence: 0.65

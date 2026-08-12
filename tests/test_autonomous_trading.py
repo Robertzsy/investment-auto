@@ -339,6 +339,49 @@ def test_autonomous_cycle_runs_committee_risk_and_execution(monkeypatch, tmp_pat
     assert Path(result["audit_file"]).exists()
 
 
+def test_autonomous_cycle_uses_staged_workflow_portfolio_decisions(monkeypatch, tmp_path):
+    autonomous = {
+        **AUTO_CONFIG,
+        "enabled": True,
+        "auto_execute": False,
+        "minimum_priced_symbols": 1,
+        "max_universe_size": 2,
+        "market_data_workers": 1,
+        "cycle_timeout_seconds": 30,
+        "universe": {"cn": ["600519"]},
+        "agent_workflow": {"enabled": True},
+    }
+    monkeypatch.setitem(controller.cfg.raw, "autonomous", autonomous)
+    monkeypatch.setenv("AUTONOMOUS_TRADING_ENABLED", "true")
+    monkeypatch.setattr(controller, "load_state", lambda: {"paused": False, "kill_switch": False})
+    monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
+    monkeypatch.setattr(controller, "CYCLE_LOCK_DIR", tmp_path / "locks")
+    monkeypatch.setattr(controller.account_store, "account", lambda market: {
+        "cash": 100_000, "holdings": [], "tradeHistory": [],
+    })
+    monkeypatch.setattr(controller, "_fetch_snapshots", lambda symbols, workers: ({
+        "600519": {"realtime": {"price": 100}, "history": [], "indicators": {}},
+    }, {}))
+    from src.trading import agent_workflow
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", lambda context, config: {
+        "workflow": "tradingagents_staged_v1",
+        "portfolio_manager": {
+            "thesis": "test",
+            "decisions": [{
+                "decision_id": "portfolio-1", "symbol": "600519", "action": "BUY",
+                "target_weight": 0.1, "confidence": 0.9, "reason": "cited",
+                "evidence_ids": ["MARKET:600519"],
+            }],
+        },
+    })
+
+    result = controller.run_autonomous_cycle("cn", label="staged", now=NOW)
+
+    assert result["status"] == "no_trade"
+    assert result["agent_workflow"]["workflow"] == "tradingagents_staged_v1"
+    assert result["chair"]["decisions"][0]["decision_id"] == "portfolio-1"
+
+
 def test_catch_up_never_replays_trades_by_default(monkeypatch):
     monkeypatch.setenv("AUTONOMOUS_TRADING_ENABLED", "true")
     monkeypatch.setattr(controller, "load_state", lambda: {"paused": False, "kill_switch": False})

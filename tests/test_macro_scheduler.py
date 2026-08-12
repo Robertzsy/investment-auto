@@ -106,6 +106,36 @@ def test_scheduler_report_completion_disables_deepseek_thinking():
     }]
 
 
+def test_autonomous_report_compaction_keeps_portfolio_risk_and_execution():
+    verbose = "x" * 20000
+    autonomous = {
+        "status": "executed",
+        "chair": {"decisions": [{"symbol": "AAPL", "action": "BUY"}]},
+        "risk": {"orders": [{"symbol": "AAPL", "shares": 2}]},
+        "execution": {"fills": [{"code": "AAPL", "shares": 2}]},
+        "agent_workflow": {
+            "workflow": "tradingagents_staged_v1",
+            "portfolio_manager": {
+                "thesis": "portfolio",
+                "decisions": [{"symbol": "AAPL", "action": "BUY", "evidence_ids": ["MARKET:AAPL"]}],
+                "citations": ["MARKET:AAPL"],
+            },
+            "risk_manager": {"summary": "risk", "findings": [{"claim": verbose}]},
+            "base_reports": {"news_analyst": {"summary": verbose}},
+            "research_debate": [{"reports": {"bull_researcher": {"summary": verbose}}}],
+        },
+    }
+
+    compact = scheduler._compact_autonomous_for_report(autonomous)
+    prompt_slice = __import__("json").dumps(compact, ensure_ascii=False)[:12000]
+
+    assert '"status": "executed"' in prompt_slice
+    assert '"fills": [{"code": "AAPL", "shares": 2}]' in prompt_slice
+    assert '"thesis": "portfolio"' in prompt_slice
+    assert '"summary": "risk"' in prompt_slice
+    assert "research_debate" not in compact["agent_workflow"]
+
+
 def test_us_evening_misfire_keeps_original_schedule_date(monkeypatch, tmp_path):
     monkeypatch.setattr(scheduler, "REPORT_DIR", tmp_path)
     monkeypatch.setattr(scheduler, "_account_context", lambda market: {"account": {}, "holding_snapshots": []})
