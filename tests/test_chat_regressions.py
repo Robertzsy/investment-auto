@@ -166,6 +166,36 @@ def test_typed_agent_catalog_excludes_shell_file_write_and_trading_execution():
     assert not ({"run_shell", "write_file", "execute_orders"} & tool_names)
 
 
+def test_run_one_market_round_routes_to_complete_investment_cycle(monkeypatch):
+    captured = {}
+
+    def fake_cycle(market, *, label, progress_callback=None):
+        captured.update({"market": market, "label": label})
+        if progress_callback:
+            progress_callback("正在分析")
+        return {
+            "status": "generated", "market": market, "report": "/tmp/report.md",
+            "autonomous": {"fills": []}, "notification": {"status": "disabled"},
+        }
+
+    monkeypatch.setattr("src.scheduler.run_investment_cycle", fake_cycle)
+    events = list(chat_server.handle_chat_stream("跑一轮美股", request_id="complete-cycle"))
+
+    assert captured == {"market": "us", "label": "chat"}
+    assert events[0] == {"type": "tool", "name": "full_investment_cycle", "params": {"market": "us"}}
+    assert any(event == {"type": "status", "content": "正在分析"} for event in events)
+    assert "全市场选股" in events[-1]["content"]
+
+
+def test_explicit_screen_only_request_does_not_trigger_complete_cycle():
+    assert chat_server._full_cycle_request("只筛选一轮美股") is None
+
+
+def test_start_market_trading_means_one_complete_round_not_permission_change():
+    assert chat_server._full_cycle_request("开始美股交易") == {"market": "us"}
+    assert chat_server._full_cycle_request("美股开始了吗") is None
+
+
 class _MarketStatusConfig:
     schedule = {
         "timezone": "Asia/Shanghai",
@@ -278,7 +308,7 @@ class _AutonomyControlConfig:
     enabled_markets = ["cn", "hk", "us", "etf"]
 
 
-def test_market_scoped_start_command_requires_global_confirmation_and_bypasses_llm(
+def test_market_scoped_start_command_runs_complete_cycle_without_unlocking_pause(
     monkeypatch, tmp_path
 ):
     from src.trading import control
@@ -287,21 +317,37 @@ def test_market_scoped_start_command_requires_global_confirmation_and_bypasses_l
     monkeypatch.setattr(control, "CONTROL_FILE", control_file)
     monkeypatch.setattr(chat_server, "cfg", _AutonomyControlConfig())
     control.set_paused(True, reason="等待人工确认")
-    monkeypatch.setattr(
-        "src.llm.registry.resolve_llm",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not be called")),
-    )
+    monkeypatch.setattr("src.scheduler.run_investment_cycle", lambda market, **kwargs: {
+        "status": "generated", "market": market, "report": "",
+        "autonomous": {"status": "paused", "fills": []},
+        "notification": {"status": "disabled"},
+    })
 
     events = list(
         chat_server.handle_chat_stream("开始美股交易", request_id="market-scoped-resume")
     )
 
-    assert events[0] == {"type": "tool", "name": "autonomy_control", "params": {}}
+    assert events[0] == {"type": "tool", "name": "full_investment_cycle", "params": {"market": "us"}}
     assert events[-1]["type"] == "final"
-    assert "尚未执行" in events[-1]["content"]
-    assert "全局控制" in events[-1]["content"]
-    assert "解除全局暂停并恢复自主模拟交易" in events[-1]["content"]
+    assert "完整投资轮次" in events[-1]["content"]
     assert control.load_state()["paused"] is True
+
+
+def test_full_cycle_result_does_not_report_paused_round_as_success():
+    answer = chat_server._format_full_cycle_result({
+        "status": "generated",
+        "market": "us",
+        "report": "",
+        "notification": {"status": "skipped", "reason": "missing webhook"},
+        "autonomous": {
+            "status": "paused",
+            "control": {"reason": "人工暂停"},
+            "fills": [],
+        },
+    })
+    assert "⚠️" in answer
+    assert "运行时安全暂停" in answer
+    assert "人工暂停" in answer
 
 
 def test_explicit_global_resume_command_clears_runtime_pause(monkeypatch, tmp_path):

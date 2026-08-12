@@ -115,6 +115,21 @@ def test_manager_must_cite_direct_upstream_report():
         )
 
 
+def test_portfolio_decision_must_cover_every_candidate_and_holding():
+    with pytest.raises(ValueError, match="600519"):
+        agent_workflow.validate_portfolio_coverage(
+            {"decisions": [{"symbol": "000001", "action": "HOLD"}]},
+            ["000001", "600519"],
+        )
+    agent_workflow.validate_portfolio_coverage(
+        {"decisions": [
+            {"symbol": "000001", "action": "BUY"},
+            {"symbol": "600519", "action": "SELL"},
+        ]},
+        ["000001", "600519"],
+    )
+
+
 def test_staged_workflow_orders_roles_and_builds_portfolio(monkeypatch, tmp_path):
     calls = []
 

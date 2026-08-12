@@ -60,6 +60,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .rule-item span{display:block;font-size:0.72rem;color:var(--text-dim);margin-bottom:4px}
 .rule-item strong{font-size:0.88rem;color:var(--text)}
 .subheading{font-size:0.88rem;font-weight:600;color:var(--text);margin:4px 0 12px}
+.mode-panel{background:linear-gradient(130deg,rgba(88,166,255,.16),rgba(63,185,80,.10));border:2px solid var(--accent);box-shadow:0 0 24px rgba(88,166,255,.12)}
+.mode-panel h2{font-size:1.15rem;color:var(--text)}
+.mode-select{font-size:1rem!important;font-weight:700;border-color:var(--accent)!important;padding:12px!important}
 /* 模型选择简化 */
 .model-select-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .model-option{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:all .15s;text-align:center}
@@ -80,6 +83,30 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 </div>
 
 <div class="container">
+  <div class="section mode-panel">
+    <h2>⚡ 投资运行模式</h2>
+    <div class="section-note">两种模式都是“一次触发完成整轮”，不会停在选股或分析中间等待确认。全自动模式另外按计划时间自行触发。</div>
+    <div class="form-group">
+      <label>当前模式</label>
+      <select id="operationMode" class="mode-select">
+        <option value="automatic">🤖 全自动：定时执行完整投资轮次</option>
+        <option value="manual">🖱️ 手动整轮：只在我触发时执行完整投资轮次</option>
+      </select>
+      <div class="help-text">完整轮次：全市场选股 → 候选与持仓分析 → 买入/观望/卖出决策 → 硬风控 → 模拟下单 → 报告推送。</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>整轮报告外部推送</label>
+        <select id="notifyEnabled"><option value="true">启用 Webhook 推送</option><option value="false">仅保存本地并在对话中返回</option></select>
+      </div>
+      <div class="form-group">
+        <label>通知 Webhook 地址</label>
+        <input type="password" id="notifyWebhookUrl" value="" autocomplete="new-password" placeholder="留空保持现有 NOTIFY_WEBHOOK_URL">
+        <div class="help-text" id="notifyWebhookStatus"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- API Keys -->
   <div class="section">
     <h2>🔑 API Keys</h2>
@@ -472,14 +499,21 @@ function renderConfig() {
 
   // AI 自主交易
   const autonomy = config.autonomous || {};
-  document.getElementById('autonomousEnabled').value = String(autonomy.enabled ?? false);
-  document.getElementById('autoExecute').value = String(autonomy.auto_execute ?? true);
+  document.getElementById('operationMode').value = autonomy.operation_mode ?? 'automatic';
+  document.getElementById('autonomousEnabled').value = 'true';
+  document.getElementById('autoExecute').value = 'true';
+  document.getElementById('autonomousEnabled').disabled = true;
+  document.getElementById('autoExecute').disabled = true;
   document.getElementById('tradeOnCatchUp').value = String(autonomy.trade_on_catch_up ?? false);
   document.getElementById('minConfidence').value = autonomy.min_confidence ?? 0.65;
   document.getElementById('maxOrdersPerCycle').value = autonomy.max_orders_per_cycle ?? 3;
   document.getElementById('maxPositionPct').value = autonomy.max_position_pct ?? 12;
   document.getElementById('maxOrderValuePct').value = autonomy.max_order_value_pct ?? 8;
   document.getElementById('maxCycleTurnoverPct').value = autonomy.max_cycle_turnover_pct ?? 15;
+  document.getElementById('notifyEnabled').value = String(config.notify?.enabled ?? false);
+  document.getElementById('notifyWebhookStatus').textContent = envVars.NOTIFY_WEBHOOK_URL
+    ? 'NOTIFY_WEBHOOK_URL 已配置；留空会保留现有地址。'
+    : '尚未配置地址；定时轮次会保存本地报告，但无法发送到外部。';
   renderMarketRisk();
 
   // 交易
@@ -747,6 +781,8 @@ async function saveConfig() {
   }
   const mongoUri = document.getElementById('screenMongoUri').value.trim();
   if (mongoUri) newEnv.MONGODB_URI = mongoUri;
+  const notifyWebhookUrl = document.getElementById('notifyWebhookUrl').value.trim();
+  if (notifyWebhookUrl) newEnv.NOTIFY_WEBHOOK_URL = notifyWebhookUrl;
   
   // 保存到 .env
   try {
@@ -856,8 +892,9 @@ async function saveConfig() {
 
   // AI 自主交易
   config.autonomous = config.autonomous || {};
-  config.autonomous.enabled = document.getElementById('autonomousEnabled').value === 'true';
-  config.autonomous.auto_execute = document.getElementById('autoExecute').value === 'true';
+  config.autonomous.operation_mode = document.getElementById('operationMode').value;
+  config.autonomous.enabled = true;
+  config.autonomous.auto_execute = true;
   config.autonomous.trade_on_catch_up = document.getElementById('tradeOnCatchUp').value === 'true';
   config.autonomous.min_confidence = parseFloat(document.getElementById('minConfidence').value);
   config.autonomous.max_universe_size = parseInt(document.getElementById('maxUniverseSize').value);
@@ -865,6 +902,10 @@ async function saveConfig() {
   config.autonomous.max_position_pct = parseFloat(document.getElementById('maxPositionPct').value);
   config.autonomous.max_order_value_pct = parseFloat(document.getElementById('maxOrderValuePct').value);
   config.autonomous.max_cycle_turnover_pct = parseFloat(document.getElementById('maxCycleTurnoverPct').value);
+  config.notify = config.notify || {};
+  config.notify.enabled = document.getElementById('notifyEnabled').value === 'true';
+  config.notify.channels = ['webhook'];
+  config.notify.webhook_url_env = 'NOTIFY_WEBHOOK_URL';
   // 交易
   config.trading = config.trading || {};
   config.trading.mode = document.getElementById('tradingMode').value;

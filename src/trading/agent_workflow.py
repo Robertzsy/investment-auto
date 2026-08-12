@@ -259,6 +259,21 @@ def validate_citations(
     return citations
 
 
+def validate_portfolio_coverage(payload: Mapping[str, Any], required_symbols: Sequence[str]) -> None:
+    decisions = payload.get("decisions", [])
+    if not isinstance(decisions, list):
+        raise ValueError("投资组合经理必须输出 decisions 数组")
+    expected = {str(symbol).strip().upper() for symbol in required_symbols if str(symbol).strip()}
+    actual = {
+        str(decision.get("symbol", "")).strip().upper()
+        for decision in decisions
+        if isinstance(decision, Mapping)
+    }
+    missing = sorted(expected - actual)
+    if missing:
+        raise ValueError(f"投资组合决策缺少标的: {', '.join(missing)}")
+
+
 def _report_evidence_id(role: str, round_number: Optional[int] = None) -> str:
     suffix = f":R{round_number}" if round_number is not None else ""
     return f"AGENT:{role.upper()}{suffix}"
@@ -391,6 +406,8 @@ def _call_role(
                 require_decision_citations=portfolio,
                 required_upstream_prefixes=ROLE_UPSTREAM_PREFIXES.get(role, ()),
             )
+            if portfolio:
+                validate_portfolio_coverage(payload, context.get("allowed_symbols", []))
             payload.update({"role": role, "role_name": ROLE_NAMES[role], "stage": stage, "citations": citations})
             if memory_enabled:
                 memory_store.append(
@@ -542,7 +559,11 @@ def run_analysis_workflow(
     portfolio = _call_role(
         "portfolio_manager", stage="portfolio_decision", context=context, evidence=evidence,
         settings=settings, memory_store=store, generated_at=generated_at,
-        extra_instruction="输出组合级 BUY/SELL/HOLD 与目标仓位。每条决策必须引用证据，不得输出允许池外标的。",
+        extra_instruction=(
+            "逐一覆盖 allowed_symbols 中的全部标的，不得遗漏：候选股票决定 BUY 或 HOLD；"
+            "已有持仓决定 BUY、HOLD 或 SELL。输出组合级目标仓位，每条决策必须引用证据，"
+            "不得输出允许池外标的。"
+        ),
         portfolio=True,
     )
     timings["portfolio_decision"] = round(time.monotonic() - started, 3)

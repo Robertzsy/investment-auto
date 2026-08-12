@@ -362,6 +362,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
                     latest = {"file": files[0].name, "status": "unreadable"}
             self._json_response(200, {
                 "enabled": autonomous_enabled(),
+                "operation_mode": str(cfg.autonomous.get("operation_mode", "automatic")),
+                "auto_execute": bool(cfg.autonomous.get("auto_execute", False)),
                 "control": load_state(),
                 "latest_cycle": latest,
             })
@@ -380,6 +382,24 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 return self._json_response(400, {"error": "payload must be a JSON object"})
         reason = str(data.get("reason", ""))[:500]
         try:
+            if action == "mode":
+                mode = str(data.get("mode", "")).lower()
+                if mode not in {"manual", "automatic"}:
+                    return self._json_response(400, {"error": "mode must be manual or automatic"})
+                import yaml
+                config_path = PROJECT_ROOT / "config" / "config.yaml"
+                config_data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+                autonomous = config_data.setdefault("autonomous", {})
+                autonomous.update({"operation_mode": mode, "enabled": True, "auto_execute": True})
+                config_path.write_text(
+                    yaml.safe_dump(config_data, allow_unicode=True, sort_keys=False),
+                    encoding="utf-8",
+                )
+                from src.config import cfg
+
+                cfg.reload()
+                return self._json_response(200, {"ok": True, "mode": mode})
+
             from src.trading import control
 
             if action == "pause":

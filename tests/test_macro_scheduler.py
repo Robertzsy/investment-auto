@@ -136,6 +136,85 @@ def test_autonomous_report_compaction_keeps_portfolio_risk_and_execution():
     assert "research_debate" not in compact["agent_workflow"]
 
 
+def test_decision_report_covers_candidates_holdings_and_fills():
+    content = scheduler._decision_section({
+        "screening": {"selected_symbols": ["NVDA", "MSFT"]},
+        "account_before": {"holdings": [{"code": "AAPL"}]},
+        "chair": {"decisions": [
+            {"symbol": "NVDA", "action": "BUY", "confidence": 0.8, "reason": "trend"},
+            {"symbol": "MSFT", "action": "HOLD", "confidence": 0.6, "reason": "wait"},
+            {"symbol": "AAPL", "action": "SELL", "confidence": 0.9, "reason": "risk"},
+        ]},
+        "execution": {"fills": [{"code": "NVDA", "action": "BUY", "shares": 2, "price": 100}]},
+    })
+    assert "NVDA" in content and "买入/加仓" in content
+    assert "MSFT" in content and "观望/继续持有" in content
+    assert "AAPL" in content and "卖出/减仓" in content
+    assert "已成交" in content
+
+
+def test_decision_report_never_turns_missing_decision_into_hold():
+    content = scheduler._decision_section({
+        "screening": {"selected_symbols": ["NVDA"]},
+        "chair": {"decisions": []},
+        "execution": {"fills": []},
+    })
+    assert "未形成决策" in content
+    assert "观望/继续持有" not in content
+
+
+def test_manual_mode_skips_scheduled_investment_jobs(monkeypatch):
+    monkeypatch.setitem(scheduler.cfg.raw.setdefault("autonomous", {}), "operation_mode", "manual")
+    monkeypatch.setattr(scheduler, "_run_intraday_job", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("must not run")))
+    scheduler._build_intraday_job("us", "21:35", "2135")()
+
+
+def test_run_investment_cycle_uses_unique_complete_round_label(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(scheduler, "_now", lambda value=None: datetime(2026, 8, 12, 22, 1, 2, tzinfo=ZoneInfo("Asia/Shanghai")))
+    monkeypatch.setattr(scheduler, "_run_intraday_job", lambda market, time_str, label, **kwargs: captured.update({"market": market, "label": label}) or {"status": "generated"})
+    assert scheduler.run_investment_cycle("us", label="chat")["status"] == "generated"
+    assert captured == {"market": "us", "label": "chat-220102"}
+
+
+def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, tmp_path):
+    monkeypatch.setattr(scheduler, "REPORT_DIR", tmp_path)
+    monkeypatch.setattr(scheduler, "_latest_macro_excerpt", lambda: "macro")
+    monkeypatch.setattr(scheduler, "_account_context", lambda market: {"account": {}, "holding_snapshots": []})
+
+    class FakeLLM:
+        provider_name = "test"
+
+        def chat(self, messages, **kwargs):
+            return "本轮摘要"
+
+    monkeypatch.setattr(scheduler, "resolve_llm", lambda **kwargs: FakeLLM())
+    monkeypatch.setattr(scheduler, "_deliver_completed_report", lambda *args: {"status": "delivered"})
+    monkeypatch.setattr("src.trading.controller.run_autonomous_cycle", lambda *args, **kwargs: {
+        "status": "executed",
+        "screening": {"selected_symbols": ["NVDA", "MSFT"]},
+        "account_before": {"holdings": [{"code": "AAPL"}]},
+        "chair": {"decisions": [
+            {"symbol": "NVDA", "action": "BUY", "confidence": 0.8, "reason": "trend"},
+            {"symbol": "MSFT", "action": "HOLD", "confidence": 0.6, "reason": "wait"},
+            {"symbol": "AAPL", "action": "SELL", "confidence": 0.9, "reason": "risk"},
+        ]},
+        "execution": {"fills": [{"code": "NVDA", "action": "BUY", "shares": 2, "price": 100}]},
+    })
+    current = datetime(2026, 8, 12, 22, 1, tzinfo=ZoneInfo("Asia/Shanghai"))
+
+    result = scheduler._run_intraday_job("us", "22:01", "chat-220100", now=current, scheduled_at=current)
+    content = Path(result["report"]).read_text(encoding="utf-8")
+
+    assert result["status"] == "generated"
+    assert result["notification"]["status"] == "delivered"
+    assert "模式：手动整轮" in content
+    assert "NVDA" in content and "买入/加仓" in content
+    assert "MSFT" in content and "观望/继续持有" in content
+    assert "AAPL" in content and "卖出/减仓" in content
+    assert "已成交" in content
+
+
 def test_us_evening_misfire_keeps_original_schedule_date(monkeypatch, tmp_path):
     monkeypatch.setattr(scheduler, "REPORT_DIR", tmp_path)
     monkeypatch.setattr(scheduler, "_account_context", lambda market: {"account": {}, "holding_snapshots": []})

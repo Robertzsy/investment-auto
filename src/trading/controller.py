@@ -7,7 +7,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
 from src.config import cfg
@@ -302,7 +302,15 @@ def run_autonomous_cycle(
     optimizer_hint: Optional[Mapping[str, Any]] = None,
     catch_up: bool = False,
     dry_run: bool = False,
+    progress_callback: Optional[Callable[[str], None]] = None,
 ) -> Dict[str, Any]:
+    def progress(message: str) -> None:
+        if progress_callback is not None:
+            try:
+                progress_callback(message)
+            except Exception:
+                logger.debug("Progress callback failed", exc_info=True)
+
     current = _now(now)
     market = market.lower().strip()
     config = cfg.autonomous
@@ -328,6 +336,7 @@ def run_autonomous_cycle(
             return {**base, "status": "in_progress"}
 
         account = account_store.account(market)
+        progress("正在从全市场筛选优质候选，并合并已有持仓…")
         try:
             screening_outcome = _screening_outcome(market, account, config, current)
             symbols = screening_outcome.symbols
@@ -390,6 +399,7 @@ def run_autonomous_cycle(
         committee: List[Dict[str, Any]] = []
         committee_errors: Dict[str, str] = {}
         staged_workflow: Dict[str, Any] = {}
+        progress(f"已获得 {len(symbols)} 个候选/持仓标的，正在运行多 Agent 研究链…")
         if not _staged_workflow_enabled(config):
             with ThreadPoolExecutor(max_workers=max(1, min(len(roles), int(config.get("agent_workers", 4))))) as executor:
                 futures = {executor.submit(_run_committee_member, role, context): role for role in roles}
@@ -423,10 +433,11 @@ def run_autonomous_cycle(
                 chair = dict(staged_workflow.get("portfolio_manager", {}))
                 chair["decisions"] = _normalize_decisions(
                     chair,
-                    int(config.get("max_decisions", 10)),
+                    max(int(config.get("max_decisions", 10)), len(symbols)),
                 )
             else:
                 chair = _chair_decision(market, context, committee, config)
+            progress("Agent 已完成逐标的买入/观望/卖出判断，正在执行硬风控…")
             risk = build_orders(
                 chair.get("decisions", []),
                 account=account,
@@ -438,6 +449,7 @@ def run_autonomous_cycle(
                 now=current,
             )
             should_execute = bool(config.get("auto_execute", True)) and not dry_run
+            progress("硬风控完成，正在提交允许的模拟订单…" if should_execute else "硬风控完成，本轮仅生成决策…")
             execution = execute_orders(
                 market,
                 risk.get("orders", []) if should_execute else [],
@@ -469,9 +481,11 @@ def run_autonomous_cycle(
                     updated_by="risk_engine",
                 )
             status = "executed" if execution.get("fills") else "no_trade"
+            progress("模拟执行完成，正在写入审计和最终报告…")
             audit = {
                 **base,
                 "status": status,
+                "account_before": _account_for_agents(account),
                 "allowed_symbols": symbols,
                 "screening": screening_audit,
                 "prices": prices,

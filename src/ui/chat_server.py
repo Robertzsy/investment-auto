@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import queue
 import re
 import subprocess
 import threading
@@ -20,7 +21,7 @@ import uuid
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List, Mapping, Optional
 from zoneinfo import ZoneInfo
 
 from src.config import cfg
@@ -237,6 +238,49 @@ def _handle_chat_stream(message: str, thinking: bool, provider: Optional[str], m
                 continue
             clean_history.append({"role": item["role"], "content": content})
 
+    full_cycle_request = _full_cycle_request(message)
+    if full_cycle_request is not None:
+        yield {"type": "tool", "name": "full_investment_cycle", "params": full_cycle_request}
+        updates: "queue.Queue[Dict[str, Any]]" = queue.Queue()
+
+        def run_complete_cycle() -> None:
+            try:
+                from src.scheduler import run_investment_cycle
+
+                result = run_investment_cycle(
+                    full_cycle_request["market"],
+                    label="chat",
+                    progress_callback=lambda value: updates.put({"type": "status", "content": value}),
+                )
+                updates.put({"type": "result", "value": result})
+            except Exception as exc:
+                logger.exception("Manual full investment cycle failed")
+                updates.put({"type": "error", "value": str(exc)[:1000]})
+
+        worker = threading.Thread(target=run_complete_cycle, name="manual-investment-cycle", daemon=True)
+        worker.start()
+        result: Dict[str, Any] = {}
+        error = ""
+        while worker.is_alive() or not updates.empty():
+            try:
+                update = updates.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            if update["type"] == "status":
+                yield update
+            elif update["type"] == "result":
+                result = update["value"]
+            elif update["type"] == "error":
+                error = update["value"]
+        final_answer = _format_full_cycle_result(result) if result else f"## ❌ 完整投资轮次失败\n\n{error or '未知错误'}"
+        emitted = ""
+        for chunk in _chunk_text(final_answer, 18):
+            emitted += chunk
+            yield {"type": "token", "content": chunk}
+        append_history("assistant", final_answer)
+        yield {"type": "final", "content": final_answer}
+        return
+
     autonomy_control_answer = _handle_autonomy_control_command(message)
     if autonomy_control_answer is not None:
         yield {"type": "tool", "name": "autonomy_control", "params": {}}
@@ -427,6 +471,72 @@ def _named_market(user_text: str) -> Optional[str]:
     if re.search(r"A股|沪深|中国股市|(?<![A-Za-z])CN(?![A-Za-z])", user_text, re.I):
         return "cn"
     return None
+
+
+def _full_cycle_request(user_text: str) -> Optional[Dict[str, str]]:
+    text = re.sub(r"\s+", "", str(user_text or ""))
+    market = _named_market(text)
+    if market is None:
+        return None
+    question = bool(re.search(r"吗|么|是否|状态|开始了没|开始了吗|交易了吗|操作了吗", text, re.I))
+    one_round = bool(re.search(r"(?:跑|运行|执行|开始|触发|做).{0,8}(?:一轮|整轮|完整轮次|完整分析|投资轮次)", text, re.I))
+    start_trading = bool(re.search(r"(?:开始|启动).{0,12}(?:交易|投资|操作)$", text, re.I))
+    if question or not (one_round or start_trading):
+        return None
+    if re.search(r"(?:只|仅).{0,4}(?:筛选|选股)|筛选一下|刷新选股", text, re.I):
+        return None
+    return {"market": market}
+
+
+def _format_full_cycle_result(result: Mapping[str, Any]) -> str:
+    names = {"cn": "A 股", "hk": "港股", "us": "美股", "etf": "ETF"}
+    market = str(result.get("market", ""))
+    status = str(result.get("status", "error"))
+    autonomous = result.get("autonomous", {}) if isinstance(result.get("autonomous"), Mapping) else {}
+    autonomous_status = str(autonomous.get("status", ""))
+    fills = autonomous.get("fills", []) if isinstance(autonomous, Mapping) else []
+    notification = result.get("notification", {}) if isinstance(result.get("notification"), Mapping) else {}
+    completed = status == "generated" and autonomous_status in {"executed", "no_trade"}
+    icon = "✅" if completed or status == "exists" else "⚠️"
+    lines = [f"## {icon} {names.get(market, market.upper())}完整投资轮次", ""]
+    lines.extend(["本次已按一条完整链执行：全市场选股 → 候选与持仓分析 → 组合决策 → 硬风控 → 模拟撮合 → 最终报告。", ""])
+    if status == "generated":
+        outcome_labels = {
+            "executed": "分析和风控完成，已产生模拟成交",
+            "no_trade": "分析和风控完成，本轮决定观望或没有订单通过风控",
+            "paused": "运行时安全暂停，本轮未分析和下单",
+            "disabled": "自主模块未启用，本轮未分析和下单",
+            "blocked": "分析或交易前置条件不满足，本轮未下单",
+            "skipped": "本轮按配置跳过交易",
+            "in_progress": "同市场已有一轮正在执行，本轮未重复启动",
+            "error": "分析链执行失败，本轮未下单",
+        }
+        lines.append(f"- **投资执行状态**：{outcome_labels.get(autonomous_status, autonomous_status or '未知')}")
+        block_reason = autonomous.get("error") or autonomous.get("reason")
+        control = autonomous.get("control") if isinstance(autonomous.get("control"), Mapping) else {}
+        if not block_reason and autonomous_status == "paused":
+            block_reason = control.get("reason")
+        if block_reason:
+            lines.append(f"- **原因**：{block_reason}")
+        lines.append(f"- **模拟成交**：{len(fills)} 笔")
+        lines.append(f"- **报告文件**：`{result.get('report') or '-'}`")
+        notify_status = str(notification.get("status", "disabled"))
+        labels = {"delivered": "已发送", "disabled": "通知未启用", "skipped": "通知未配置", "error": "发送失败"}
+        lines.append(f"- **报告推送**：{labels.get(notify_status, notify_status)}")
+        if notification.get("reason"):
+            lines.append(f"- **推送说明**：{notification['reason']}")
+        report_path = Path(str(result.get("report", "")))
+        if report_path.is_file() and report_path.parent.resolve() == (PROJECT_ROOT / "runtime" / "reports").resolve():
+            try:
+                lines.extend(["", "---", "", report_path.read_text(encoding="utf-8")[:12000]])
+            except OSError:
+                pass
+    elif status in {"exists", "in_progress"}:
+        lines.append("本轮报告已存在或同市场整轮正在执行，没有重复启动。")
+    else:
+        lines.append(f"整轮未完成：{result.get('error') or result.get('reason') or status}")
+    lines.extend(["", "本轮不需要逐步确认；全部买入、持有、观望和卖出判断均记录在最终报告中。"])
+    return "\n".join(lines)
 
 
 def _autonomy_control_request(user_text: str) -> Optional[Dict[str, Any]]:

@@ -44,6 +44,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .model-bar { display:flex; gap:8px; align-items:center; padding:10px 20px 0; color:var(--text-dim); font-size:.85rem; flex-wrap:wrap; }
 .model-bar select { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; }
 .model-bar button { background:var(--danger); color:#fff; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; display:none; }
+.run-mode{display:flex;align-items:center;gap:8px;margin-left:auto;padding:5px 10px;border:1px solid var(--accent);border-radius:8px;background:rgba(88,166,255,.10)}
+.run-mode strong{color:var(--text);font-size:.78rem}
+.run-mode select{padding:5px 8px;font-weight:700;border-color:var(--accent)}
 /* suggestions */
 .suggestions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 10px; }
 .suggestion { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 6px 14px; font-size: 0.82rem; color: var(--text-dim); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
@@ -92,11 +95,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
   <select id="providerSelect" onchange="updateModelSelect()"></select>
   <select id="modelSelect"></select>
   <button id="stopBtn" onclick="stopGeneration()">停止生成</button>
+  <div class="run-mode"><strong>投资模式</strong><select id="operationModeQuick" onchange="saveOperationMode(this.value)"><option value="automatic">🤖 全自动</option><option value="manual">🖱️ 手动整轮</option></select></div>
 </div>
 
 <div class="suggestions" id="suggestions">
   <span class="suggestion" onclick="sendSuggestion(this.textContent)">查看当前 A 股持仓</span>
-  <span class="suggestion" onclick="sendSuggestion(this.textContent)">运行一次优化器分析</span>
+  <span class="suggestion" onclick="sendSuggestion(this.textContent)">跑一轮美股</span>
   <span class="suggestion" onclick="sendSuggestion(this.textContent)">调整风控参数中的止损线</span>
   <span class="suggestion" onclick="sendSuggestion(this.textContent)">检查所有市场数据源是否正常</span>
   <span class="suggestion" onclick="sendSuggestion(this.textContent)">生成今天的投资报告</span>
@@ -119,6 +123,29 @@ function toggleThinking() {
   thinking_enabled = !thinking_enabled;
   document.getElementById('thinkingToggle').classList.toggle('on', thinking_enabled);
   localStorage.setItem(THINKING_KEY, thinking_enabled);
+}
+
+async function loadOperationMode() {
+  try {
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    document.getElementById('operationModeQuick').value = cfg.autonomous?.operation_mode || 'automatic';
+  } catch(e) { console.warn('load operation mode failed', e); }
+}
+
+async function saveOperationMode(mode) {
+  const selector = document.getElementById('operationModeQuick');
+  selector.disabled = true;
+  try {
+    const res = await fetch('/api/autonomy/mode', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({mode})
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || '保存失败');
+  } catch(e) {
+    alert('切换投资模式失败：' + e.message);
+    await loadOperationMode();
+  } finally { selector.disabled = false; }
 }
 
 async function loadModels() {
@@ -367,6 +394,7 @@ async function clearHistory() {
 }
 
 loadModels();
+loadOperationMode();
 loadHistory();
 </script>
 </body>

@@ -64,6 +64,17 @@ def test_advanced_agent_and_hard_universe_controls_are_not_exposed():
         assert removed not in settings
 
 
+def test_operation_mode_switch_is_prominent_on_chat_and_settings():
+    chat = (UI / "index.html").read_text(encoding="utf-8")
+    settings = (UI / "settings.html").read_text(encoding="utf-8")
+
+    assert 'id="operationModeQuick"' in chat
+    assert "跑一轮美股" in chat
+    assert 'id="operationMode"' in settings
+    assert "全自动：定时执行完整投资轮次" in settings
+    assert "手动整轮：只在我触发时执行完整投资轮次" in settings
+
+
 def test_market_context_is_embedded_in_dashboard_not_main_navigation():
     pages = {
         name: (UI / name).read_text(encoding="utf-8")

@@ -165,6 +165,8 @@ screening:
 # after configuring API keys and reviewing the hard limits below.
 autonomous:
   enabled: false
+  # manual: only one-click complete rounds; automatic: scheduled complete rounds.
+  operation_mode: automatic
   auto_execute: true
   trade_on_catch_up: false
   # TradingAgents-CN-inspired staged research. Core design is reimplemented;
@@ -216,6 +218,7 @@ trading:
   entry_method: "first 50%, add on -2% pullback, avoid chasing +3% intraday spikes"
 
 notify:
-  enabled: false
+  enabled: true
   channels: [webhook]
   webhook_url_env: NOTIFY_WEBHOOK_URL
+  timeout_seconds: 10

@@ -70,6 +70,30 @@ def test_env_save_validates_and_updates_running_environment(
     assert "BAD\nKEY=value" not in (tmp_path / ".env").read_text(encoding="utf-8")
 
 
+def test_operation_mode_api_enables_complete_cycle_execution(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    config_path = config_dir / "config.yaml"
+    config_path.write_text("autonomous:\n  enabled: false\n  auto_execute: false\n", encoding="utf-8")
+    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr("src.config.cfg.reload", lambda: None)
+
+    handler = _FakeHandler(b'{"mode":"automatic"}')
+    server.ChatHandler._handle_autonomy_control(handler, "mode")  # type: ignore[arg-type]
+
+    assert handler.responses[-1] == (200, {"ok": True, "mode": "automatic"})
+    saved = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert saved["autonomous"] == {
+        "enabled": True,
+        "auto_execute": True,
+        "operation_mode": "automatic",
+    }
+
+    invalid = _FakeHandler(b'{"mode":"sometimes"}')
+    server.ChatHandler._handle_autonomy_control(invalid, "mode")  # type: ignore[arg-type]
+    assert invalid.responses[-1][0] == 400
+
+
 def test_market_config_api_exposes_rules_and_updates_only_risk_controls(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

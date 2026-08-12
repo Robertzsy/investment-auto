@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler as _BgScheduler
@@ -127,12 +127,92 @@ def _round_report_path(market: str, label: str, value: Optional[datetime] = None
 
 def _write_report(path: Path, title: str, content: str, generated_at: datetime, catch_up: bool) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if catch_up:
+        run_mode = "启动补跑"
+    elif "-manual-" in path.stem or "-chat-" in path.stem:
+        run_mode = "手动整轮"
+    else:
+        run_mode = "全自动定时"
     prefix = (
         f"# {title}\n\n"
         f"> 生成时间：{generated_at.isoformat(timespec='seconds')}  "
-        f"| 模式：{'启动补跑' if catch_up else '定时运行'}\n\n"
+        f"| 模式：{run_mode}\n\n"
     )
     path.write_text(prefix + content.strip() + "\n", encoding="utf-8")
+
+
+def _action_label(action: Any) -> str:
+    return {"BUY": "买入/加仓", "SELL": "卖出/减仓", "HOLD": "观望/继续持有"}.get(
+        str(action or "HOLD").upper(), "观望/继续持有"
+    )
+
+
+def _decision_section(autonomous: Mapping[str, Any]) -> str:
+    decisions = autonomous.get("chair", {}).get("decisions", [])
+    held = {
+        str(item.get("code", "")).upper()
+        for item in autonomous.get("account_before", {}).get("holdings", [])
+        if item.get("code")
+    }
+    selected = {
+        str(value).upper()
+        for value in autonomous.get("screening", {}).get("selected_symbols", [])
+    }
+    by_symbol = {
+        str(item.get("symbol", "")).upper(): item
+        for item in decisions
+        if isinstance(item, Mapping) and item.get("symbol")
+    }
+    symbols = list(dict.fromkeys([*sorted(selected), *sorted(held), *by_symbol]))
+    lines = ["## 逐标的最终决策", "", "| 标的 | 身份 | 决策 | 置信度 | 依据 |", "|---|---|---|---:|---|"]
+    for symbol in symbols:
+        decision = by_symbol.get(symbol)
+        identities = []
+        if symbol in selected:
+            identities.append("本轮候选")
+        if symbol in held:
+            identities.append("已有持仓")
+        confidence = decision.get("confidence") if decision else None
+        confidence_text = f"{float(confidence):.0%}" if isinstance(confidence, (int, float)) else "-"
+        action_text = _action_label(decision.get("action")) if decision else "未形成决策"
+        reason = str(decision.get("reason", "未提供依据") if decision else "分析链被阻断或失败，未生成该标的决策").replace("|", "/")[:240]
+        lines.append(
+            f"| {symbol} | {'、'.join(identities) or '分析池'} | "
+            f"{action_text} | {confidence_text} | {reason} |"
+        )
+    if not symbols:
+        lines.append("| - | - | 本轮无有效标的 | - | 筛选或行情数据不足 |")
+
+    execution = autonomous.get("execution", {})
+    lines.extend(["", "## 模拟执行结果", ""])
+    fills = execution.get("fills", []) if isinstance(execution, Mapping) else []
+    rejected = execution.get("rejected", []) if isinstance(execution, Mapping) else []
+    if fills:
+        for fill in fills:
+            lines.append(
+                f"- 已成交：{fill.get('code')} {_action_label(fill.get('action'))} "
+                f"{fill.get('shares', 0)} 股，成交价 {fill.get('price', fill.get('fill_price', '-'))}。"
+            )
+    else:
+        lines.append("- 本轮没有产生模拟成交。")
+    for item in rejected:
+        lines.append(f"- 被拒订单：{item.get('code', item.get('symbol', '-'))}，原因：{item.get('reason', '未知')}。")
+    return "\n".join(lines)
+
+
+def _deliver_completed_report(path: Path, title: str, content: str, market: str, label: str) -> Dict[str, Any]:
+    try:
+        from src.notifications import deliver_report
+
+        return deliver_report(
+            title=title,
+            content=content,
+            report_path=path,
+            metadata={"market": market, "label": label},
+        )
+    except Exception as exc:
+        logger.exception("[NOTIFY:%s] report delivery failed", market)
+        return {"status": "error", "error": str(exc)[:500]}
 
 
 def _account_context(market: str) -> Dict[str, Any]:
@@ -174,6 +254,22 @@ def _complete_report(llm: Any, messages: List[Dict[str, str]]) -> str:
     if not text or not text.strip():
         raise RuntimeError("LLM returned an empty report")
     return text
+
+
+def _generate_report_or_fallback(llm: Any, messages: List[Dict[str, str]], autonomous: Mapping[str, Any]) -> str:
+    try:
+        return _complete_report(llm, messages)
+    except Exception as exc:
+        logger.exception("LLM report summary failed; writing deterministic report")
+        status = autonomous.get("status", "error")
+        reason = autonomous.get("error") or autonomous.get("reason") or "无"
+        return "\n".join([
+            "## 本轮概览",
+            "",
+            f"- 自主投资状态：{status}",
+            f"- 异常或阻断原因：{reason}",
+            "- AI 摘要生成失败，以下逐标的决策和模拟执行结果来自本轮审计数据。",
+        ])
 
 
 def _compact_agent_report(report: Any) -> Dict[str, Any]:
@@ -237,6 +333,7 @@ def _run_intraday_job(
     catch_up: bool = False,
     now: Optional[datetime] = None,
     scheduled_at: Optional[datetime] = None,
+    progress_callback: Optional[Callable[[str], None]] = None,
 ) -> Dict[str, Any]:
     current = _now(now)
     scheduled = _now(scheduled_at) if scheduled_at is not None else _scheduled_reference(current, time_str)
@@ -258,11 +355,14 @@ def _run_intraday_job(
                 now=current,
                 macro_excerpt=macro,
                 catch_up=catch_up,
+                progress_callback=progress_callback,
             )
         except Exception as exc:
             logger.exception("[AUTONOMOUS:%s] cycle failed", market)
             autonomous = {"status": "error", "error": str(exc)}
         context = _account_context(market)
+        if progress_callback is not None:
+            progress_callback("交易审计完成，正在生成并投递整轮报告…")
         llm = resolve_llm(role="analyst")
         prompt = (
             f"当前北京时间 {current.strftime('%Y-%m-%d %H:%M')}，执行 {market} 市场 {label} 轮次"
@@ -273,16 +373,23 @@ def _run_intraday_job(
             "请直接输出不超过 800 字的可审计最终报告，不展示思考过程。包括行情与持仓检查、"
             "止损止盈、风险暴露和已执行/被拒绝订单；数据不足时明确说明，不得虚构成交。"
         )
-        response = _complete_report(llm, [{"role": "user", "content": prompt}])
-        _write_report(path, f"{market.upper()} {label} 轮次报告", response, current, catch_up)
+        response = _generate_report_or_fallback(llm, [{"role": "user", "content": prompt}], autonomous)
+        report_content = response.rstrip() + "\n\n" + _decision_section(autonomous)
+        report_title = f"{market.upper()} {label} 完整投资轮次报告"
+        _write_report(path, report_title, report_content, current, catch_up)
+        notification = _deliver_completed_report(path, report_title, report_content, market, label)
         logger.info("[INTRADAY:%s] %s report written: %s", market, label, path)
         return {
             "status": "generated",
             "market": market,
             "label": label,
             "report": str(path),
+            "notification": notification,
             "autonomous": {
                 "status": autonomous.get("status"),
+                "reason": autonomous.get("reason"),
+                "error": autonomous.get("error"),
+                "control": autonomous.get("control"),
                 "audit_file": autonomous.get("audit_file"),
                 "fills": autonomous.get("execution", {}).get("fills", []),
             },
@@ -340,16 +447,23 @@ def _run_close_job(
             "请直接输出不超过 1200 字的收盘复盘、压力测试解读和下一交易日计划，"
             "同时列出真实执行与被风控拒绝的订单，不展示思考过程，不得虚构成交。"
         )
-        response = _complete_report(llm, [{"role": "user", "content": prompt}])
-        _write_report(path, f"{market.upper()} 收盘报告", response, current, catch_up)
+        response = _generate_report_or_fallback(llm, [{"role": "user", "content": prompt}], autonomous)
+        report_content = response.rstrip() + "\n\n" + _decision_section(autonomous)
+        report_title = f"{market.upper()} 收盘完整投资轮次报告"
+        _write_report(path, report_title, report_content, current, catch_up)
+        notification = _deliver_completed_report(path, report_title, report_content, market, "close")
         logger.info("[CLOSE:%s] report written: %s", market, path)
         return {
             "status": "generated",
             "market": market,
             "label": "close",
             "report": str(path),
+            "notification": notification,
             "autonomous": {
                 "status": autonomous.get("status"),
+                "reason": autonomous.get("reason"),
+                "error": autonomous.get("error"),
+                "control": autonomous.get("control"),
                 "audit_file": autonomous.get("audit_file"),
                 "fills": autonomous.get("execution", {}).get("fills", []),
             },
@@ -358,6 +472,9 @@ def _run_close_job(
 
 def _build_intraday_job(market: str, time_str: str, label: str):
     def job() -> None:
+        if str(cfg.autonomous.get("operation_mode", "automatic")).lower() != "automatic":
+            logger.info("[INTRADAY:%s] skipped because operation_mode is manual", market)
+            return
         current = _now()
         _run_intraday_job(market, time_str, label, now=current, scheduled_at=_scheduled_reference(current, time_str))
 
@@ -366,6 +483,9 @@ def _build_intraday_job(market: str, time_str: str, label: str):
 
 def _build_close_job(market: str, time_str: str):
     def job() -> None:
+        if str(cfg.autonomous.get("operation_mode", "automatic")).lower() != "automatic":
+            logger.info("[CLOSE:%s] skipped because operation_mode is manual", market)
+            return
         current = _now()
         _run_close_job(market, time_str, now=current, scheduled_at=_scheduled_reference(current, time_str))
 
@@ -433,6 +553,9 @@ def run_catch_up(markets: Optional[Sequence[str]] = None, *, include_macro: bool
                 logger.exception("Macro startup catch-up failed")
                 results.append({"kind": "macro", "status": "error", "error": str(exc)})
 
+    if str(cfg.autonomous.get("operation_mode", "automatic")).lower() != "automatic":
+        return results
+
     for item in planned_catch_up(current, markets):
         try:
             if item["kind"] == "intraday":
@@ -495,7 +618,19 @@ def start(*, catch_up: bool = True) -> _BgScheduler:
     return scheduler
 
 
-def run_once(market: str = "cn") -> str:
+def run_investment_cycle(
+    market: str = "cn",
+    *,
+    label: str = "manual",
+    progress_callback: Optional[Callable[[str], None]] = None,
+) -> Dict[str, Any]:
     current = _now()
-    result = _run_intraday_job(market, current.strftime("%H:%M"), "manual", now=current)
-    return json.dumps(result, ensure_ascii=False, indent=2)
+    unique_label = f"{label}-{current.strftime('%H%M%S')}"
+    return _run_intraday_job(
+        market, current.strftime("%H:%M"), unique_label,
+        now=current, progress_callback=progress_callback,
+    )
+
+
+def run_once(market: str = "cn") -> str:
+    return json.dumps(run_investment_cycle(market), ensure_ascii=False, indent=2)
