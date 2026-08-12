@@ -71,17 +71,21 @@ def test_env_save_validates_and_updates_running_environment(
 
 
 def test_operation_mode_api_enables_complete_cycle_execution(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("INVESTMENT_AGENT_TRANSPORT", "local")
     config_dir = tmp_path / "config"
     config_dir.mkdir()
     config_path = config_dir / "config.yaml"
     config_path.write_text("autonomous:\n  enabled: false\n  auto_execute: false\n", encoding="utf-8")
     monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr("src.config.cfg._path", config_path)
     monkeypatch.setattr("src.config.cfg.reload", lambda: None)
 
     handler = _FakeHandler(b'{"mode":"automatic"}')
     server.ChatHandler._handle_autonomy_control(handler, "mode")  # type: ignore[arg-type]
 
-    assert handler.responses[-1] == (200, {"ok": True, "mode": "automatic"})
+    assert handler.responses[-1][0] == 200
+    assert handler.responses[-1][1]["ok"] is True
+    assert handler.responses[-1][1]["mode"] == "automatic"
     saved = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     assert saved["autonomous"] == {
         "enabled": True,

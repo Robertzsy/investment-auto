@@ -169,11 +169,15 @@ def build_orders(
     max_order_value = equity * float(autonomous_config.get("max_order_value_pct", 8)) / 100
     max_cycle_turnover = equity * float(autonomous_config.get("max_cycle_turnover_pct", 15)) / 100
     min_cash_reserve = equity * float(risk_config.get("min_cash_reserve_pct", 0)) / 100
+    max_total_position = equity * float(autonomous_config.get("max_total_position_pct", 100)) / 100
     max_orders = int(autonomous_config.get("max_orders_per_cycle", 3))
     remaining_daily = max(0, int(trading_config.get("max_daily_trades", 6)) - _today_trade_count(account, now))
     order_limit = min(max_orders, remaining_daily)
     lot_size = _lot_size(market_config)
     cash_available = max(0.0, float(account.get("cash", 0) or 0) - min_cash_reserve)
+    current_holdings_value = max(0.0, equity - float(account.get("cash", 0) or 0))
+    portfolio_capacity = max(0.0, max_total_position - current_holdings_value)
+    cash_available = min(cash_available, portfolio_capacity)
     high_water = max(float(account.get("highWaterMark", 0) or 0), equity)
     drawdown = equity / high_water - 1 if high_water > 0 else 0.0
     max_drawdown = float(risk_config.get("max_drawdown_pct", -100)) / 100

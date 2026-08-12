@@ -15,6 +15,8 @@ runtime/optimizer/
 runtime/screener/
 runtime/macro/
 runtime/trading/
+runtime/investment/
+runtime/memory/
 /runtime/*.lock
 /runtime/chat_*
 /data/*

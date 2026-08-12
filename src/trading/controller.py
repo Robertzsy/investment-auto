@@ -313,12 +313,29 @@ def run_autonomous_cycle(
 
     current = _now(now)
     market = market.lower().strip()
-    config = cfg.autonomous
+    from src.investment.mandate import effective_configs, get_mandate
+
+    mandate = get_mandate()
+    market_config = cfg.market_config(market)
+    config, trading_config, market_config = effective_configs(
+        cfg.autonomous,
+        cfg.trading,
+        market_config,
+        mandate,
+    )
     base: Dict[str, Any] = {
         "market": market,
         "label": label,
         "generated_at": current.isoformat(timespec="seconds"),
         "mode": "dry_run" if dry_run else "paper",
+        "mandate": {
+            "profile": mandate.get("profile"),
+            "display_name": mandate.get("display_name"),
+            "objective": mandate.get("objective"),
+            "risk_policy_version": mandate.get("risk_policy_version"),
+            "prompt_version": mandate.get("prompt_version"),
+            "version": mandate.get("version"),
+        },
     }
     if not autonomous_enabled(config):
         return {**base, "status": "disabled"}
@@ -391,9 +408,17 @@ def run_autonomous_cycle(
             "macro_excerpt": macro_excerpt[:6000],
             "optimizer": dict(optimizer_hint or {}),
             "screening": screening_audit,
-            "market_rules": cfg.market_config(market),
+            "market_rules": market_config,
             "autonomous_constraints": dict(config),
+            "investment_mandate": dict(mandate),
         }
+        try:
+            from src.investment.reflection import InvestmentReflectionService
+
+            context["reflection_lessons"] = InvestmentReflectionService().recent(market, 5)
+        except Exception:
+            logger.debug("Could not load previous investment reflections", exc_info=True)
+            context["reflection_lessons"] = []
 
         roles = [role for role in config.get("committee_roles", list(_ROLE_INSTRUCTIONS)) if role in _ROLE_INSTRUCTIONS]
         committee: List[Dict[str, Any]] = []
@@ -443,9 +468,9 @@ def run_autonomous_cycle(
                 account=account,
                 prices=prices,
                 allowed_symbols=symbols,
-                market_config=cfg.market_config(market),
+                market_config=market_config,
                 autonomous_config=config,
-                trading_config=cfg.trading,
+                trading_config=trading_config,
                 now=current,
             )
             should_execute = bool(config.get("auto_execute", True)) and not dry_run
@@ -453,7 +478,7 @@ def run_autonomous_cycle(
             execution = execute_orders(
                 market,
                 risk.get("orders", []) if should_execute else [],
-                market_config=cfg.market_config(market),
+                market_config=market_config,
                 trading_mode=str(cfg.trading.get("mode", "paper")),
                 now=current,
                 equity_snapshot=float(risk.get("equity", 0) or 0),

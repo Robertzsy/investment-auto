@@ -2,12 +2,12 @@
 investment-auto – Multi-market paper-trading investment automation.
 
 Common commands:
-  python -m src.main chat                         Start chat + scheduler.
+  python -m src.main chat                         Start management chat only.
   python -m src.main optimizer -m cn             Run portfolio optimization.
   python -m src.main screen -m cn                Refresh the stock shortlist.
   python -m src.main catchup -m cn               Backfill today's missed rounds.
   python -m src.main macro                        Generate/sync the macro daily.
-  python -m src.main run                          Run the scheduler only.
+  python -m src.main run                          Run investment Agent + scheduler.
 """
 
 from __future__ import annotations
@@ -175,18 +175,28 @@ def main() -> None:
         return
 
     if args.command == "run":
-        logger.info("Starting investment-auto scheduler...")
+        logger.info("Starting standalone investment Agent + scheduler...")
         from src.scheduler import start
+        from src.investment.command_bus import InvestmentCommandWorker
 
+        command_worker = InvestmentCommandWorker().start()
         scheduler = start(catch_up=True)
         try:
             import time
 
+            restart_request = ROOT / "runtime" / "investment" / "restart_requested.json"
             while True:
-                time.sleep(60)
+                time.sleep(1)
+                if restart_request.exists():
+                    logger.info("Verified investment Agent change detected; restarting worker process")
+                    restart_request.unlink()
+                    scheduler.shutdown(wait=False)
+                    command_worker.stop()
+                    os.execv(sys.executable, [sys.executable, "-m", "src.main", "run"])
         except KeyboardInterrupt:
             logger.info("Shutting down scheduler...")
             scheduler.shutdown(wait=False)
+            command_worker.stop()
             return
 
     if args.command == "chat":
@@ -199,33 +209,19 @@ def main() -> None:
             raise SystemExit("CHAT_PORT must be between 1 and 65535")
         try:
             open_browser = _env_bool("CHAT_OPEN_BROWSER", True)
-            scheduler_default = bool(cfg.schedule.get("chat_start_scheduler", True))
+            scheduler_default = False
             start_scheduler = _env_bool("CHAT_START_SCHEDULER", scheduler_default)
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
 
-        scheduler = None
         if start_scheduler:
-            from src.scheduler import start
-
-            try:
-                scheduler = start(catch_up=True)
-                logger.info("Automatic scheduler enabled inside chat process")
-            except RuntimeError as exc:
-                if "调度器已经在运行" not in str(exc):
-                    raise
-                logger.warning("Using existing scheduler process: %s", exc)
-        else:
-            logger.info("Automatic scheduler disabled inside chat process")
+            logger.warning("CHAT_START_SCHEDULER is ignored: chat is now management-only")
+        logger.info("Scheduler and investment worker are isolated from the chat process")
 
         logger.info("Starting AI Chat Panel on %s:%s ...", host, port)
         from src.ui.server import start_server
 
-        try:
-            start_server(host=host, port=port, open_browser=open_browser)
-        finally:
-            if scheduler is not None:
-                scheduler.shutdown(wait=False)
+        start_server(host=host, port=port, open_browser=open_browser)
         return
 
 

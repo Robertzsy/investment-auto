@@ -18,8 +18,7 @@ def test_native_function_call_emits_tool_event_and_final_result(monkeypatch):
         lambda **kwargs: TestModel(call_tools=["get_security_snapshot"]),
     )
     monkeypatch.setattr(
-        chat_server,
-        "_stock_fetcher",
+        "src.platform.market_tools.stock_fetcher",
         lambda command, value: {"command": command, "code": value, "price": 123.0},
     )
 
@@ -65,6 +64,7 @@ def test_loop_detector_allows_same_tool_when_arguments_or_result_progress():
 
 
 def test_complete_investment_cycle_is_a_native_agent_tool(monkeypatch):
+    monkeypatch.setenv("INVESTMENT_AGENT_TRANSPORT", "local")
     updates = queue.Queue()
     monkeypatch.setattr("src.scheduler.run_investment_cycle", lambda market, **kwargs: (
         kwargs["progress_callback"]("正在分析") or {

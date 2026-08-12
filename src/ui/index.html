@@ -47,6 +47,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .run-mode{display:flex;align-items:center;gap:8px;margin-left:auto;padding:5px 10px;border:1px solid var(--accent);border-radius:8px;background:rgba(88,166,255,.10)}
 .run-mode strong{color:var(--text);font-size:.78rem}
 .run-mode select{padding:5px 8px;font-weight:700;border-color:var(--accent)}
+.strategy-mode{display:flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid #d29922;border-radius:8px;background:rgba(210,153,34,.10)}
+.strategy-mode strong{color:var(--text);font-size:.78rem}.strategy-mode select{padding:5px 8px;font-weight:700;border-color:#d29922;background:var(--surface);color:var(--text);border-radius:6px}
 .cycle-launcher{display:flex;align-items:center;gap:12px;margin:10px 20px;padding:12px 14px;border:2px solid var(--success);border-radius:10px;background:linear-gradient(120deg,rgba(63,185,80,.16),rgba(88,166,255,.10));box-shadow:0 0 22px rgba(63,185,80,.12)}
 .cycle-launcher .cycle-copy{display:flex;flex-direction:column;gap:2px;flex:1}
 .cycle-launcher strong{font-size:.95rem;color:var(--text)}
@@ -104,6 +106,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
   <select id="modelSelect"></select>
   <button id="stopBtn" onclick="stopGeneration()">停止生成</button>
   <div class="run-mode"><strong>投资模式</strong><select id="operationModeQuick" onchange="saveOperationMode(this.value)"><option value="automatic">🤖 全自动</option><option value="manual">🖱️ 手动整轮</option></select></div>
+  <div class="strategy-mode"><strong>策略目标</strong><select id="strategyProfile" onchange="saveStrategyProfile(this.value)" title="下一轮生效；同时改变硬风控与 Agent 决策倾向"><option value="conservative">🛡️ 保守</option><option value="neutral">⚖️ 中立</option><option value="aggressive">🚀 激进</option></select></div>
 </div>
 
 <div class="cycle-launcher">
@@ -149,6 +152,29 @@ async function loadOperationMode() {
     const cfg = await res.json();
     document.getElementById('operationModeQuick').value = cfg.autonomous?.operation_mode || 'automatic';
   } catch(e) { console.warn('load operation mode failed', e); }
+}
+
+async function loadStrategyProfile() {
+  try {
+    const res = await fetch('/api/investment/mandate');
+    const data = await res.json();
+    document.getElementById('strategyProfile').value = data.mandate?.profile || 'neutral';
+  } catch(e) { console.warn('load strategy profile failed', e); }
+}
+
+async function saveStrategyProfile(profile) {
+  const selector = document.getElementById('strategyProfile');
+  selector.disabled = true;
+  try {
+    const res = await fetch('/api/investment/mandate', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({profile})
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || '保存失败');
+  } catch(e) {
+    alert('切换策略失败：' + e.message);
+    await loadStrategyProfile();
+  } finally { selector.disabled = false; }
 }
 
 async function saveOperationMode(mode) {
@@ -429,6 +455,7 @@ async function clearHistory() {
 
 loadModels();
 loadOperationMode();
+loadStrategyProfile();
 loadHistory();
 </script>
 </body>

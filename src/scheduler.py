@@ -164,7 +164,18 @@ def _decision_section(autonomous: Mapping[str, Any]) -> str:
         if isinstance(item, Mapping) and item.get("symbol")
     }
     symbols = list(dict.fromkeys([*sorted(selected), *sorted(held), *by_symbol]))
-    lines = ["## 逐标的最终决策", "", "| 标的 | 身份 | 决策 | 置信度 | 依据 |", "|---|---|---|---:|---|"]
+    mandate = autonomous.get("mandate", {}) if isinstance(autonomous.get("mandate"), Mapping) else {}
+    lines = ["## 本轮投资授权书", ""]
+    if mandate:
+        lines.extend([
+            f"- 策略：{mandate.get('display_name', mandate.get('profile', '未知'))}",
+            f"- 目标：{mandate.get('objective', '未记录')}",
+            f"- 版本：{mandate.get('risk_policy_version', '未记录')}",
+            "",
+        ])
+    else:
+        lines.extend(["- 本轮未记录策略授权书快照。", ""])
+    lines.extend(["## 逐标的最终决策", "", "| 标的 | 身份 | 决策 | 置信度 | 依据 |", "|---|---|---|---:|---|"])
     for symbol in symbols:
         decision = by_symbol.get(symbol)
         identities = []
@@ -378,6 +389,18 @@ def _run_intraday_job(
         report_title = f"{market.upper()} {label} 完整投资轮次报告"
         _write_report(path, report_title, report_content, current, catch_up)
         notification = _deliver_completed_report(path, report_title, report_content, market, label)
+        try:
+            from src.investment.mandate import get_mandate
+            from src.investment.reflection import InvestmentReflectionService
+
+            reflection = InvestmentReflectionService().reflect_cycle(
+                {"status": "generated", "market": market, "report": str(path), "autonomous": autonomous},
+                mandate=get_mandate(),
+                trigger="catch-up" if catch_up else ("manager" if label.startswith(("agent", "button")) else "scheduler"),
+            )
+        except Exception as exc:
+            logger.exception("[REFLECTION:%s] failed", market)
+            reflection = {"status": "error", "error": str(exc)}
         logger.info("[INTRADAY:%s] %s report written: %s", market, label, path)
         return {
             "status": "generated",
@@ -385,6 +408,7 @@ def _run_intraday_job(
             "label": label,
             "report": str(path),
             "notification": notification,
+            "reflection": reflection,
             "autonomous": {
                 "status": autonomous.get("status"),
                 "reason": autonomous.get("reason"),
@@ -452,6 +476,18 @@ def _run_close_job(
         report_title = f"{market.upper()} 收盘完整投资轮次报告"
         _write_report(path, report_title, report_content, current, catch_up)
         notification = _deliver_completed_report(path, report_title, report_content, market, "close")
+        try:
+            from src.investment.mandate import get_mandate
+            from src.investment.reflection import InvestmentReflectionService
+
+            reflection = InvestmentReflectionService().reflect_cycle(
+                {"status": "generated", "market": market, "report": str(path), "autonomous": autonomous},
+                mandate=get_mandate(),
+                trigger="catch-up" if catch_up else "scheduler-close",
+            )
+        except Exception as exc:
+            logger.exception("[REFLECTION:%s] close reflection failed", market)
+            reflection = {"status": "error", "error": str(exc)}
         logger.info("[CLOSE:%s] report written: %s", market, path)
         return {
             "status": "generated",
@@ -459,6 +495,7 @@ def _run_close_job(
             "label": "close",
             "report": str(path),
             "notification": notification,
+            "reflection": reflection,
             "autonomous": {
                 "status": autonomous.get("status"),
                 "reason": autonomous.get("reason"),

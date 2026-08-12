@@ -39,10 +39,8 @@ schedule:
   # APScheduler uses Monday=0. Beijing-time US early-morning jobs therefore
   # run Tue-Sat (1-5), mapping to US Mon-Fri sessions.
   us_early_morning_days: "1-5"
-  # Python `chat` deployment starts the scheduler in-process and catches up
-  # missed A-share rounds after startup. Docker chat disables this to avoid
-  # duplicating the dedicated scheduler service.
-  chat_start_scheduler: true
+  # Chat is management-only; scheduler and investment worker run independently.
+  chat_start_scheduler: false
   catch_up_markets: [cn]
   catch_up_grace_minutes: 480
   macro_daily_time: "08:00"

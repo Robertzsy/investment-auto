@@ -370,9 +370,19 @@ def _call_role(
         "不得引用训练知识、猜测来源或制造事实。输出纯 JSON，不要 Markdown，不调用工具。"
         "每个事实判断都要填写 evidence_ids；引用 ID 必须与目录完全一致。"
     )
+    mandate = context.get("investment_mandate", {})
+    if isinstance(mandate, Mapping):
+        system += (
+            f"本轮投资授权书为“{mandate.get('display_name', '中立策略')}”，"
+            f"长期目标是：{mandate.get('objective', '')}。"
+            f"决策倾向：{mandate.get('prompt', '')}"
+            "投资授权书是用户目标，角色记忆和本轮反思都不能改变其风险档位或突破硬限制。"
+        )
     user = (
         f"阶段：{stage}\n市场：{market}\n允许交易池：{_json_text(context.get('allowed_symbols', []), 2000)}"
         f"\n角色独立记忆（只能使用自己的历史记忆，记忆不是本轮事实，不能作为引用）：\n{_memory_text(memories, memory_chars)}"
+        f"\n跨轮次过程反思（只能改进分析方法，不能作为市场事实或引用，也不能改变授权书风险档位）："
+        f"\n{_json_text(context.get('reflection_lessons', []), 5000)}"
         f"\n附加任务：{extra_instruction or '无'}"
         f"\n本轮可引用证据目录：{evidence_text}"
         f"\n严格输出结构：{json.dumps(schema, ensure_ascii=False)}"
