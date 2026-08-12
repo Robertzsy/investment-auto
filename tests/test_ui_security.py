@@ -47,6 +47,23 @@ def test_default_model_is_always_present_in_ui_catalog():
         assert provider["model"] in provider.get("variants", [])
 
 
+def test_advanced_agent_and_hard_universe_controls_are_not_exposed():
+    settings = (UI / "settings.html").read_text(encoding="utf-8")
+
+    for removed in (
+        "分阶段 Agent 研究工作流",
+        "启用的分析角色",
+        "AI 可交易标的",
+        "agentWorkflowEnabled",
+        "agentRoleCheckboxes",
+        "universe_cn",
+        "universe_hk",
+        "universe_us",
+        "universe_etf",
+    ):
+        assert removed not in settings
+
+
 def test_market_context_is_embedded_in_dashboard_not_main_navigation():
     pages = {
         name: (UI / name).read_text(encoding="utf-8")

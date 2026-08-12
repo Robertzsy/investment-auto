@@ -209,9 +209,6 @@ autonomous:
   market_data_workers: 4
   agent_workers: 4
   cycle_timeout_seconds: 300
-  # When omitted, optimizer.default_symbols is used. Holdings are always added.
-  universe: {}
-
 trading:
   mode: paper
   max_daily_trades: 6
