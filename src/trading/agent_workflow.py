@@ -363,6 +363,15 @@ def _call_role(
         f"\n严格输出结构：{json.dumps(schema, ensure_ascii=False)}"
     )
     llm = resolve_llm(role=role)
+    chat_kwargs: Dict[str, Any] = {
+        "temperature": 0.1,
+        "max_tokens": 2600 if portfolio else 2000,
+    }
+    # DeepSeek thinking models may spend the entire token budget in
+    # reasoning_content and return an empty structured answer. Agent stages
+    # need compact JSON, so keep thinking disabled just like report jobs do.
+    if getattr(llm, "provider_name", "") == "deepseek":
+        chat_kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
     last_error: Optional[Exception] = None
     for attempt in range(retries + 1):
         prompt = user
@@ -371,8 +380,7 @@ def _call_role(
         try:
             text = llm.chat(
                 [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=2600 if portfolio else 2000,
+                **chat_kwargs,
             )
             payload = _parse_json_object(text)
             citations = validate_citations(

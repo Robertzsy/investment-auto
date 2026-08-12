@@ -172,8 +172,13 @@ def test_call_role_retries_truncated_json_and_persists_own_memory(monkeypatch, t
         }, ensure_ascii=False),
     ])
 
+    calls = []
+
     class LLM:
+        provider_name = "deepseek"
+
         def chat(self, messages, **kwargs):
+            calls.append(kwargs)
             return next(responses)
 
     monkeypatch.setattr(agent_workflow, "resolve_llm", lambda role: LLM())
@@ -189,4 +194,5 @@ def test_call_role_retries_truncated_json_and_persists_own_memory(monkeypatch, t
     )
 
     assert result["summary"] == "ok"
+    assert calls[0]["extra_body"] == {"thinking": {"type": "disabled"}}
     assert store.load("cn", "technical_analyst", 3)[0]["memory_note"] == "下一轮继续核验价格"
