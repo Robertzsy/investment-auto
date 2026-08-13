@@ -211,7 +211,8 @@ def test_call_role_retries_truncated_json_and_persists_own_memory(monkeypatch, t
     assert result["summary"] == "ok"
     assert calls[0]["extra_body"] == {"thinking": {"type": "disabled"}}
     assert calls[0]["response_format"] == {"type": "json_object"}
-    assert calls[1]["max_tokens"] > calls[0]["max_tokens"]
+    assert calls[0]["max_tokens"] == 10000
+    assert calls[1]["max_tokens"] == 10000
     assert calls[1]["temperature"] == 0
     assert store.load("cn", "technical_analyst", 3)[0]["memory_note"] == "下一轮继续核验价格"
 

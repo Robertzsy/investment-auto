@@ -432,7 +432,7 @@ def _call_role(
     llm = resolve_llm(role=role)
     chat_kwargs: Dict[str, Any] = {
         "temperature": 0.1,
-        "max_tokens": 4200 if portfolio else 3200,
+        "max_tokens": 10000,
         "response_format": {"type": "json_object"},
     }
     # DeepSeek thinking models may spend the entire token budget in
@@ -454,7 +454,7 @@ def _call_role(
             attempt_kwargs = dict(chat_kwargs)
             if attempt:
                 attempt_kwargs["temperature"] = 0
-                attempt_kwargs["max_tokens"] = min(6000, int(chat_kwargs["max_tokens"]) + 1400 * attempt)
+                attempt_kwargs["max_tokens"] = 10000
             text = llm.chat(
                 [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
                 **attempt_kwargs,
