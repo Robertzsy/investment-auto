@@ -14,7 +14,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .nav{display:flex;gap:12px}
 .nav a{color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s}
 .nav a:hover,.nav a.active{color:var(--text);background:rgba(88,166,255,0.1)}
-.container{max-width:900px;margin:0 auto;padding:20px}
+.container{max-width:1480px;margin:0 auto;padding:20px}
 .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
 .section h2{font-size:1rem;margin-bottom:16px;color:var(--accent);display:flex;align-items:center;gap:8px}
 .form-group{margin-bottom:16px}
@@ -40,7 +40,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .btn-success:hover{opacity:0.9}
 .add-btn{background:var(--border);color:var(--text);border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:0.8rem}
 .add-btn:hover{background:var(--accent)}
-.save-bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:16px 20px;display:flex;gap:12px;justify-content:flex-end}
+.save-bar{position:sticky;bottom:0;z-index:40;background:rgba(26,29,39,.96);backdrop-filter:blur(10px);border-top:1px solid var(--border);padding:14px max(20px,calc((100vw - 1440px)/2));display:flex;align-items:center;gap:12px;justify-content:flex-end}
+.dirty-indicator{margin-right:auto;color:var(--text-dim);font-size:.8rem}
+.dirty-indicator.dirty{color:var(--warning)}
 .toast{position:fixed;top:20px;right:20px;background:var(--success);color:#fff;padding:12px 20px;border-radius:8px;font-size:0.9rem;opacity:0;transition:opacity .3s;z-index:1000}
 .toast.show{opacity:1}
 .toast.error{background:var(--danger)}
@@ -63,6 +65,31 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .mode-panel{background:linear-gradient(130deg,rgba(88,166,255,.16),rgba(63,185,80,.10));border:2px solid var(--accent);box-shadow:0 0 24px rgba(88,166,255,.12)}
 .mode-panel h2{font-size:1.15rem;color:var(--text)}
 .mode-select{font-size:1rem!important;font-weight:700;border-color:var(--accent)!important;padding:12px!important}
+.control-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.control-grid .form-group{margin-bottom:4px}
+.policy-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:4px 0 16px}
+.policy-card{background:rgba(15,17,23,.68);border:1px solid var(--border);border-radius:8px;padding:10px}
+.policy-card span{display:block;font-size:.7rem;color:var(--text-dim);margin-bottom:4px}
+.policy-card strong{font-size:.9rem;color:var(--text)}
+.control-market{margin-top:12px;padding-top:14px;border-top:1px solid rgba(88,166,255,.24)}
+.settings-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:18px;align-items:start}
+.settings-index{position:sticky;top:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px}
+.settings-index h2{font-size:.82rem;color:var(--text-dim);margin:2px 4px 10px;text-transform:uppercase;letter-spacing:.08em}
+.settings-search{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);padding:9px 10px;margin-bottom:10px;outline:none}
+.settings-search:focus{border-color:var(--accent)}
+.settings-index nav{display:grid;gap:3px}
+.settings-index a{color:var(--text-dim);text-decoration:none;font-size:.82rem;padding:8px 9px;border-radius:6px}
+.settings-index a:hover,.settings-index a.active{color:var(--text);background:rgba(88,166,255,.12)}
+.settings-mobile-index{display:none;width:100%;margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px}
+.settings-content{min-width:0;display:flex;flex-direction:column}
+#section-autonomy{order:1}#section-market-risk{order:2}#section-screening{order:3}#section-schedule{order:4}#section-models{order:5}#section-optimizer{order:6}#section-trading{order:7}#section-api{order:8}
+.section.is-filtered{display:none}
+.advanced-badge{font-size:.68rem;color:var(--warning);border:1px solid rgba(210,153,34,.4);border-radius:999px;padding:3px 7px;margin-left:auto}
+.advanced-section>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px}
+.advanced-section>summary::-webkit-details-marker{display:none}
+.advanced-section>summary h2{margin:0}
+.advanced-section[open]>summary{margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
 /* 模型选择简化 */
 .model-select-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .model-option{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:all .15s;text-align:center}
@@ -70,6 +97,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .model-option.selected{border-color:var(--accent);background:rgba(88,166,255,0.1)}
 .model-option .name{font-weight:600;margin-bottom:4px}
 .model-option .desc{font-size:0.75rem;color:var(--text-dim)}
+@media(max-width:1050px){.control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.policy-strip{grid-template-columns:repeat(3,minmax(0,1fr))}.settings-layout{grid-template-columns:190px minmax(0,1fr)}}
+@media(max-width:760px){.container{padding:12px}.settings-layout{display:block}.settings-index{display:none}.settings-mobile-index{display:block}.control-grid,.form-row{grid-template-columns:1fr}.policy-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.nav a{font-size:0;padding:6px}.nav a::first-letter{font-size:.9rem}.save-bar{padding:12px}.dirty-indicator{display:none}}
 </style>
 </head>
 <body>
@@ -83,38 +112,81 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 </div>
 
 <div class="container">
-  <div class="section mode-panel">
-    <h2>⚡ 投资运行模式</h2>
-    <div class="section-note">两种模式都是“一次触发完成整轮”，不会停在选股或分析中间等待确认。全自动模式另外按计划时间自行触发。</div>
-    <div class="form-group">
-      <label>当前模式</label>
-      <select id="operationMode" class="mode-select">
-        <option value="automatic">🤖 全自动：定时执行完整投资轮次</option>
-        <option value="manual">🖱️ 手动整轮：只在我触发时执行完整投资轮次</option>
-      </select>
-      <div class="help-text">完整轮次：全市场选股 → 候选与持仓分析 → 买入/观望/卖出决策 → 硬风控 → 模拟下单 → 报告推送。</div>
-    </div>
-    <div class="form-row">
+  <section class="section mode-panel investor-control-center" id="investor-control-center">
+    <h2>⚡ 投资者控制中心</h2>
+    <div class="section-note">先确认执行模式、策略目标、参与市场和报告推送。这里决定系统如何运行；下方各区用于调整具体规则。</div>
+    <div class="control-grid">
+      <div class="form-group">
+        <label>投资运行模式</label>
+        <select id="operationMode" class="mode-select">
+          <option value="automatic">🤖 全自动：定时执行完整投资轮次</option>
+          <option value="manual">🖱️ 手动整轮：只在我触发时执行完整投资轮次</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>策略目标</label>
+        <select id="settingsStrategyProfile" class="mode-select" onchange="saveSettingsStrategyProfile(this.value)">
+          <option value="conservative">🛡️ 保守策略</option>
+          <option value="neutral">⚖️ 中立策略</option>
+          <option value="aggressive">🚀 激进策略</option>
+        </select>
+      </div>
       <div class="form-group">
         <label>整轮报告外部推送</label>
-        <select id="notifyEnabled"><option value="true">启用 Webhook 推送</option><option value="false">仅保存本地并在对话中返回</option></select>
+        <select id="notifyEnabled"><option value="true">启用 Webhook 推送</option><option value="false">仅本地保存</option></select>
       </div>
       <div class="form-group">
         <label>通知 Webhook 地址</label>
-        <input type="password" id="notifyWebhookUrl" value="" autocomplete="new-password" placeholder="留空保持现有 NOTIFY_WEBHOOK_URL">
+        <input type="password" id="notifyWebhookUrl" value="" autocomplete="new-password" placeholder="留空保持现有地址">
         <div class="help-text" id="notifyWebhookStatus"></div>
       </div>
     </div>
-  </div>
+    <div class="policy-strip" aria-label="当前策略硬约束摘要">
+      <div class="policy-card"><span>总仓位上限</span><strong id="investorTotalPosition">-</strong></div>
+      <div class="policy-card"><span>现金储备下限</span><strong id="investorCashReserve">-</strong></div>
+      <div class="policy-card"><span>单标的上限</span><strong id="investorSinglePosition">-</strong></div>
+      <div class="policy-card"><span>最低置信度</span><strong id="investorMinConfidence">-</strong></div>
+      <div class="policy-card"><span>最大回撤线</span><strong id="investorMaxDrawdown">-</strong></div>
+    </div>
+    <div class="control-market">
+      <label style="display:block;font-size:.8rem;color:var(--text-dim);margin-bottom:8px">启用市场（可多选）</label>
+      <div class="checkbox-group" id="marketCheckboxes">
+        <label class="checkbox-item"><input type="checkbox" value="cn"> 🇨🇳 A股</label>
+        <label class="checkbox-item"><input type="checkbox" value="hk"> 🇭🇰 港股</label>
+        <label class="checkbox-item"><input type="checkbox" value="us"> 🇺🇸 美股</label>
+        <label class="checkbox-item"><input type="checkbox" value="etf"> 📊 ETF</label>
+      </div>
+    </div>
+  </section>
+
+  <select class="settings-mobile-index" aria-label="设置快速跳转" onchange="jumpToSetting(this.value)">
+    <option value="">快速跳转到设置…</option>
+    <option value="section-autonomy">AI 自主交易</option><option value="section-market-risk">分市场风控</option>
+    <option value="section-screening">自主选股与数据</option><option value="section-schedule">调度设置</option>
+    <option value="section-models">AI 模型</option><option value="section-optimizer">组合优化</option>
+    <option value="section-trading">交易规则</option><option value="section-api">API Keys</option>
+  </select>
+  <div class="settings-layout">
+    <aside class="settings-index" id="settingsIndex">
+      <h2>设置索引</h2>
+      <input id="settingsSearch" class="settings-search" type="search" placeholder="搜索设置…" oninput="filterSettings(this.value)">
+      <nav>
+        <a href="#section-autonomy">🤖 AI 自主交易</a><a href="#section-market-risk">🛡️ 分市场风控</a>
+        <a href="#section-screening">🔎 自主选股与数据</a><a href="#section-schedule">⏰ 调度设置</a>
+        <a href="#section-models">🧠 AI 模型</a><a href="#section-optimizer">📈 组合优化</a>
+        <a href="#section-trading">💰 交易规则</a><a href="#section-api">🔑 API Keys</a>
+      </nav>
+    </aside>
+    <main class="settings-content">
 
   <!-- API Keys -->
-  <div class="section">
-    <h2>🔑 API Keys</h2>
+  <details class="section advanced-section" id="section-api" data-search="api key 密钥 供应商 接口">
+    <summary><h2>🔑 API Keys</h2><span class="advanced-badge">高级设置</span></summary>
     <div id="apiKeysContainer"></div>
-  </div>
+  </details>
 
   <!-- 模型选择 -->
-  <div class="section">
+  <div class="section" id="section-models" data-search="ai 模型 主模型 回退 超时 快速 专业 供应商">
     <h2>🤖 AI 模型</h2>
     <div class="form-group">
       <label>主模型（点击选择）</label>
@@ -143,22 +215,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <button class="add-btn" onclick="addProvider()">+ 添加模型供应商</button>
   </div>
 
-  <!-- 市场开关 -->
-  <div class="section">
-    <h2>🌐 市场开关</h2>
-    <div class="form-group">
-      <label>启用市场（可多选）</label>
-      <div class="checkbox-group" id="marketCheckboxes">
-        <label class="checkbox-item"><input type="checkbox" value="cn"> 🇨🇳 A股</label>
-        <label class="checkbox-item"><input type="checkbox" value="hk"> 🇭🇰 港股</label>
-        <label class="checkbox-item"><input type="checkbox" value="us"> 🇺🇸 美股</label>
-        <label class="checkbox-item"><input type="checkbox" value="etf"> 📊 ETF</label>
-      </div>
-    </div>
-  </div>
-
   <!-- 调度设置 -->
-  <div class="section">
+  <div class="section" id="section-schedule" data-search="调度 时区 工作日 轮次 时间 定时">
     <h2>⏰ 调度设置</h2>
     <div class="form-row">
       <div class="form-group">
@@ -177,7 +235,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </div>
 
   <!-- 优化器设置 -->
-  <div class="section">
+  <div class="section" id="section-optimizer" data-search="组合优化 回看 无风险利率 成本">
     <h2>📈 组合优化</h2>
     <div class="form-row">
       <div class="form-group">
@@ -208,7 +266,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </div>
 
   <!-- 股票筛选 -->
-  <div class="section">
+  <div class="section" id="section-screening" data-search="选股 筛选 mongodb 数据 存储 候选 因子 估值 成交量 波动">
     <h2>🔎 自主选股</h2>
     <div class="section-note">先按流动性、价格、市值和估值做硬筛选，再用动量、趋势、成交量和波动率评分。AI 只能在最终候选池内决策，筛选失败时回退到优化器默认标的。</div>
     <div class="form-row">
@@ -278,7 +336,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </div>
 
   <!-- AI 自主交易 -->
-  <div class="section">
+  <div class="section" id="section-autonomy" data-search="ai 自主交易 订单 置信度 仓位 换手 自动执行">
     <h2>🤖 AI 自主交易</h2>
     <div class="section-note">这些是全局硬上限。即使 AI 给出更激进的建议，也不能突破这里的仓位、金额、换手和频次限制。</div>
     <div class="form-row">
@@ -333,7 +391,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </div>
 
   <!-- 分市场风控 -->
-  <div class="section">
+  <div class="section" id="section-market-risk" data-search="市场 风控 止损 止盈 现金储备 回撤 佣金 滑点 印花税">
     <h2>🛡️ 分市场风控</h2>
     <div class="section-note">止损、止盈、现金储备和最大回撤按市场分别生效。手续费、印花税、滑点、整手和结算制度是模拟撮合规则，只展示、不在这里修改。</div>
     <div class="form-group">
@@ -375,7 +433,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </div>
 
   <!-- 交易设置 -->
-  <div class="section">
+  <div class="section" id="section-trading" data-search="交易 模拟盘 实盘 每日笔数">
     <h2>💰 交易</h2>
     <div class="form-row">
       <div class="form-group">
@@ -391,9 +449,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       </div>
     </div>
   </div>
+    </main>
+  </div>
 </div>
 
 <div class="save-bar">
+  <span class="dirty-indicator" id="dirtyIndicator">所有设置均已保存</span>
   <button class="btn btn-secondary" onclick="loadConfig()">🔄 重置</button>
   <button class="btn btn-success" onclick="saveConfig()">💾 保存配置</button>
 </div>
@@ -404,7 +465,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 let config = {};
 let envVars = {};
 let marketConfigs = {};
+let mandateData = {};
 let currentRiskMarket = 'cn';
+let settingsDirty = false;
 
 const DEFAULT_PROVIDERS = {
   deepseek: { name: 'DeepSeek', desc: '深度求索 V4', defaultModel: 'deepseek-v4-pro', defaultBase: 'https://api.deepseek.com' },
@@ -422,16 +485,19 @@ function providers() {
 
 async function loadConfig() {
   try {
-    const [configRes, envRes, marketConfigRes] = await Promise.all([
+    const [configRes, envRes, marketConfigRes, mandateRes] = await Promise.all([
       fetch('/api/config'),
       fetch('/api/env'),
-      fetch('/api/market-configs')
+      fetch('/api/market-configs'),
+      fetch('/api/investment/mandate')
     ]);
-    if (!configRes.ok || !envRes.ok || !marketConfigRes.ok) throw new Error('配置接口返回异常');
+    if (!configRes.ok || !envRes.ok || !marketConfigRes.ok || !mandateRes.ok) throw new Error('配置接口返回异常');
     config = await configRes.json();
     envVars = await envRes.json();
     marketConfigs = await marketConfigRes.json();
+    mandateData = await mandateRes.json();
     renderConfig();
+    clearSettingsDirty();
     showToast('配置已加载', 'success');
   } catch(e) {
     showToast('加载失败: ' + e.message, 'error');
@@ -500,6 +566,7 @@ function renderConfig() {
   // AI 自主交易
   const autonomy = config.autonomous || {};
   document.getElementById('operationMode').value = autonomy.operation_mode ?? 'automatic';
+  renderInvestorPolicy();
   document.getElementById('autonomousEnabled').value = 'true';
   document.getElementById('autoExecute').value = 'true';
   document.getElementById('autonomousEnabled').disabled = true;
@@ -519,6 +586,39 @@ function renderConfig() {
   // 交易
   document.getElementById('tradingMode').value = config.trading?.mode || 'paper';
   document.getElementById('maxDailyTrades').value = config.trading?.max_daily_trades || 6;
+}
+
+function renderInvestorPolicy() {
+  const mandate = mandateData.mandate || {};
+  document.getElementById('settingsStrategyProfile').value = mandate.profile || 'neutral';
+  const pct = value => Number.isFinite(Number(value)) ? Number(value) + '%' : '-';
+  document.getElementById('investorTotalPosition').textContent = pct(mandate.max_total_position_pct);
+  document.getElementById('investorCashReserve').textContent = pct(mandate.min_cash_reserve_pct);
+  document.getElementById('investorSinglePosition').textContent = pct(mandate.max_position_pct);
+  document.getElementById('investorMinConfidence').textContent = Number.isFinite(Number(mandate.min_confidence)) ? Number(mandate.min_confidence).toFixed(2) : '-';
+  document.getElementById('investorMaxDrawdown').textContent = pct(mandate.max_drawdown_pct);
+}
+
+async function saveSettingsStrategyProfile(profile) {
+  const selector = document.getElementById('settingsStrategyProfile');
+  selector.disabled = true;
+  try {
+    const res = await fetch('/api/investment/mandate', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({profile})
+    });
+    const result = await res.json();
+    if (!res.ok || result.error) throw new Error(result.error || '切换失败');
+    const refreshed = await fetch('/api/investment/mandate');
+    if (!refreshed.ok) throw new Error('策略已切换，但刷新摘要失败');
+    mandateData = await refreshed.json();
+    renderInvestorPolicy();
+    showToast('✅ 策略目标已切换，下个投资轮次生效', 'success');
+  } catch(e) {
+    renderInvestorPolicy();
+    showToast('❌ 切换策略失败: ' + e.message, 'error');
+  } finally {
+    selector.disabled = false;
+  }
 }
 
 function renderMarketRisk() {
@@ -934,6 +1034,7 @@ async function saveConfig() {
       marketConfigRes.json()
     ]);
     if (configRes.ok && marketConfigRes.ok && configResult.ok && marketConfigResult.ok) {
+      clearSettingsDirty();
       showToast('✅ 配置已保存', 'success');
     } else {
       showToast('❌ 保存失败: ' + (configResult.error || marketConfigResult.error || '未知错误'), 'error');
@@ -949,6 +1050,45 @@ function showToast(msg, type) {
   toast.className = 'toast show' + (type === 'error' ? ' error' : '');
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
+
+function markSettingsDirty() {
+  settingsDirty = true;
+  const indicator = document.getElementById('dirtyIndicator');
+  indicator.textContent = '有尚未保存的修改';
+  indicator.classList.add('dirty');
+}
+
+function clearSettingsDirty() {
+  settingsDirty = false;
+  const indicator = document.getElementById('dirtyIndicator');
+  indicator.textContent = '所有设置均已保存';
+  indicator.classList.remove('dirty');
+}
+
+function filterSettings(query) {
+  const normalized = String(query || '').trim().toLowerCase();
+  document.querySelectorAll('.settings-content .section').forEach(section => {
+    const haystack = ((section.dataset.search || '') + ' ' + (section.querySelector('h2')?.textContent || '')).toLowerCase();
+    section.classList.toggle('is-filtered', Boolean(normalized) && !haystack.includes(normalized));
+  });
+}
+
+function jumpToSetting(id) {
+  if (!id) return;
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+document.addEventListener('input', event => {
+  if (event.target.id !== 'settingsSearch') markSettingsDirty();
+});
+document.addEventListener('change', event => {
+  if (event.target.id !== 'settingsStrategyProfile') markSettingsDirty();
+});
+window.addEventListener('beforeunload', event => {
+  if (!settingsDirty) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
 
 loadConfig();
 </script>

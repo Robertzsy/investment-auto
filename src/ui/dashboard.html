@@ -17,9 +17,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .nav{display:flex;gap:12px}
 .nav a{color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s}
 .nav a:hover,.nav a.active{color:var(--text);background:rgba(88,166,255,0.1)}
-.container{max-width:1400px;margin:0 auto;padding:20px}
+.container{max-width:1540px;margin:0 auto;padding:20px}
+.dashboard-shell{display:grid;grid-template-columns:minmax(280px,320px) minmax(0,1fr);gap:18px;align-items:start}
+.dashboard-main{min-width:0}
 /* Stats cards */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
 .stat-card .label{font-size:0.8rem;color:var(--text-dim);margin-bottom:4px}
 .stat-card .value{font-size:1.4rem;font-weight:700}
@@ -49,16 +51,15 @@ tr:hover{background:rgba(88,166,255,0.05)}
 .refresh-btn:hover{background:var(--accent)}
 .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .card-header h3{margin-bottom:0}
-.market-insight{position:relative;overflow:hidden;background:linear-gradient(125deg,rgba(88,166,255,.16),rgba(163,113,247,.10) 55%,rgba(63,185,80,.08));border:1px solid rgba(88,166,255,.55);border-radius:14px;padding:22px 24px;margin:0 0 20px;box-shadow:0 12px 36px rgba(0,0,0,.22)}
-.market-insight:before{content:'';position:absolute;width:240px;height:240px;border-radius:50%;right:-90px;top:-130px;background:rgba(88,166,255,.12);filter:blur(2px)}
-.insight-header{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:16px}
+.market-insight{position:sticky;top:20px;overflow-x:hidden;overflow-y:auto;height:calc(100vh - 96px);background:linear-gradient(155deg,rgba(88,166,255,.18),rgba(163,113,247,.10) 55%,rgba(63,185,80,.08));border:1px solid rgba(88,166,255,.55);border-radius:14px;padding:20px 18px;box-shadow:0 12px 36px rgba(0,0,0,.22);scrollbar-width:thin}
+.market-insight:before{content:'';position:absolute;width:220px;height:220px;border-radius:50%;right:-110px;top:-100px;background:rgba(88,166,255,.12);filter:blur(2px)}
+.insight-header{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:14px;margin-bottom:16px}
 .insight-eyebrow{font-size:.72rem;letter-spacing:.12em;color:var(--accent);font-weight:700;margin-bottom:7px}
 .insight-title{font-size:1.35rem;margin-bottom:6px}
 .insight-subtitle{font-size:.82rem;color:var(--text-dim)}
-.insight-link{white-space:nowrap;color:#fff;background:var(--accent);padding:8px 14px;border-radius:7px;text-decoration:none;font-size:.83rem;font-weight:600}
+.insight-link{white-space:nowrap;color:#fff;background:var(--accent);padding:9px 14px;border-radius:7px;text-decoration:none;font-size:.83rem;font-weight:600;text-align:center}
 .insight-link:hover{background:var(--accent-hover)}
-.insight-preview{position:relative;max-height:235px;overflow:hidden;line-height:1.72;font-size:.9rem;padding-right:12px}
-.insight-preview:after{content:'';position:absolute;left:0;right:0;bottom:0;height:55px;background:linear-gradient(transparent,rgba(26,29,39,.98));pointer-events:none}
+.insight-preview{position:relative;line-height:1.68;font-size:.84rem;padding-right:4px}
 .insight-preview h1,.insight-preview h2,.insight-preview h3{font-size:1rem;color:var(--text);margin:10px 0 6px}
 .insight-preview h1{display:none}
 .insight-preview ul,.insight-preview ol{padding-left:22px}
@@ -69,7 +70,8 @@ tr:hover{background:rgba(88,166,255,0.05)}
 .screening-meta{font-size:.78rem;color:var(--text-dim);line-height:1.6;margin-bottom:12px}
 .factor-chip{display:inline-block;padding:2px 7px;margin:2px 3px 2px 0;border-radius:10px;background:rgba(88,166,255,.12);color:var(--accent);font-size:.7rem;white-space:nowrap}
 .screen-score{font-weight:700;color:var(--success)}
-@media (max-width:640px){.insight-header{flex-direction:column}.insight-link{width:100%;text-align:center}.grid{grid-template-columns:1fr}}
+@media (max-width:1050px){.dashboard-shell{grid-template-columns:1fr}.market-insight{position:relative;top:auto;height:auto;max-height:440px}.insight-header{display:grid;grid-template-columns:1fr auto}.insight-link{align-self:start}}
+@media (max-width:640px){.insight-header{display:flex;flex-direction:column}.insight-link{width:100%;text-align:center}.grid{grid-template-columns:1fr}.container{padding:12px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -83,6 +85,22 @@ tr:hover{background:rgba(88,166,255,0.05)}
 </div>
 
 <div class="container">
+<div class="dashboard-shell">
+  <!-- 左侧市场情报栏：独立滚动，不挤压交易数据 -->
+  <aside class="market-insight" aria-labelledby="marketInsightTitle">
+    <div class="insight-header">
+      <div>
+        <div class="insight-eyebrow">AI MARKET CONTEXT</div>
+        <h2 class="insight-title" id="marketInsightTitle">🌐 市场环境研判</h2>
+        <div class="insight-subtitle">政策、市场与板块信号，作为本轮决策的环境背景。</div>
+      </div>
+      <a class="insight-link" href="/macro">查看完整研判 →</a>
+    </div>
+    <div id="macroSummary" class="insight-preview"><div class="loading">加载中...</div></div>
+    <div id="macroHistory" class="insight-history"></div>
+  </aside>
+
+<main class="dashboard-main">
   <!-- 总览统计 -->
   <div class="stats" id="statsCards">
     <div class="stat-card"><div class="label">总资产</div><div class="value" id="totalAssets">-</div><div class="sub">全部市场合计</div></div>
@@ -100,20 +118,6 @@ tr:hover{background:rgba(88,166,255,0.05)}
     <div class="tab" data-market="us">🇺🇸 美股</div>
     <div class="tab" data-market="etf">📊 ETF</div>
   </div>
-
-  <!-- 市场环境研判：Dashboard 内的独立醒目区域 -->
-  <section class="market-insight" aria-labelledby="marketInsightTitle">
-    <div class="insight-header">
-      <div>
-        <div class="insight-eyebrow">AI MARKET CONTEXT</div>
-        <h2 class="insight-title" id="marketInsightTitle">🌐 市场环境研判</h2>
-        <div class="insight-subtitle">把政策、市场与板块信号放在交易数据之前，作为本轮决策的环境背景。</div>
-      </div>
-      <a class="insight-link" href="/macro">查看完整研判 →</a>
-    </div>
-    <div id="macroSummary" class="insight-preview"><div class="loading">加载中...</div></div>
-    <div id="macroHistory" class="insight-history"></div>
-  </section>
 
   <!-- 交易轮次前生成的量化候选池 -->
   <section class="card screening-panel">
@@ -158,6 +162,8 @@ tr:hover{background:rgba(88,166,255,0.05)}
     <div class="card-header"><h3>🔬 最新优化器结果</h3></div>
     <div id="optimizerResult"><div class="loading">加载中...</div></div>
   </div>
+</main>
+</div>
 </div>
 
 <script>
