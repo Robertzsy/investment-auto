@@ -183,6 +183,12 @@ html{scroll-behavior:smooth;scroll-padding-top:16px}
   <details class="section advanced-section" id="section-api" data-search="api key 密钥 供应商 接口">
     <summary><h2>🔑 API Keys</h2><span class="advanced-badge">高级设置</span></summary>
     <div id="apiKeysContainer"></div>
+    <div class="subheading">逐标的研究数据</div>
+    <div class="form-group">
+      <label>Finnhub API Key（美股公司新闻与基本面）</label>
+      <input type="password" id="finnhubApiKey" value="" autocomplete="new-password" placeholder="留空保持现有 FINNHUB_API_KEY">
+      <div class="help-text" id="finnhubApiStatus">未配置时系统会明确记录数据缺口，不会虚构公司新闻或财务数据。</div>
+    </div>
   </details>
 
   <!-- 模型选择 -->
@@ -581,6 +587,9 @@ function renderConfig() {
   document.getElementById('notifyWebhookStatus').textContent = envVars.NOTIFY_WEBHOOK_URL
     ? 'NOTIFY_WEBHOOK_URL 已配置；留空会保留现有地址。'
     : '尚未配置地址；定时轮次会保存本地报告，但无法发送到外部。';
+  document.getElementById('finnhubApiStatus').textContent = envVars.FINNHUB_API_KEY
+    ? 'FINNHUB_API_KEY 已配置；输入框留空会保留现有密钥。'
+    : 'FINNHUB_API_KEY 未配置；美股公司新闻与扩展基本面会作为明确数据缺口。';
   renderMarketRisk();
 
   // 交易
@@ -881,6 +890,8 @@ async function saveConfig() {
   }
   const mongoUri = document.getElementById('screenMongoUri').value.trim();
   if (mongoUri) newEnv.MONGODB_URI = mongoUri;
+  const finnhubApiKey = document.getElementById('finnhubApiKey').value.trim();
+  if (finnhubApiKey) newEnv.FINNHUB_API_KEY = finnhubApiKey;
   const notifyWebhookUrl = document.getElementById('notifyWebhookUrl').value.trim();
   if (notifyWebhookUrl) newEnv.NOTIFY_WEBHOOK_URL = notifyWebhookUrl;
   
@@ -927,7 +938,7 @@ async function saveConfig() {
   for (const role of ['technical_analyst', 'sentiment_analyst', 'news_analyst', 'fundamentals_analyst', 'bull_researcher', 'bear_researcher']) {
     config.llm.role_model_override[role] = quickModel;
   }
-  for (const role of ['research_manager', 'investment_advisor', 'aggressive_analyst', 'neutral_analyst', 'conservative_analyst', 'risk_manager', 'portfolio_manager']) {
+  for (const role of ['research_manager', 'trader', 'aggressive_analyst', 'neutral_analyst', 'conservative_analyst', 'risk_manager', 'portfolio_manager']) {
     config.llm.role_model_override[role] = proModel;
   }
 

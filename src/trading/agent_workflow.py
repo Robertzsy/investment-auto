@@ -23,8 +23,10 @@ ROLE_GROUPS: Dict[str, Sequence[str]] = {
     "base": ("technical_analyst", "sentiment_analyst", "news_analyst", "fundamentals_analyst"),
     "research": ("bull_researcher", "bear_researcher"),
     "research_manager": ("research_manager",),
-    "advice": ("investment_advisor",),
-    "risk": ("aggressive_analyst", "neutral_analyst", "conservative_analyst"),
+    "trader": ("trader",),
+    # This order is intentional.  Unlike the old parallel committee, each
+    # opinion is added to the state before the next risk persona is called.
+    "risk": ("aggressive_analyst", "conservative_analyst", "neutral_analyst"),
     "risk_manager": ("risk_manager",),
     "portfolio": ("portfolio_manager",),
 }
@@ -38,6 +40,7 @@ ROLE_NAMES = {
     "bear_researcher": "空头研究员",
     "research_manager": "研究经理",
     "investment_advisor": "投资建议分析师",
+    "trader": "逐标的交易员",
     "aggressive_analyst": "激进风险分析师",
     "neutral_analyst": "中立风险分析师",
     "conservative_analyst": "保守风险分析师",
@@ -54,6 +57,7 @@ ROLE_INSTRUCTIONS = {
     "bear_researcher": "从上游证据中提出最强空头论点，同时诚实列出不支持空头的证据。",
     "research_manager": "裁决多空论证，比较证据质量与时效性，形成研究结论；不能以意见数量代替证据。",
     "investment_advisor": "把研究结论转成可执行但尚未经风控的投资建议，说明入场、退出、仓位方向和观察条件。",
+    "trader": "只针对当前标的，把研究经理裁决转成一个明确的 BUY、HOLD 或 SELL 候选建议；不得替组合或硬风控作决定。",
     "aggressive_analyst": "从较高风险承受角度评估机会成本、上行空间和允许承担的风险，但不能突破代码硬限制。",
     "neutral_analyst": "从风险收益平衡角度评估建议，重点检查证据冲突、组合相关性和情景概率。",
     "conservative_analyst": "从资本保护角度评估尾部风险、回撤、流动性、结算和数据质量，可建议全部持有或退出。",
@@ -73,11 +77,20 @@ ROLE_UPSTREAM_PREFIXES: Dict[str, Sequence[str]] = {
     "bear_researcher": ("AGENT:TECHNICAL_ANALYST", "AGENT:SENTIMENT_ANALYST", "AGENT:NEWS_ANALYST", "AGENT:FUNDAMENTALS_ANALYST"),
     "research_manager": ("AGENT:BULL_RESEARCHER", "AGENT:BEAR_RESEARCHER"),
     "investment_advisor": ("AGENT:RESEARCH_MANAGER",),
-    "aggressive_analyst": ("AGENT:INVESTMENT_ADVISOR",),
-    "neutral_analyst": ("AGENT:INVESTMENT_ADVISOR",),
-    "conservative_analyst": ("AGENT:INVESTMENT_ADVISOR",),
+    "trader": ("AGENT:RESEARCH_MANAGER",),
+    "aggressive_analyst": ("AGENT:PORTFOLIO_MANAGER:PROPOSAL",),
+    "neutral_analyst": ("AGENT:CONSERVATIVE_ANALYST",),
+    "conservative_analyst": ("AGENT:AGGRESSIVE_ANALYST",),
     "risk_manager": ("AGENT:AGGRESSIVE_ANALYST", "AGENT:NEUTRAL_ANALYST", "AGENT:CONSERVATIVE_ANALYST"),
-    "portfolio_manager": ("AGENT:RISK_MANAGER", "AGENT:RESEARCH_MANAGER", "AGENT:INVESTMENT_ADVISOR"),
+    "portfolio_manager": ("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
+}
+
+GLOBAL_EVIDENCE_IDS = {
+    "ACCOUNT:SUMMARY",
+    "SCREENING:RUN",
+    "MACRO:LATEST",
+    "NEWS:MACRO",
+    "OPTIMIZER:LATEST",
 }
 
 
@@ -100,7 +113,16 @@ class AgentMemoryStore:
         except (OSError, json.JSONDecodeError):
             return []
         entries = payload.get("entries", []) if isinstance(payload, Mapping) else []
-        return [dict(item) for item in entries[-max(0, limit):] if isinstance(item, Mapping)]
+        # Legacy entries were written immediately after an Agent response, before
+        # any market outcome was observable.  They are deliberately ignored so
+        # plausible-sounding self summaries cannot become investment "facts".
+        verified = [
+            dict(item)
+            for item in entries
+            if isinstance(item, Mapping)
+            and (item.get("outcome_status") == "evaluated" or item.get("verified") is True)
+        ]
+        return verified[-max(0, limit):]
 
     def append(
         self,
@@ -123,6 +145,8 @@ class AgentMemoryStore:
             "situation": situation[:max_chars],
             "memory_note": memory_note.strip()[:max_chars],
             "citations": list(dict.fromkeys(str(item) for item in citations))[:20],
+            "outcome_status": "evaluated",
+            "verified": True,
         })
         payload = {"market": market, "role": role, "entries": entries[-limit:]}
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -146,7 +170,6 @@ def build_evidence_catalog(context: Mapping[str, Any]) -> Dict[str, Any]:
     if context.get("macro_excerpt"):
         catalog["MACRO:LATEST"] = str(context.get("macro_excerpt"))[:6000]
         catalog["NEWS:MACRO"] = str(context.get("macro_excerpt"))[:6000]
-    catalog["DATA_GAP:COMPANY_NEWS"] = "本轮没有接入逐标的、带来源与发布时间的公司新闻；不得虚构公司事件。"
     if context.get("optimizer"):
         catalog["OPTIMIZER:LATEST"] = context.get("optimizer")
     selected = {
@@ -178,12 +201,74 @@ def build_evidence_catalog(context: Mapping[str, Any]) -> Dict[str, Any]:
             "sector": selected_row.get("sector"),
             "industry": selected_row.get("industry"),
         }
+        supplied_fundamentals = snapshot.get("fundamentals", {})
+        if isinstance(supplied_fundamentals, Mapping):
+            fundamentals.update({
+                str(key): value for key, value in supplied_fundamentals.items()
+                if value not in (None, "")
+            })
+        fundamentals["data_sources"] = list(snapshot.get("research_data_sources", []))
         catalog[f"FUNDAMENTALS:{symbol}"] = fundamentals
-        if not any(fundamentals.get(key) not in (None, "", 0, 0.0) for key in ("pe", "pb", "market_cap")):
+        if not any(fundamentals.get(key) not in (None, "", 0, 0.0) for key in (
+            "pe", "pb", "market_cap", "revenue", "net_income", "operating_cash_flow",
+        )):
             catalog[f"DATA_GAP:FUNDAMENTALS:{symbol}"] = "缺少可核验的估值、利润、营收和现金流数据。"
+        news = snapshot.get("news", [])
+        if isinstance(news, list) and news:
+            catalog[f"NEWS:{symbol}"] = news[:12]
+        else:
+            catalog[f"DATA_GAP:COMPANY_NEWS:{symbol}"] = "没有逐标的、带来源与发布时间的公司新闻；不得虚构公司事件。"
+        external_sentiment = snapshot.get("sentiment", {})
+        if isinstance(external_sentiment, Mapping) and external_sentiment:
+            catalog[f"SENTIMENT:{symbol}"].update(external_sentiment)
+        research_errors = snapshot.get("research_data_errors", {})
+        if isinstance(research_errors, Mapping) and research_errors:
+            catalog[f"DATA_GAP:RESEARCH:{symbol}"] = dict(research_errors)
         if symbol in selected:
             catalog[f"SCREENING:{symbol}"] = selected[symbol]
     return catalog
+
+
+def evidence_for_symbol(evidence: Mapping[str, Any], symbol: str) -> Dict[str, Any]:
+    """Create one stock's isolated research state plus shared portfolio facts."""
+    normalized = str(symbol).strip().upper()
+    suffix = f":{normalized}"
+    selected: Dict[str, Any] = {}
+    for evidence_id, value in evidence.items():
+        if evidence_id == "ACCOUNT:SUMMARY" and isinstance(value, Mapping):
+            account = dict(value)
+            account["holdings"] = [
+                holding for holding in value.get("holdings", [])
+                if isinstance(holding, Mapping)
+                and str(holding.get("code", "")).strip().upper() == normalized
+            ]
+            selected[evidence_id] = account
+            continue
+        if evidence_id == "SCREENING:RUN" and isinstance(value, Mapping):
+            selected[evidence_id] = {
+                key: item for key, item in value.items()
+                if key not in {"selected", "selected_symbols", "allowed_symbols", "scored"}
+            }
+            continue
+        if evidence_id in {"MACRO:LATEST", "NEWS:MACRO"} or evidence_id.startswith("RULES:"):
+            selected[evidence_id] = value
+            continue
+        if evidence_id.endswith(suffix):
+            selected[evidence_id] = value
+    return selected
+
+
+def _symbol_context(context: Mapping[str, Any], symbol: str) -> Dict[str, Any]:
+    """Bound a research graph to exactly one security."""
+    normalized = str(symbol).strip().upper()
+    child = dict(context)
+    child["allowed_symbols"] = [normalized]
+    child["current_symbol"] = normalized
+    snapshots = context.get("snapshots", {})
+    child["snapshots"] = {
+        normalized: snapshots.get(normalized, {})
+    } if isinstance(snapshots, Mapping) else {}
+    return child
 
 
 def _parse_json_object(text: str) -> Dict[str, Any]:
@@ -263,6 +348,7 @@ def validate_citations(
     minimum: int,
     require_decision_citations: bool = False,
     required_upstream_prefixes: Sequence[str] = (),
+    require_all_upstream_prefixes: bool = False,
 ) -> List[str]:
     allowed = set(allowed_ids)
     citations = _citation_ids(payload)
@@ -291,10 +377,16 @@ def validate_citations(
         prefix for prefix in required_upstream_prefixes
         if any(evidence_id.startswith(prefix) for evidence_id in allowed)
     ]
-    if required and available_prefixes and not any(
-        citation.startswith(tuple(available_prefixes)) for citation in citations
-    ):
-        raise ValueError("必须引用至少一份直接上游 Agent 报告")
+    if required and available_prefixes:
+        cited_prefixes = {
+            prefix for prefix in available_prefixes
+            if any(citation.startswith(prefix) for citation in citations)
+        }
+        if require_all_upstream_prefixes and len(cited_prefixes) != len(available_prefixes):
+            missing = [prefix for prefix in available_prefixes if prefix not in cited_prefixes]
+            raise ValueError("必须引用全部直接上游 Agent 报告: " + ", ".join(missing))
+        if not cited_prefixes:
+            raise ValueError("必须引用至少一份直接上游 Agent 报告")
     return citations
 
 
@@ -335,6 +427,22 @@ def _role_evidence(role: str, evidence: Mapping[str, Any]) -> Dict[str, Any]:
     return scoped or {"DATA_GAP:ROLE_INPUT": f"{ROLE_NAMES[role]}没有获得可用领域数据。"}
 
 
+def _upstream_evidence(
+    evidence: Mapping[str, Any],
+    prefixes: Sequence[str],
+    *,
+    include_raw: bool = True,
+) -> Dict[str, Any]:
+    """Expose only declared parents, preventing managers from bypassing them."""
+    selected: Dict[str, Any] = {}
+    for evidence_id, value in evidence.items():
+        if evidence_id.startswith(tuple(prefixes)):
+            selected[evidence_id] = value
+        elif include_raw and not evidence_id.startswith("AGENT:"):
+            selected[evidence_id] = value
+    return selected
+
+
 def _memory_text(entries: Sequence[Mapping[str, Any]], max_chars: int) -> str:
     if not entries:
         return "无"
@@ -367,6 +475,10 @@ def _call_role(
     generated_at: str,
     extra_instruction: str = "",
     portfolio: bool = False,
+    allowed_evidence: Optional[Mapping[str, Any]] = None,
+    required_upstream_prefixes: Optional[Sequence[str]] = None,
+    require_all_upstreams: bool = False,
+    persist_memory: bool = False,
 ) -> Dict[str, Any]:
     require_citations = bool(settings.get("require_citations", True))
     minimum_citations = int(settings.get("minimum_citations", 1))
@@ -401,8 +513,20 @@ def _call_role(
             "citations": ["证据ID"],
             "memory_note": "留给该角色未来轮次的简短教训",
         }
-    scoped_evidence = _role_evidence(role, evidence)
+    scoped_evidence = dict(allowed_evidence) if allowed_evidence is not None else _role_evidence(role, evidence)
     evidence_text = _evidence_text(scoped_evidence)
+    upstream_prefixes = (
+        tuple(required_upstream_prefixes)
+        if required_upstream_prefixes is not None
+        else tuple(ROLE_UPSTREAM_PREFIXES.get(role, ()))
+    )
+    mandatory_upstream_ids = {
+        prefix: [evidence_id for evidence_id in scoped_evidence if evidence_id.startswith(prefix)]
+        for prefix in upstream_prefixes
+    }
+    mandatory_upstream_ids = {
+        prefix: ids for prefix, ids in mandatory_upstream_ids.items() if ids
+    }
     system = (
         f"你是{ROLE_NAMES[role]}。{ROLE_INSTRUCTIONS[role]}"
         "只允许依据本轮证据目录和明确列出的上游 Agent 报告作判断。"
@@ -424,6 +548,9 @@ def _call_role(
         f"\n跨轮次过程反思（只能改进分析方法，不能作为市场事实或引用，也不能改变授权书风险档位）："
         f"\n{_json_text(context.get('reflection_lessons', []), 5000)}"
         f"\n附加任务：{extra_instruction or '无'}"
+        f"\n必须引用的直接上游证据组：{json.dumps(mandatory_upstream_ids, ensure_ascii=False)}"
+        "\n以上每个非空组都至少选择一个完整 ID 写入顶层 citations；"
+        "若要求逐一引用，则每个组都不能遗漏。不得用原始行情 ID 替代直接上游 Agent ID。"
         f"\n本轮可引用证据目录：{evidence_text}"
         f"\n严格输出结构：{json.dumps(schema, ensure_ascii=False)}"
         "\n输出必须精简：summary/thesis 不超过180字，findings最多6条，每条claim/reason不超过120字，"
@@ -449,6 +576,7 @@ def _call_role(
             prompt += (
                 f"\n上次输出无效：{last_error}。这是一次全新重试：请压缩措辞，"
                 "从头重新输出完整、闭合且可解析的 JSON，不要延续或解释上次输出。"
+                f"顶层 citations 必须包含直接上游完整 ID：{json.dumps(mandatory_upstream_ids, ensure_ascii=False)}。"
             )
         try:
             attempt_kwargs = dict(chat_kwargs)
@@ -466,12 +594,16 @@ def _call_role(
                 required=require_citations,
                 minimum=minimum_citations,
                 require_decision_citations=portfolio,
-                required_upstream_prefixes=ROLE_UPSTREAM_PREFIXES.get(role, ()),
+                required_upstream_prefixes=upstream_prefixes,
+                require_all_upstream_prefixes=require_all_upstreams,
             )
             if portfolio:
                 validate_portfolio_coverage(payload, context.get("allowed_symbols", []))
             payload.update({"role": role, "role_name": ROLE_NAMES[role], "stage": stage, "citations": citations})
-            if memory_enabled:
+            # Outcome-blind self summaries are not lessons.  Normal workflow
+            # calls keep memory pending until a delayed evaluator can attach
+            # observed returns; direct callers may explicitly persist it.
+            if memory_enabled and persist_memory:
                 memory_store.append(
                     market,
                     role,
@@ -510,6 +642,7 @@ def _parallel_roles(
     memory_store: AgentMemoryStore,
     generated_at: str,
     extra_instruction: str = "",
+    allowed_evidence: Optional[Mapping[str, Any]] = None,
 ) -> tuple[Dict[str, Dict[str, Any]], Dict[str, str]]:
     active = [role for role in roles if _role_enabled(settings, role)]
     reports: Dict[str, Dict[str, Any]] = {}
@@ -527,6 +660,7 @@ def _parallel_roles(
                 memory_store=memory_store,
                 generated_at=generated_at,
                 extra_instruction=extra_instruction,
+                allowed_evidence=allowed_evidence,
             ): role
             for role in active
         }
@@ -544,6 +678,132 @@ def _add_reports(evidence: Dict[str, Any], reports: Mapping[str, Any], round_num
         evidence[_report_evidence_id(role, round_number)] = report
 
 
+def _run_symbol_research(
+    symbol: str,
+    *,
+    context: Mapping[str, Any],
+    evidence: Mapping[str, Any],
+    settings: Mapping[str, Any],
+    memory_store: AgentMemoryStore,
+    generated_at: str,
+) -> Dict[str, Any]:
+    """Run a complete, isolated research graph for one security."""
+    child_context = _symbol_context(context, symbol)
+    child_evidence = evidence_for_symbol(evidence, symbol)
+    errors: Dict[str, str] = {}
+    timings: Dict[str, float] = {}
+
+    started = time.monotonic()
+    base_reports, stage_errors = _parallel_roles(
+        ROLE_GROUPS["base"], stage=f"{symbol}:base_analysis", context=child_context,
+        evidence=child_evidence, settings=settings, memory_store=memory_store,
+        generated_at=generated_at,
+    )
+    timings["base_analysis"] = round(time.monotonic() - started, 3)
+    errors.update(stage_errors)
+    required_base = max(1, int(settings.get("minimum_base_analysts", 4)))
+    if len(base_reports) < required_base:
+        raise RuntimeError(f"{symbol} 基础分析师成功数不足 {required_base}: {errors}")
+    _add_reports(child_evidence, base_reports)
+
+    debate_rounds: List[Dict[str, Any]] = []
+    rounds = max(1, min(3, int(settings.get("research_debate_rounds", 1))))
+    for round_number in range(1, rounds + 1):
+        started = time.monotonic()
+        reports: Dict[str, Any] = {}
+        for role in ROLE_GROUPS["research"]:
+            if not _role_enabled(settings, role):
+                raise RuntimeError(f"{symbol} 的 {ROLE_NAMES[role]}不能停用")
+            opponent = "bear_researcher" if role == "bull_researcher" else "bull_researcher"
+            prior_prefixes = tuple(
+                prefix for prefix in (
+                    _report_evidence_id(opponent, round_number),
+                    _report_evidence_id(opponent, round_number - 1) if round_number > 1 else "",
+                ) if prefix
+            )
+            allowed = _upstream_evidence(
+                child_evidence,
+                (*ROLE_UPSTREAM_PREFIXES[role], *prior_prefixes),
+            )
+            report = _call_role(
+                role, stage=f"{symbol}:research_debate_{round_number}", context=child_context,
+                evidence=child_evidence, allowed_evidence=allowed, settings=settings,
+                memory_store=memory_store, generated_at=generated_at,
+                required_upstream_prefixes=(prior_prefixes or ROLE_UPSTREAM_PREFIXES[role]),
+                extra_instruction=(
+                    f"只研究 {symbol}。直接回应当前辩论历史；"
+                    "不得把 HOLD 当成多头或空头立场，必须提出本方最强论证。"
+                ),
+            )
+            reports[role] = report
+            child_evidence[_report_evidence_id(role, round_number)] = report
+        timings[f"research_debate_{round_number}"] = round(time.monotonic() - started, 3)
+        debate_rounds.append({"round": round_number, "reports": reports})
+
+    started = time.monotonic()
+    manager_prefixes = tuple(
+        _report_evidence_id(role, rounds) for role in ROLE_GROUPS["research"]
+    )
+    manager_allowed = _upstream_evidence(child_evidence, manager_prefixes)
+    research_manager = _call_role(
+        "research_manager", stage=f"{symbol}:research_judgement", context=child_context,
+        evidence=child_evidence, allowed_evidence=manager_allowed, settings=settings,
+        memory_store=memory_store, generated_at=generated_at,
+        required_upstream_prefixes=manager_prefixes, require_all_upstreams=True,
+        extra_instruction=f"只裁决 {symbol}，必须分别评价最新多头和空头论证。",
+    )
+    timings["research_judgement"] = round(time.monotonic() - started, 3)
+    child_evidence[_report_evidence_id("research_manager")] = research_manager
+
+    started = time.monotonic()
+    trader_allowed = _upstream_evidence(child_evidence, ("AGENT:RESEARCH_MANAGER",))
+    trader = _call_role(
+        "trader", stage=f"{symbol}:trade_proposal", context=child_context,
+        evidence=child_evidence, allowed_evidence=trader_allowed, settings=settings,
+        memory_store=memory_store, generated_at=generated_at,
+        required_upstream_prefixes=("AGENT:RESEARCH_MANAGER",),
+        extra_instruction=(
+            f"只针对 {symbol} 给出 BUY、HOLD 或 SELL 候选建议。"
+            "说明入场/退出条件和方向，但不要生成组合目标权重。"
+        ),
+    )
+    timings["trade_proposal"] = round(time.monotonic() - started, 3)
+    child_evidence[_report_evidence_id("trader")] = trader
+
+    return {
+        "symbol": symbol,
+        "status": "completed",
+        "evidence_ids": sorted(child_evidence),
+        "base_reports": base_reports,
+        "research_debate": debate_rounds,
+        "research_manager": research_manager,
+        "trader": trader,
+        "errors": errors,
+        "timings_seconds": timings,
+    }
+
+
+def _parallel_symbol_research(
+    symbols: Sequence[str],
+    **kwargs: Any,
+) -> tuple[Dict[str, Dict[str, Any]], Dict[str, str]]:
+    workers = max(1, min(len(symbols) or 1, int(kwargs["settings"].get("symbol_workers", 2))))
+    reports: Dict[str, Dict[str, Any]] = {}
+    errors: Dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {
+            executor.submit(_run_symbol_research, symbol, **kwargs): symbol
+            for symbol in symbols
+        }
+        for future in as_completed(futures):
+            symbol = futures[future]
+            try:
+                reports[symbol] = future.result()
+            except Exception as exc:
+                errors[symbol] = str(exc)[:2000]
+    return reports, errors
+
+
 def run_analysis_workflow(
     context: Mapping[str, Any],
     config: Mapping[str, Any],
@@ -558,97 +818,148 @@ def run_analysis_workflow(
     evidence = build_evidence_catalog(context)
     errors: Dict[str, str] = {}
     timings: Dict[str, float] = {}
+    symbols = list(dict.fromkeys(
+        str(symbol).strip().upper()
+        for symbol in context.get("allowed_symbols", [])
+        if str(symbol).strip()
+    ))
+    if not symbols:
+        raise RuntimeError("逐标的研究没有收到任何允许标的")
 
     started = time.monotonic()
-    base_reports, stage_errors = _parallel_roles(
-        ROLE_GROUPS["base"], stage="base_analysis", context=context, evidence=evidence,
-        settings=settings, memory_store=store, generated_at=generated_at,
+    symbol_research, symbol_errors = _parallel_symbol_research(
+        symbols,
+        context=context,
+        evidence=evidence,
+        settings=settings,
+        memory_store=store,
+        generated_at=generated_at,
     )
-    timings["base_analysis"] = round(time.monotonic() - started, 3)
-    errors.update(stage_errors)
-    required_base = max(1, int(settings.get("minimum_base_analysts", 2)))
-    if len(base_reports) < required_base:
-        raise RuntimeError(f"基础分析师成功数不足 {required_base}: {errors}")
-    _add_reports(evidence, base_reports)
+    timings["symbol_research"] = round(time.monotonic() - started, 3)
+    errors.update({f"symbol:{key}": value for key, value in symbol_errors.items()})
+    if symbol_errors:
+        raise RuntimeError("逐标的研究未完整完成: " + json.dumps(symbol_errors, ensure_ascii=False))
 
-    debate_rounds: List[Dict[str, Any]] = []
-    for round_number in range(1, max(1, min(3, int(settings.get("research_debate_rounds", 1)))) + 1):
-        started = time.monotonic()
-        reports, stage_errors = _parallel_roles(
-            ROLE_GROUPS["research"], stage=f"research_debate_{round_number}", context=context,
-            evidence=evidence, settings=settings, memory_store=store, generated_at=generated_at,
-            extra_instruction="直接回应基础分析及此前辩论，提出可被对方反驳的核心论点。",
-        )
-        timings[f"research_debate_{round_number}"] = round(time.monotonic() - started, 3)
-        errors.update({f"{key}:r{round_number}": value for key, value in stage_errors.items()})
-        debate_rounds.append({"round": round_number, "reports": reports})
-        _add_reports(evidence, reports, round_number)
-
-    started = time.monotonic()
-    research_manager = _call_role(
-        "research_manager", stage="research_judgement", context=context, evidence=evidence,
-        settings=settings, memory_store=store, generated_at=generated_at,
-        extra_instruction="总结多空最强论点，裁决证据质量并给出明确研究结论。",
-    ) if _role_enabled(settings, "research_manager") else {}
-    timings["research_judgement"] = round(time.monotonic() - started, 3)
-    if research_manager:
-        evidence[_report_evidence_id("research_manager")] = research_manager
+    # The portfolio layer receives the final trader report for every security,
+    # not the entire collection of intermediate prose.
+    portfolio_evidence = {
+        evidence_id: value for evidence_id, value in evidence.items()
+        if evidence_id in GLOBAL_EVIDENCE_IDS
+        or evidence_id.startswith("RULES:")
+        or evidence_id.startswith("MARKET:")
+        or evidence_id.startswith("SCREENING:")
+    }
+    trader_prefixes: List[str] = []
+    for symbol in symbols:
+        evidence_id = f"AGENT:TRADER:{symbol}"
+        portfolio_evidence[evidence_id] = symbol_research[symbol]["trader"]
+        trader_prefixes.append(evidence_id)
 
     started = time.monotonic()
-    investment_advice = _call_role(
-        "investment_advisor", stage="investment_advice", context=context, evidence=evidence,
+    proposal = _call_role(
+        "portfolio_manager", stage="portfolio_proposal", context=context,
+        evidence=portfolio_evidence, allowed_evidence=portfolio_evidence,
         settings=settings, memory_store=store, generated_at=generated_at,
-        extra_instruction="基于研究经理裁决形成候选级投资建议，不要直接假设订单会通过硬风控。",
-    ) if _role_enabled(settings, "investment_advisor") else research_manager
-    timings["investment_advice"] = round(time.monotonic() - started, 3)
-    if investment_advice:
-        evidence[_report_evidence_id("investment_advisor")] = investment_advice
+        required_upstream_prefixes=tuple(trader_prefixes), require_all_upstreams=True,
+        extra_instruction=(
+            "这是风控前组合草案。逐一覆盖全部 allowed_symbols；候选股票决定 BUY/HOLD，"
+            "已有持仓决定 BUY/HOLD/SELL。每只股票必须引用它自己的 AGENT:TRADER:代码 报告。"
+        ),
+        portfolio=True,
+    )
+    timings["portfolio_proposal"] = round(time.monotonic() - started, 3)
+    portfolio_evidence["AGENT:PORTFOLIO_MANAGER:PROPOSAL"] = proposal
 
     risk_rounds: List[Dict[str, Any]] = []
-    for round_number in range(1, max(1, min(3, int(settings.get("risk_debate_rounds", 1)))) + 1):
+    risk_round_count = max(1, min(3, int(settings.get("risk_debate_rounds", 1))))
+    for round_number in range(1, risk_round_count + 1):
         started = time.monotonic()
-        reports, stage_errors = _parallel_roles(
-            ROLE_GROUPS["risk"], stage=f"risk_debate_{round_number}", context=context,
-            evidence=evidence, settings=settings, memory_store=store, generated_at=generated_at,
-            extra_instruction="评议投资建议并提出仓位、退出或观望条件；直接回应此前风险意见。",
-        )
+        reports: Dict[str, Any] = {}
+        previous_id = "AGENT:PORTFOLIO_MANAGER:PROPOSAL"
+        for role in ROLE_GROUPS["risk"]:
+            if not _role_enabled(settings, role):
+                raise RuntimeError(f"{ROLE_NAMES[role]}不能停用，否则风险讨论不完整")
+            if reports:
+                previous_role = next(reversed(reports))
+                previous_id = _report_evidence_id(previous_role, round_number)
+            elif round_number > 1:
+                previous_id = _report_evidence_id(ROLE_GROUPS["risk"][-1], round_number - 1)
+            discussion_prefixes = (
+                "AGENT:PORTFOLIO_MANAGER:PROPOSAL",
+                *tuple(
+                    _report_evidence_id(previous_role, round_number)
+                    for previous_role in reports
+                ),
+            )
+            if round_number > 1:
+                discussion_prefixes += tuple(
+                    _report_evidence_id(previous_role, round_number - 1)
+                    for previous_role in ROLE_GROUPS["risk"]
+                )
+            allowed = _upstream_evidence(portfolio_evidence, discussion_prefixes)
+            report = _call_role(
+                role, stage=f"risk_debate_{round_number}", context=context,
+                evidence=portfolio_evidence, allowed_evidence=allowed, settings=settings,
+                memory_store=store, generated_at=generated_at,
+                required_upstream_prefixes=(previous_id,),
+                extra_instruction=(
+                    "评议整个组合草案，直接回应上一位发言者，提出仓位、退出和观望条件。"
+                    "不得忽略已有持仓风险。"
+                ),
+            )
+            reports[role] = report
+            portfolio_evidence[_report_evidence_id(role, round_number)] = report
         timings[f"risk_debate_{round_number}"] = round(time.monotonic() - started, 3)
-        errors.update({f"{key}:r{round_number}": value for key, value in stage_errors.items()})
         risk_rounds.append({"round": round_number, "reports": reports})
-        _add_reports(evidence, reports, round_number)
 
     started = time.monotonic()
+    latest_risk_prefixes = tuple(
+        _report_evidence_id(role, risk_round_count) for role in ROLE_GROUPS["risk"]
+    )
+    risk_allowed = _upstream_evidence(portfolio_evidence, latest_risk_prefixes)
     risk_manager = _call_role(
-        "risk_manager", stage="risk_judgement", context=context, evidence=evidence,
-        settings=settings, memory_store=store, generated_at=generated_at,
-        extra_instruction="综合三种风险偏好，形成明确风险裁决；代码硬风控仍拥有最终否决权。",
-    ) if _role_enabled(settings, "risk_manager") else {}
+        "risk_manager", stage="risk_judgement", context=context,
+        evidence=portfolio_evidence, allowed_evidence=risk_allowed, settings=settings,
+        memory_store=store, generated_at=generated_at,
+        required_upstream_prefixes=latest_risk_prefixes, require_all_upstreams=True,
+        extra_instruction="必须分别裁决激进、保守和中立意见；代码硬风控仍拥有最终否决权。",
+    )
     timings["risk_judgement"] = round(time.monotonic() - started, 3)
-    if risk_manager:
-        evidence[_report_evidence_id("risk_manager")] = risk_manager
+    portfolio_evidence[_report_evidence_id("risk_manager")] = risk_manager
 
-    if not _role_enabled(settings, "portfolio_manager"):
-        raise RuntimeError("投资组合经理不能停用，否则无法生成结构化目标仓位")
     started = time.monotonic()
+    final_allowed = _upstream_evidence(
+        portfolio_evidence,
+        ("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
+    )
     portfolio = _call_role(
-        "portfolio_manager", stage="portfolio_decision", context=context, evidence=evidence,
+        "portfolio_manager", stage="portfolio_decision", context=context,
+        evidence=portfolio_evidence, allowed_evidence=final_allowed,
         settings=settings, memory_store=store, generated_at=generated_at,
+        required_upstream_prefixes=("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
+        require_all_upstreams=True,
         extra_instruction=(
-            "逐一覆盖 allowed_symbols 中的全部标的，不得遗漏：候选股票决定 BUY 或 HOLD；"
-            "已有持仓决定 BUY、HOLD 或 SELL。输出组合级目标仓位，每条决策必须引用证据，"
-            "不得输出允许池外标的。"
+            "根据风险裁决修订组合草案，逐一覆盖全部标的。候选股票决定 BUY/HOLD，"
+            "已有持仓决定 BUY/HOLD/SELL；每条决策必须引用风险经理或原组合草案。"
         ),
         portfolio=True,
     )
     timings["portfolio_decision"] = round(time.monotonic() - started, 3)
 
+    first_symbol = symbols[0]
     return {
-        "workflow": "tradingagents_staged_v1",
-        "evidence_ids": sorted(evidence),
-        "base_reports": base_reports,
-        "research_debate": debate_rounds,
-        "research_manager": research_manager,
-        "investment_advice": investment_advice,
+        "workflow": "per_symbol_research_graph_v2",
+        "evidence_ids": sorted(portfolio_evidence),
+        "symbol_research": symbol_research,
+        "symbol_errors": symbol_errors,
+        # Compatibility fields keep existing reports/tests readable while the
+        # source of truth moves to symbol_research.
+        "base_reports": symbol_research[first_symbol]["base_reports"],
+        "research_debate": symbol_research[first_symbol]["research_debate"],
+        "research_manager": symbol_research[first_symbol]["research_manager"],
+        "trader": {symbol: report["trader"] for symbol, report in symbol_research.items()},
+        "investment_advice": {},
+        "portfolio_proposal": proposal,
         "risk_debate": risk_rounds,
         "risk_manager": risk_manager,
         "portfolio_manager": portfolio,
@@ -656,7 +967,8 @@ def run_analysis_workflow(
         "timings_seconds": timings,
         "memory": {
             "enabled": bool(settings.get("memory_enabled", True)),
-            "isolation": "market+role",
+            "isolation": "market+role+outcome-evaluated",
             "directory": str(store.directory),
+            "writes": "delayed_until_outcome",
         },
     }

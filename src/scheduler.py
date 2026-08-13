@@ -316,6 +316,7 @@ def _compact_autonomous_for_report(autonomous: Mapping[str, Any]) -> Dict[str, A
     workflow = autonomous.get("agent_workflow")
     if isinstance(workflow, Mapping) and workflow:
         base_reports = workflow.get("base_reports", {})
+        symbol_research = workflow.get("symbol_research", {})
         result["agent_workflow"] = {
             "workflow": workflow.get("workflow"),
             "portfolio_manager": _compact_agent_report(workflow.get("portfolio_manager")),
@@ -326,6 +327,17 @@ def _compact_autonomous_for_report(autonomous: Mapping[str, Any]) -> Dict[str, A
                 str(role): _compact_agent_report(report)
                 for role, report in base_reports.items()
             } if isinstance(base_reports, Mapping) else {},
+            "symbol_research": {
+                str(symbol): {
+                    "status": report.get("status"),
+                    "research_manager": _compact_agent_report(report.get("research_manager")),
+                    "trader": _compact_agent_report(report.get("trader")),
+                    "errors": report.get("errors", {}),
+                }
+                for symbol, report in symbol_research.items()
+                if isinstance(report, Mapping)
+            } if isinstance(symbol_research, Mapping) else {},
+            "portfolio_proposal": _compact_agent_report(workflow.get("portfolio_proposal")),
             "errors": workflow.get("errors", {}),
             "timings_seconds": workflow.get("timings_seconds", {}),
             "memory": workflow.get("memory", {}),
@@ -393,7 +405,9 @@ def _run_intraday_job(
             from src.investment.mandate import get_mandate
             from src.investment.reflection import InvestmentReflectionService
 
-            reflection = InvestmentReflectionService().reflect_cycle(
+            reflection_service = InvestmentReflectionService()
+            outcome_evaluations = reflection_service.evaluate_pending(market)
+            reflection = reflection_service.reflect_cycle(
                 {"status": "generated", "market": market, "report": str(path), "autonomous": autonomous},
                 mandate=get_mandate(),
                 trigger="catch-up" if catch_up else ("manager" if label.startswith(("agent", "button")) else "scheduler"),
@@ -401,6 +415,7 @@ def _run_intraday_job(
         except Exception as exc:
             logger.exception("[REFLECTION:%s] failed", market)
             reflection = {"status": "error", "error": str(exc)}
+            outcome_evaluations = []
         logger.info("[INTRADAY:%s] %s report written: %s", market, label, path)
         return {
             "status": "generated",
@@ -409,6 +424,7 @@ def _run_intraday_job(
             "report": str(path),
             "notification": notification,
             "reflection": reflection,
+            "outcome_evaluations": outcome_evaluations,
             "autonomous": {
                 "status": autonomous.get("status"),
                 "reason": autonomous.get("reason"),
@@ -480,7 +496,9 @@ def _run_close_job(
             from src.investment.mandate import get_mandate
             from src.investment.reflection import InvestmentReflectionService
 
-            reflection = InvestmentReflectionService().reflect_cycle(
+            reflection_service = InvestmentReflectionService()
+            outcome_evaluations = reflection_service.evaluate_pending(market)
+            reflection = reflection_service.reflect_cycle(
                 {"status": "generated", "market": market, "report": str(path), "autonomous": autonomous},
                 mandate=get_mandate(),
                 trigger="catch-up" if catch_up else "scheduler-close",
@@ -488,6 +506,7 @@ def _run_close_job(
         except Exception as exc:
             logger.exception("[REFLECTION:%s] close reflection failed", market)
             reflection = {"status": "error", "error": str(exc)}
+            outcome_evaluations = []
         logger.info("[CLOSE:%s] report written: %s", market, path)
         return {
             "status": "generated",
@@ -496,6 +515,7 @@ def _run_close_job(
             "report": str(path),
             "notification": notification,
             "reflection": reflection,
+            "outcome_evaluations": outcome_evaluations,
             "autonomous": {
                 "status": autonomous.get("status"),
                 "reason": autonomous.get("reason"),

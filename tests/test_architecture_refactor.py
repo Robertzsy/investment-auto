@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -78,6 +79,39 @@ def test_reflections_are_separate_and_structured(tmp_path):
     assert store.recent("investment_reflections", limit=1)[0]["market"] == "us"
     assert store.recent("manager_reflections", limit=1)[0]["error"] == "kill switch active"
     assert store.recent("manager_memories", limit=1)[0]["scope"] == "management"
+
+
+def test_only_delayed_market_outcomes_enter_investment_memory(tmp_path):
+    store = StructuredMemoryStore(tmp_path)
+    service = InvestmentReflectionService(store)
+    pending = service.reflect_cycle(
+        {
+            "market": "us",
+            "status": "generated",
+            "autonomous": {
+                "status": "no_trade",
+                "prices": {"AAPL": 100},
+                "chair": {"decisions": [{"symbol": "AAPL", "action": "BUY", "confidence": 0.8}]},
+            },
+        },
+        mandate={"profile": "neutral", "risk_policy_version": "neutral-v1"},
+        trigger="scheduler",
+    )
+    assert service.recent("us") == []
+
+    start = datetime.fromisoformat(pending["created_at"]).date()
+    rows = [
+        {"date": (start + timedelta(days=offset)).isoformat(), "close": 100 + offset}
+        for offset in range(1, 6)
+    ]
+    evaluated = service.evaluate_pending(
+        "us",
+        history_loader=lambda symbol, lookback=0: {"data": rows},
+    )
+
+    assert evaluated[0]["outcome_status"] == "evaluated"
+    assert evaluated[0]["evaluated_horizons"] == ["T+1", "T+5"]
+    assert service.recent("us", 1)[0]["source_record_id"] == pending["record_id"]
 
 
 def test_change_manager_rolls_back_failed_change(monkeypatch, tmp_path):

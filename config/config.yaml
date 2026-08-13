@@ -173,10 +173,16 @@ autonomous:
     enabled: true
     require_citations: true
     minimum_citations: 1
-    minimum_base_analysts: 2
+    # Each security must complete all four independent research domains.
+    minimum_base_analysts: 4
     research_debate_rounds: 1
     risk_debate_rounds: 1
+    # Each symbol runs its own graph. Keep this bounded to control provider
+    # rate limits while still researching two securities concurrently.
+    symbol_workers: 2
     max_parallel_workers: 4
+    research_data_ttl_minutes: 30
+    research_data_timeout_seconds: 12
     json_retries: 1
     memory_enabled: true
     memory_entries_per_role: 6
@@ -189,7 +195,7 @@ autonomous:
       bull_researcher: true
       bear_researcher: true
       research_manager: true
-      investment_advisor: true
+      trader: true
       aggressive_analyst: true
       neutral_analyst: true
       conservative_analyst: true
@@ -208,7 +214,9 @@ autonomous:
   max_cycle_turnover_pct: 15
   market_data_workers: 4
   agent_workers: 4
-  cycle_timeout_seconds: 300
+  # A full 8-security graph makes substantially more LLM calls than the old
+  # batch committee. This is also the stale-lock safety window.
+  cycle_timeout_seconds: 1200
 trading:
   mode: paper
   max_daily_trades: 6

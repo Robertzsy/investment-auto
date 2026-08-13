@@ -894,7 +894,9 @@ async function main() {
     const indicators = computeAllIndicators(allData, realtime);
     const snapshot = {
       realtime,
-      history: allData.slice(-10),
+      // The staged Agent graph needs enough bars to independently verify
+      // medium-term trend, volatility and outcome reflections.
+      history: allData.slice(-60),
       indicators,
     };
     console.log(JSON.stringify(snapshot));
