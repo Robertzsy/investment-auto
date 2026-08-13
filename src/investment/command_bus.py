@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import time
@@ -20,6 +21,7 @@ INBOX = BUS_DIR / "inbox"
 OUTBOX = BUS_DIR / "outbox"
 PROGRESS = BUS_DIR / "progress"
 HEARTBEAT = BUS_DIR / "worker.json"
+logger = logging.getLogger(__name__)
 
 
 def _now() -> str:
@@ -119,10 +121,18 @@ class InvestmentCommandWorker:
         self.poll_seconds = max(0.05, poll_seconds)
         self.stop_event = threading.Event()
         self.thread: Optional[threading.Thread] = None
+        self.heartbeat_thread: Optional[threading.Thread] = None
 
     def start(self) -> "InvestmentCommandWorker":
         if self.thread and self.thread.is_alive():
             return self
+        self.stop_event.clear()
+        self.heartbeat_thread = threading.Thread(
+            target=self._heartbeat_loop,
+            name="investment-command-heartbeat",
+            daemon=True,
+        )
+        self.heartbeat_thread.start()
         self.thread = threading.Thread(target=self.run, name="investment-command-worker", daemon=True)
         self.thread.start()
         return self
@@ -131,6 +141,16 @@ class InvestmentCommandWorker:
         self.stop_event.set()
         if self.thread:
             self.thread.join(timeout=2)
+        if self.heartbeat_thread:
+            self.heartbeat_thread.join(timeout=2)
+
+    def _heartbeat_loop(self) -> None:
+        while not self.stop_event.is_set():
+            try:
+                _atomic_json(HEARTBEAT, {"pid": os.getpid(), "updated_at": _now(), "status": "running"})
+            except Exception:
+                logger.exception("Investment Agent heartbeat write failed")
+            self.stop_event.wait(1.0)
 
     def run(self) -> None:
         from src.investment.service import InvestmentAgentService
@@ -139,32 +159,35 @@ class InvestmentCommandWorker:
             path.mkdir(parents=True, exist_ok=True)
         service = InvestmentAgentService()
         while not self.stop_event.is_set():
-            _atomic_json(HEARTBEAT, {"pid": os.getpid(), "updated_at": _now(), "status": "running"})
-            jobs = sorted(INBOX.glob("*.json"), key=lambda item: item.stat().st_mtime)
-            if not jobs:
+            try:
+                jobs = sorted(INBOX.glob("*.json"), key=lambda item: item.stat().st_mtime)
+                if not jobs:
+                    self.stop_event.wait(self.poll_seconds)
+                    continue
+                source = jobs[0]
+                processing = source.with_suffix(".processing")
+                try:
+                    source.replace(processing)
+                except OSError:
+                    continue
+                command_id = processing.stem
+                progress_path = PROGRESS / f"{command_id}.json"
+                progress_values: list[str] = []
+
+                def progress(value: str) -> None:
+                    progress_values.append(str(value)[:1000])
+                    progress_path.write_text(json.dumps(progress_values, ensure_ascii=False), encoding="utf-8")
+
+                try:
+                    envelope = CommandEnvelope.from_mapping(json.loads(processing.read_text(encoding="utf-8")))
+                    result = service.execute_envelope(envelope, progress_callback=progress)
+                except Exception as exc:
+                    result = {"ok": False, "status": "error", "error": str(exc), "command_id": command_id}
+                _atomic_json(OUTBOX / f"{command_id}.json", result)
+                try:
+                    processing.unlink()
+                except OSError:
+                    pass
+            except Exception:
+                logger.exception("Investment command worker recovered from an unexpected loop error")
                 self.stop_event.wait(self.poll_seconds)
-                continue
-            source = jobs[0]
-            processing = source.with_suffix(".processing")
-            try:
-                source.replace(processing)
-            except OSError:
-                continue
-            command_id = processing.stem
-            progress_path = PROGRESS / f"{command_id}.json"
-            progress_values: list[str] = []
-
-            def progress(value: str) -> None:
-                progress_values.append(str(value)[:1000])
-                progress_path.write_text(json.dumps(progress_values, ensure_ascii=False), encoding="utf-8")
-
-            try:
-                envelope = CommandEnvelope.from_mapping(json.loads(processing.read_text(encoding="utf-8")))
-                result = service.execute_envelope(envelope, progress_callback=progress)
-            except Exception as exc:
-                result = {"ok": False, "status": "error", "error": str(exc), "command_id": command_id}
-            _atomic_json(OUTBOX / f"{command_id}.json", result)
-            try:
-                processing.unlink()
-            except OSError:
-                pass

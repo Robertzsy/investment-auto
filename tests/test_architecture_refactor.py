@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from src.investment import mandate
-from src.investment.command_bus import InvestmentAgentClient
+from src.investment.command_bus import InvestmentAgentClient, InvestmentCommandWorker
 from src.investment.reflection import InvestmentReflectionService
 from src.manager.change_manager import ChangeManager
 from src.manager.reflection import ManagerReflectionService
@@ -189,6 +189,27 @@ def test_queue_transport_refuses_when_worker_is_not_alive(monkeypatch):
     monkeypatch.setattr(InvestmentAgentClient, "worker_alive", staticmethod(lambda max_age_seconds=5: False))
     with pytest.raises(RuntimeError, match="独立进程未运行"):
         InvestmentAgentClient().issue("run_cycle", {"market": "us"}, timeout=0.1)
+
+
+def test_worker_heartbeat_is_independent_from_command_loop(monkeypatch, tmp_path):
+    import src.investment.command_bus as module
+
+    heartbeat = tmp_path / "worker.json"
+    monkeypatch.setattr(module, "HEARTBEAT", heartbeat)
+    worker = InvestmentCommandWorker()
+    worker.heartbeat_thread = __import__("threading").Thread(
+        target=worker._heartbeat_loop,
+        daemon=True,
+    )
+    worker.heartbeat_thread.start()
+    try:
+        deadline = __import__("time").monotonic() + 2
+        while not heartbeat.exists() and __import__("time").monotonic() < deadline:
+            __import__("time").sleep(0.02)
+        assert json.loads(heartbeat.read_text(encoding="utf-8"))["status"] == "running"
+        assert worker.heartbeat_thread.is_alive()
+    finally:
+        worker.stop()
 
 
 def test_chat_server_has_no_semantic_keyword_fast_paths():
