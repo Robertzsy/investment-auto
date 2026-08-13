@@ -316,6 +316,7 @@ let isGenerating = false;
 let currentController = null;
 let currentReader = null;
 let currentRequestId = null;
+let historyFingerprint = '';
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -505,6 +506,9 @@ async function loadHistory(render=true) {
     const res = await fetch('/api/history');
     const data = await res.json();
     if (!render) return;
+    const fingerprint = JSON.stringify((data.history || []).map(item => [item.time, item.event_id, item.content?.length]));
+    if (fingerprint === historyFingerprint) return;
+    historyFingerprint = fingerprint;
     const box = document.getElementById('chatBox');
     // keep welcome message, append history after it
     const welcome = box.firstElementChild;
@@ -528,6 +532,7 @@ loadModels();
 loadOperationMode();
 loadStrategyProfile();
 loadHistory();
+setInterval(() => { if (!isGenerating) loadHistory(); }, 5000);
 </script>
 </body>
 </html>

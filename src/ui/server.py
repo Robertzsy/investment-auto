@@ -688,12 +688,16 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 try:
                     rt = fetcher.realtime(h["code"])
                     last_price = rt.get("price", cost_price)
+                    realtime_name = str(rt.get("name", "")).strip()
                 except Exception:
                     last_price = h.get("lastPrice", cost_price)
+                    realtime_name = ""
+                stored_name = str(h.get("name", "")).strip()
+                display_name = realtime_name if stored_name.upper() in {"", str(h["code"]).upper()} and realtime_name else stored_name
                 mv = last_price * quantity
                 holdings_value += mv
                 all_holdings.append({
-                    "market": m, "code": h["code"], "name": h.get("name", ""),
+                    "market": m, "code": h["code"], "name": display_name,
                     "shares": quantity, "cost_price": cost_price,
                     "last_price": last_price, "market_value": mv,
                 })

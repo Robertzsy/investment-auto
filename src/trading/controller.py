@@ -418,6 +418,17 @@ def run_autonomous_cycle(
             }
         prices = {symbol: _price(snapshot) for symbol, snapshot in snapshots.items()}
         prices = {symbol: price for symbol, price in prices.items() if price > 0}
+        selected_names = {
+            str(item.get("symbol", "")).upper(): str(item.get("name", "")).strip()
+            for item in screening_audit.get("selected", [])
+            if isinstance(item, Mapping) and item.get("symbol") and item.get("name")
+        }
+        security_names = {
+            symbol: str(snapshot.get("realtime", {}).get("name", "")).strip() or selected_names.get(symbol, "")
+            for symbol, snapshot in snapshots.items()
+            if isinstance(snapshot, Mapping)
+        }
+        security_names.update({symbol: name for symbol, name in selected_names.items() if name})
         minimum_prices = int(config.get("minimum_priced_symbols", 2))
         if len(prices) < minimum_prices:
             audit = {
@@ -540,6 +551,7 @@ def run_autonomous_cycle(
                 now=current,
                 equity_snapshot=float(risk.get("equity", 0) or 0),
                 mark_prices=prices,
+                security_names=security_names,
             ) if should_execute else {"fills": [], "rejected": [], "dry_run": True}
             required_liquidations = risk.get("circuit_liquidation_quantities", {})
             filled_quantities: Dict[str, int] = {}
@@ -607,6 +619,7 @@ def run_autonomous_cycle(
                     now=current,
                     equity_snapshot=float(emergency_risk.get("equity", 0) or 0),
                     mark_prices=prices,
+                    security_names=security_names,
                 ) if should_execute else {"fills": [], "rejected": [], "dry_run": True}
                 emergency_status = "protective_executed" if emergency_execution.get("fills") else "error"
                 audit = {

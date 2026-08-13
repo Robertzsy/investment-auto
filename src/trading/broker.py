@@ -70,6 +70,7 @@ def execute_orders(
     portfolio_path: Optional[Path] = None,
     equity_snapshot: Optional[float] = None,
     mark_prices: Optional[Mapping[str, float]] = None,
+    security_names: Optional[Mapping[str, str]] = None,
 ) -> Dict[str, Any]:
     """Fill approved orders against the supplied reference price.
 
@@ -100,6 +101,9 @@ def execute_orders(
 
             for holding in holdings:
                 symbol = str(holding.get("code", "")).upper()
+                resolved_name = str((security_names or {}).get(symbol, "")).strip()
+                if resolved_name and str(holding.get("name", "")).strip().upper() in {"", symbol}:
+                    holding["name"] = resolved_name
                 mark = float((mark_prices or {}).get(symbol, 0) or 0)
                 if mark > 0:
                     holding["lastPrice"] = mark
@@ -138,7 +142,8 @@ def execute_orders(
                     new_shares = old_shares + shares
                     average_cost = (old_cost * old_shares + total_cost) / new_shares
                     if holding is None:
-                        holding = {"code": symbol, "name": symbol, "market": market, "lots": []}
+                        name = str((security_names or {}).get(symbol, raw_order.get("name", symbol))).strip() or symbol
+                        holding = {"code": symbol, "name": name, "market": market, "lots": []}
                         holdings.append(holding)
                     holding.update({
                         "shares": new_shares,
@@ -177,6 +182,7 @@ def execute_orders(
                     "id": uuid.uuid4().hex,
                     "decision_id": raw_order.get("decision_id"),
                     "code": symbol,
+                    "name": str(holding.get("name", (security_names or {}).get(symbol, symbol))),
                     "action": side,
                     "price": fill_price,
                     "shares": shares,

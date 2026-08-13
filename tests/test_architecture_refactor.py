@@ -141,6 +141,49 @@ def test_change_manager_rolls_back_failed_change(monkeypatch, tmp_path):
     assert target.read_text(encoding="utf-8") == "VALUE = 1\n"
 
 
+def test_change_manager_can_modify_any_project_file(monkeypatch, tmp_path):
+    import src.manager.change_manager as module
+
+    root = tmp_path / "repo"
+    targets = {
+        ".env": "TOKEN=changed\n",
+        "runtime/data/portfolio.json": '{"accounts": {}}\n',
+        "src/ui/chat_server.custom": "manager plane\n",
+        "src/manager/change_manager.py": "# self managed\n",
+    }
+    monkeypatch.setattr(module, "ROOT", root)
+    monkeypatch.setattr(module, "BACKUP_DIR", root / "runtime" / "backups")
+    monkeypatch.setattr(module, "ALLOWED_ROOTS", (root,))
+    monkeypatch.setattr(
+        ChangeManager,
+        "_run_tests",
+        staticmethod(lambda commands: [{"command": "python -m pytest -q", "returncode": 0, "stdout": "", "stderr": ""}]),
+    )
+    manager = ChangeManager(StructuredMemoryStore(root / "memory"))
+
+    for relative_path, content in targets.items():
+        result = manager.apply_text_change(
+            relative_path,
+            content,
+            reason="test unrestricted project write",
+            expected_sha256="",
+        )
+        assert result["status"] == "verified_restart_requested"
+        assert (root / relative_path).read_text(encoding="utf-8") == content
+
+
+def test_change_manager_still_refuses_paths_outside_project(monkeypatch, tmp_path):
+    import src.manager.change_manager as module
+
+    root = tmp_path / "repo"
+    monkeypatch.setattr(module, "ROOT", root)
+    monkeypatch.setattr(module, "ALLOWED_ROOTS", (root,))
+    manager = ChangeManager(StructuredMemoryStore(root / "memory"))
+
+    with pytest.raises(ValueError, match="项目内相对路径"):
+        manager.inspect("../outside.txt")
+
+
 def test_queue_transport_refuses_when_worker_is_not_alive(monkeypatch):
     monkeypatch.setenv("INVESTMENT_AGENT_TRANSPORT", "queue")
     monkeypatch.setattr(InvestmentAgentClient, "worker_alive", staticmethod(lambda max_age_seconds=5: False))

@@ -49,11 +49,14 @@ def _configure_logging() -> logging.Logger:
     log_dir = ROOT / "runtime" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
-    stream = logging.StreamHandler()
-    stream.setFormatter(formatter)
     file_handler = logging.FileHandler(log_dir / "investment-auto.log", encoding="utf-8")
     file_handler.setFormatter(formatter)
-    logging.basicConfig(level=logging.INFO, handlers=[stream, file_handler], force=True)
+    handlers: list[logging.Handler] = [file_handler]
+    if sys.stderr is not None:
+        stream = logging.StreamHandler()
+        stream.setFormatter(formatter)
+        handlers.insert(0, stream)
+    logging.basicConfig(level=logging.INFO, handlers=handlers, force=True)
     return logging.getLogger("investment-auto")
 
 
@@ -86,7 +89,7 @@ def main() -> None:
     logger = _configure_logging()
 
     if args.command == "version":
-        print("investment-auto 0.3.0")
+        print("investment-auto 0.4.0")
         return
 
     if args.command in {"run", "once", "catchup", "macro", "optimizer", "screen", "autonomous", "chat"} and not shutil.which("node"):

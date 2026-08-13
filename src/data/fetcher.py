@@ -44,13 +44,14 @@ def search(keyword: str, *, timeout: int = 30) -> List[Dict[str, Any]]:
     return _run_node(["search", keyword], timeout=timeout)
 
 
-def market_list(market: str, *, limit: int = 120, timeout: int = 50) -> Dict[str, Any]:
-    """Return a liquidity-sorted market candidate list for stock screening."""
+def market_list(market: str, *, limit: int = 0, timeout: int = 50) -> Dict[str, Any]:
+    """Return a market security list; ``limit=0`` requests the full market."""
 
     normalized = str(market or "").strip().lower()
     if normalized not in {"cn", "hk", "us", "etf"}:
         raise ValueError(f"unsupported market: {market}")
-    bounded_limit = max(10, min(500, int(limit)))
+    requested = int(limit)
+    bounded_limit = max(10, min(50_000, requested)) if requested > 0 else 0
     payload = _run_node(["market-list", normalized, str(bounded_limit)], timeout=timeout)
     if not isinstance(payload, dict):
         raise RuntimeError("market-list returned a non-object response")

@@ -229,6 +229,32 @@ def test_paper_broker_enforces_t_plus_one_and_updates_cash(tmp_path):
     assert data["accounts"]["cn"]["holdings"] == []
 
 
+def test_paper_broker_persists_and_backfills_security_names(tmp_path):
+    portfolio = tmp_path / "portfolio.json"
+    _portfolio(portfolio)
+    order = {
+        "symbol": "603259", "side": "BUY", "shares": 100,
+        "reference_price": 10, "reason": "entry", "decision_id": "named-buy",
+    }
+
+    result = execute_orders(
+        "cn", [order], market_config=CN_CONFIG, trading_mode="paper", now=NOW,
+        portfolio_path=portfolio, security_names={"603259": "药明康德"},
+    )
+    data = json.loads(portfolio.read_text(encoding="utf-8"))
+    assert data["accounts"]["cn"]["holdings"][0]["name"] == "药明康德"
+    assert result["fills"][0]["name"] == "药明康德"
+
+    data["accounts"]["cn"]["holdings"][0]["name"] = "603259"
+    portfolio.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    execute_orders(
+        "cn", [], market_config=CN_CONFIG, trading_mode="paper", now=NOW,
+        portfolio_path=portfolio, security_names={"603259": "药明康德"},
+    )
+    repaired = json.loads(portfolio.read_text(encoding="utf-8"))
+    assert repaired["accounts"]["cn"]["holdings"][0]["name"] == "药明康德"
+
+
 def test_broker_refuses_non_paper_mode(tmp_path):
     portfolio = tmp_path / "portfolio.json"
     _portfolio(portfolio)

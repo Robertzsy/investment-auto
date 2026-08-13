@@ -123,10 +123,12 @@ screening:
     connect_timeout_ms: 1500
     retry_seconds: 60
   refresh_minutes: 30
-  discovery_timeout_seconds: 50
-  discovery_limit: 120
-  snapshot_limit: 24
-  shortlist_size: 8
+  discovery_timeout_seconds: 180
+  # 0 means discover and cache the complete provider universe. Only the top
+  # snapshot_limit securities receive expensive history/indicator requests.
+  discovery_limit: 0
+  snapshot_limit: 60
+  shortlist_size: 20
   use_for_optimizer: true
   optimizer_max_age_minutes: 1440
   min_price:
@@ -205,9 +207,9 @@ autonomous:
   committee_roles: [analyst, researcher, quant_analyst, risk_chairman]
   minimum_agent_responses: 2
   min_confidence: 0.65
-  max_universe_size: 10
+  max_universe_size: 40
   minimum_priced_symbols: 2
-  max_decisions: 10
+  max_decisions: 40
   max_orders_per_cycle: 3
   max_position_pct: 12
   max_order_value_pct: 8

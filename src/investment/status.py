@@ -69,6 +69,41 @@ def _latest_report(market: str) -> Optional[Dict[str, Any]]:
     }
 
 
+def cycle_evidence(market: str, date: str = "", label: str = "") -> Dict[str, Any]:
+    """Return report and audit evidence for one scheduled/manual investment cycle."""
+    normalized = str(market or "").strip().lower()
+    if normalized not in {"cn", "hk", "us", "etf"}:
+        raise ValueError("market 必须是 cn、hk、us 或 etf")
+    requested_date = re.sub(r"[^0-9]", "", str(date or "")) or _now().strftime("%Y%m%d")
+    if len(requested_date) != 8:
+        raise ValueError("date 必须是 YYYY-MM-DD 或 YYYYMMDD")
+    requested_label = re.sub(r"[^A-Za-z0-9_-]", "", str(label or "").strip())
+    report_pattern = f"{requested_date}-{normalized}-{requested_label}.md" if requested_label else f"{requested_date}-{normalized}-*.md"
+    reports = sorted(REPORT_DIR.glob(report_pattern), key=lambda path: path.stat().st_mtime, reverse=True) if REPORT_DIR.exists() else []
+    audit_pattern = f"{requested_date}*-{normalized}-{requested_label}.json" if requested_label else f"{requested_date}*-{normalized}-*.json"
+    audits = sorted(AUDIT_DIR.glob(audit_pattern), key=lambda path: path.stat().st_mtime, reverse=True) if AUDIT_DIR.exists() else []
+    audit: Optional[Dict[str, Any]] = None
+    audit_file = None
+    if audits:
+        audit_file = str(audits[0])
+        try:
+            audit = json.loads(audits[0].read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            audit = {"status": "unreadable", "error": str(exc)}
+    return {
+        "market": normalized,
+        "date": requested_date,
+        "label": requested_label or None,
+        "triggered": bool(reports or audits),
+        "report": str(reports[0]) if reports else None,
+        "report_generated_at": datetime.fromtimestamp(reports[0].stat().st_mtime).astimezone().isoformat(timespec="seconds") if reports else None,
+        "audit_file": audit_file,
+        "investment_status": audit.get("status") if isinstance(audit, Mapping) else None,
+        "error": audit.get("error") if isinstance(audit, Mapping) else None,
+        "fills": len((audit.get("execution") or {}).get("fills", [])) if isinstance(audit, Mapping) else 0,
+    }
+
+
 def runtime_status(now: Optional[datetime] = None) -> Dict[str, Any]:
     from src.investment.command_bus import InvestmentAgentClient
     from src.investment.mandate import get_mandate

@@ -12,6 +12,7 @@ import hashlib
 import json
 import logging
 import queue
+import re
 import threading
 from dataclasses import dataclass
 from datetime import datetime
@@ -31,9 +32,9 @@ ROOT = Path(__file__).resolve().parents[2]
 REPORT_DIR = ROOT / "runtime" / "reports"
 AUDIT_DIR = ROOT / "runtime" / "trading" / "audit"
 
-_REQUEST_LIMIT = 6
-_TOOL_CALL_LIMIT = 8
-_TOTAL_TOKEN_LIMIT = 32_000
+_REQUEST_LIMIT = 20
+_TOOL_CALL_LIMIT = 40
+_TOTAL_TOKEN_LIMIT = 160_000
 _QUEUE_POLL_SECONDS = 0.05
 
 
@@ -394,10 +395,10 @@ def run_portfolio_optimizer(market: str, symbols: str = "") -> Dict[str, Any]:
 
 
 def inspect_investment_agent_code(path: str) -> Dict[str, Any]:
-    """Read one investment-Agent source/config file before proposing a change.
+    """Read any text file inside the project before proposing a change.
 
     Args:
-        path: Project-relative path under src/investment, src/trading, src/screening, src/optimizer, or config.
+        path: Any project-relative file path.
     """
     from src.manager.change_manager import ChangeManager
 
@@ -410,13 +411,14 @@ def modify_investment_agent_code(
     reason: str,
     expected_sha256: str,
 ) -> Dict[str, Any]:
-    """Replace one investment-Agent source/config file and verify the whole test suite.
+    """Create or replace any text file inside the project and verify the whole test suite.
 
     A failed test automatically restores the previous version. Always inspect
-    the file first and pass its sha256 to prevent overwriting a concurrent edit.
+    an existing file first and pass its sha256 to prevent overwriting a concurrent edit.
+    Use an empty hash when creating a new file.
 
     Args:
-        path: Project-relative investment-Agent file.
+        path: Any project-relative file path.
         new_content: Complete replacement content.
         reason: Goal and evidence for the change.
         expected_sha256: Hash returned by inspect_investment_agent_code.
@@ -446,6 +448,91 @@ def remember_user_preference(note: str) -> Dict[str, Any]:
     return ManagerMemory().remember(note, source="conversation-manager")
 
 
+def search_project(query: str, file_pattern: str = "*", max_results: int = 30) -> Dict[str, Any]:
+    """Search project-relative file names and UTF-8 text before choosing a file to inspect.
+
+    Args:
+        query: Literal case-insensitive text to find; empty lists matching files.
+        file_pattern: Path.glob pattern such as config/*.yaml or **/*.py.
+        max_results: Maximum number of matching files/lines to return.
+    """
+    needle = str(query or "").casefold()
+    pattern = str(file_pattern or "*").replace("\\", "/")
+    limit = max(1, min(100, int(max_results)))
+    results: List[Dict[str, Any]] = []
+    for path in ROOT.glob(pattern):
+        if not path.is_file() or ".git" in path.parts or ".venv" in path.parts:
+            continue
+        relative = str(path.relative_to(ROOT)).replace("\\", "/")
+        if not needle:
+            results.append({"path": relative})
+        else:
+            try:
+                for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                    if needle in line.casefold():
+                        results.append({"path": relative, "line": line_number, "text": line[:1000]})
+                        if len(results) >= limit:
+                            break
+            except (OSError, UnicodeError):
+                continue
+        if len(results) >= limit:
+            break
+    return {"query": query, "pattern": pattern, "count": len(results), "results": results}
+
+
+def list_manager_capabilities() -> Dict[str, Any]:
+    """List automatically installed manager Skills and Tools."""
+    from src.manager.capabilities import CapabilityRegistry
+
+    return CapabilityRegistry().catalog()
+
+
+def get_cycle_evidence(market: str, date: str = "", label: str = "") -> Dict[str, Any]:
+    """Check whether a specific scheduled cycle actually ran and whether investing succeeded.
+
+    Args:
+        market: cn, hk, us, or etf.
+        date: Optional YYYY-MM-DD; empty means today.
+        label: Optional configured time without colon, for example 1300 or 2135.
+    """
+    from src.investment.status import cycle_evidence
+
+    return cycle_evidence(market, date, label)
+
+
+def install_manager_skill(name: str, description: str, instructions: str) -> Dict[str, Any]:
+    """Install a reusable management Skill; it is discoverable immediately and persists across restarts."""
+    from src.manager.capabilities import CapabilityRegistry
+
+    return CapabilityRegistry().install_skill(name, description, instructions)
+
+
+def load_manager_skill(name: str) -> Dict[str, Any]:
+    """Load the full instructions for one installed management Skill."""
+    from src.manager.capabilities import CapabilityRegistry
+
+    return CapabilityRegistry().load_skill(name)
+
+
+def install_manager_tool(
+    name: str,
+    description: str,
+    module: str,
+    function: str,
+    parameters_schema_json: str,
+) -> Dict[str, Any]:
+    """Register a tested project function as a typed Tool for subsequent conversations.
+
+    Create or modify the implementation with the project file tools first. The
+    module must be inside src and parameters_schema_json must be a JSON object schema.
+    """
+    from src.manager.capabilities import CapabilityRegistry
+
+    return CapabilityRegistry().install_tool(
+        name, description, module, function, parameters_schema_json
+    )
+
+
 MANAGER_AGENT = Agent(
     name="investment_auto_manager",
     deps_type=ChatAgentDeps,
@@ -464,10 +551,13 @@ MANAGER_AGENT = Agent(
         "4. 当用户明确要求记住，或表达了稳定且未来有用的操作偏好时，调用 remember_user_preference；"
         "不得保存密钥、令牌、密码、Webhook、数据库地址和一次性任务。\n"
         "5. 使用 manage_investment_agent 管理暂停、恢复、运行模式、策略授权书和反思；写操作后再次读取状态验证。\n"
-        "6. 用户要求修改投资 Agent 时，可以自由修改其源代码、配置、提示词和工作流。必须先 inspect，"
-        "再调用 modify；修改会运行全量测试，失败自动回滚。不得修改密钥、模拟账户审计或绕过纸面交易边界。\n"
+        "6. 用户要求修改项目时，可以自由读取、新建或修改项目目录内任意文本文件，包括源代码、配置、提示词、"
+        "运行时文件、密钥文件、账户文件、管理模块和交易边界。已有文件必须先 inspect，再调用 modify；"
+        "新文件使用空 expected_sha256。修改会运行全量测试，失败自动回滚。不得操作项目目录以外的路径。\n"
         "7. 每次任务结束都要检查用户目标是否完成、工具是否失败、外部状态是否验证。不要输出工具 JSON，"
         "不猜测时间、日志、行情或进程状态；涉及投资判断要注明是模拟研究信息。"
+        "8. 不知道文件位置时必须先 search_project。需要可复用知识时可自动安装 Skill；需要新 Tool 时先用文件工具"
+        "实现并测试 src 内函数，再注册为 Tool。安装的新 Tool 从下一次对话起自动可用。"
     ),
     tools=[
         Tool(consult_portfolio_agent, sequential=True, timeout=80),
@@ -483,6 +573,12 @@ MANAGER_AGENT = Agent(
         Tool(inspect_investment_agent_code, sequential=True, timeout=20),
         Tool(modify_investment_agent_code, sequential=True, timeout=240),
         Tool(remember_user_preference, sequential=True, timeout=10),
+        Tool(search_project, sequential=True, timeout=20),
+        Tool(list_manager_capabilities, sequential=True, timeout=10),
+        Tool(get_cycle_evidence, sequential=True, timeout=20),
+        Tool(install_manager_skill, sequential=True, timeout=20),
+        Tool(load_manager_skill, sequential=True, timeout=10),
+        Tool(install_manager_tool, sequential=True, timeout=30),
     ],
     retries=1,
     tool_timeout=90,
@@ -522,9 +618,12 @@ def _memory_instructions(memory: str) -> str:
         f"\n\n当前投资授权书：{mandate.get('display_name')}；目标：{mandate.get('objective')}；"
         f"版本：{mandate.get('risk_policy_version')}。该授权书是用户目标记忆，反思不能擅自切换风险档位。"
     )
+    from src.manager.capabilities import CapabilityRegistry
+
+    capabilities = "\n\n运行时扩展能力目录：\n" + CapabilityRegistry().catalog_prompt()
     if not combined:
-        return prefix + " 当前没有其他长期记忆。" + goal
-    return prefix + "\n\n当前管理长期记忆：\n" + combined[:10000] + goal
+        return prefix + " 当前没有其他长期记忆。" + goal + capabilities
+    return prefix + "\n\n当前管理长期记忆：\n" + combined[:10000] + goal + capabilities
 
 
 def _redact_error(exc: BaseException) -> str:
@@ -593,6 +692,9 @@ def run_agent_events(
         if thinking:
             settings["extra_body"] = {"thinking": {"type": "enabled"}}
         try:
+            reserved = set(MANAGER_AGENT._function_toolset.tools)
+            from src.manager.capabilities import CapabilityRegistry
+
             result = await MANAGER_AGENT.run(
                 prompt,
                 model=model_instance,
@@ -606,6 +708,7 @@ def run_agent_events(
                 cancellation_token=cancellation_token,
                 event_stream_handler=event_handler,
                 instructions=_memory_instructions(memory),
+                toolsets=[CapabilityRegistry().toolset(reserved)],
             )
             output = deps.authoritative_report or str(result.output).strip()
             if not output:

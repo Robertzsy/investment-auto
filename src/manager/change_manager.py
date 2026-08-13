@@ -19,11 +19,7 @@ from src.platform.memory_store import StructuredMemoryStore
 ROOT = Path(__file__).resolve().parents[2]
 BACKUP_DIR = ROOT / "runtime" / "manager" / "change_backups"
 ALLOWED_ROOTS = (
-    ROOT / "src" / "investment",
-    ROOT / "src" / "trading",
-    ROOT / "src" / "screening",
-    ROOT / "src" / "optimizer",
-    ROOT / "config",
+    ROOT,
 )
 _lock = threading.RLock()
 
@@ -38,9 +34,7 @@ def _resolve_path(value: str) -> Path:
         raise ValueError("只能使用项目内相对路径")
     path = (ROOT / raw).resolve()
     if not any(path == allowed or allowed in path.parents for allowed in ALLOWED_ROOTS):
-        raise PermissionError("管理 AI 只能修改投资 Agent、筛选、优化与配置目录")
-    if path.name in {".env", "portfolio.json", "control.json"}:
-        raise PermissionError("密钥、账户审计和运行时控制文件不能通过代码修改工具覆盖")
+        raise PermissionError("管理 AI 只能操作当前项目目录内的文件")
     return path
 
 
@@ -53,7 +47,7 @@ def _redact(text: str) -> str:
 
 
 class ChangeManager:
-    """Versioned investment-Agent changes with tests and automatic rollback."""
+    """Versioned project changes with tests and automatic rollback."""
 
     def __init__(self, store: Optional[StructuredMemoryStore] = None) -> None:
         self.store = store or StructuredMemoryStore()
@@ -80,11 +74,7 @@ class ChangeManager:
         tests: Sequence[str] = (),
     ) -> Dict[str, Any]:
         path = _resolve_path(relative_path)
-        if path.suffix.lower() not in {".py", ".yaml", ".yml", ".json", ".md"}:
-            raise ValueError("不支持修改该文件类型")
         content = str(new_content)
-        if len(content) > 300_000:
-            raise ValueError("单次修改内容过大")
         with _lock:
             previous = path.read_text(encoding="utf-8") if path.exists() else ""
             previous_hash = hashlib.sha256(previous.encode("utf-8")).hexdigest()

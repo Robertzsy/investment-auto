@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
@@ -417,7 +418,7 @@ def _run_intraday_job(
             reflection = {"status": "error", "error": str(exc)}
             outcome_evaluations = []
         logger.info("[INTRADAY:%s] %s report written: %s", market, label, path)
-        return {
+        result = {
             "status": "generated",
             "market": market,
             "label": label,
@@ -434,6 +435,17 @@ def _run_intraday_job(
                 "fills": autonomous.get("execution", {}).get("fills", []),
             },
         }
+        if re.fullmatch(r"\d{4}", label):
+            try:
+                from src.manager.report_inbox import publish_cycle_report
+
+                result["chat_delivery"] = publish_cycle_report(
+                    result, title=report_title, report_content=report_content
+                )
+            except Exception as exc:
+                logger.exception("[CHAT-INBOX:%s] report publish failed", market)
+                result["chat_delivery"] = {"status": "error", "error": str(exc)[:500]}
+        return result
 
 
 def _run_close_job(
@@ -508,7 +520,7 @@ def _run_close_job(
             reflection = {"status": "error", "error": str(exc)}
             outcome_evaluations = []
         logger.info("[CLOSE:%s] report written: %s", market, path)
-        return {
+        result = {
             "status": "generated",
             "market": market,
             "label": "close",
@@ -525,6 +537,16 @@ def _run_close_job(
                 "fills": autonomous.get("execution", {}).get("fills", []),
             },
         }
+        try:
+            from src.manager.report_inbox import publish_cycle_report
+
+            result["chat_delivery"] = publish_cycle_report(
+                result, title=report_title, report_content=report_content
+            )
+        except Exception as exc:
+            logger.exception("[CHAT-INBOX:%s] close report publish failed", market)
+            result["chat_delivery"] = {"status": "error", "error": str(exc)[:500]}
+        return result
 
 
 def _build_intraday_job(market: str, time_str: str, label: str):

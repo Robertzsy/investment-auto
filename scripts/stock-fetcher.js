@@ -27,7 +27,10 @@ function fetchRaw(url, options = {}) {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       ...(options.headers || {}),
     };
-    const args = ["-L", "--silent", "--show-error", "--max-time", "15", "--connect-timeout", "8"];
+    const args = [
+      "-L", "--silent", "--show-error", "--max-time", "15", "--connect-timeout", "8",
+      "--retry", "2", "--retry-delay", "1", "--retry-all-errors",
+    ];
     for (const [k, v] of Object.entries(headers)) args.push("-H", `${k}: ${v}`);
     args.push(url);
     execFile("curl", args, { encoding: "buffer", maxBuffer: 20 * 1024 * 1024 }, (err, stdout, stderr) => {
@@ -367,8 +370,8 @@ function normalizeSinaCandidate(row, market) {
   };
 }
 
-async function getSinaMarketCandidates(market, limit) {
-  const common = "page=1&num=" + Math.max(20, Math.min(500, limit)) + "&sort=amount&asc=0&_s_r_a=page";
+async function getSinaMarketPage(market, page, pageSize) {
+  const common = `page=${page}&num=${pageSize}&sort=amount&asc=0&_s_r_a=page`;
   let url;
   if (market === "hk") {
     url = `https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHKStockData?${common}&node=qbgg_hk`;
@@ -384,9 +387,29 @@ async function getSinaMarketCandidates(market, limit) {
   if (!Array.isArray(rows)) throw new Error("新浪市场列表返回格式错误");
   return rows
     .map((row) => normalizeSinaCandidate(row, market))
-    .filter((row) => row.symbol && row.price > 0)
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, limit);
+    .filter((row) => row.symbol && row.price > 0);
+}
+
+async function getSinaMarketCandidates(market, limit) {
+  const pageSize = limit > 0 ? Math.max(20, Math.min(500, limit)) : 500;
+  const rows = [];
+  const seen = new Set();
+  for (let page = 1; page <= 100; page += 1) {
+    const batch = await getSinaMarketPage(market, page, pageSize);
+    let added = 0;
+    for (const row of batch) {
+      if (seen.has(row.symbol)) continue;
+      seen.add(row.symbol);
+      rows.push(row);
+      added += 1;
+      if (limit > 0 && rows.length >= limit) break;
+    }
+    // Sina silently caps each page (currently about 100 for CN/ETF and 60 for
+    // HK), even when num=500. Stop only at an empty/repeated page.
+    if ((limit > 0 && rows.length >= limit) || batch.length === 0 || added === 0) break;
+  }
+  rows.sort((a, b) => b.amount - a.amount);
+  return limit > 0 ? rows.slice(0, limit) : rows;
 }
 
 async function getNasdaqMarketCandidates(limit) {
@@ -402,7 +425,7 @@ async function getNasdaqMarketCandidates(limit) {
   const payload = JSON.parse(text);
   const rows = payload?.data?.rows;
   if (!Array.isArray(rows)) throw new Error("Nasdaq 市场列表返回格式错误");
-  return rows.map((row) => {
+  const candidates = rows.map((row) => {
     const price = numeric(row.lastsale);
     const volume = numeric(row.volume);
     return {
@@ -423,20 +446,25 @@ async function getNasdaqMarketCandidates(limit) {
     };
   })
     .filter((row) => row.symbol && row.price > 0)
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, limit);
+    .sort((a, b) => b.amount - a.amount);
+  return limit > 0 ? candidates.slice(0, limit) : candidates;
 }
 
-async function getMarketCandidates(market, limit = 120) {
+async function getMarketCandidates(market, limit = 0) {
   const normalized = String(market || "").toLowerCase();
   if (!["cn", "hk", "us", "etf"].includes(normalized)) throw new Error("不支持的市场");
-  const boundedLimit = Math.max(10, Math.min(500, Number(limit) || 120));
+  const requestedLimit = Number(limit);
+  const boundedLimit = Number.isFinite(requestedLimit) && requestedLimit > 0
+    ? Math.max(10, Math.min(50000, Math.trunc(requestedLimit)))
+    : 0;
   const data = normalized === "us"
     ? await getNasdaqMarketCandidates(boundedLimit)
     : await getSinaMarketCandidates(normalized, boundedLimit);
   return {
     market: normalized,
     source: normalized === "us" ? "nasdaq-screener" : "sina-market-center",
+    scope: boundedLimit > 0 ? "bounded" : "full-market",
+    total_count: data.length,
     count: data.length,
     data,
   };
@@ -707,7 +735,7 @@ async function main() {
         history: "node stock-fetcher.js history <代码> [日K/周K/月K]",
         snapshot: "node stock-fetcher.js snapshot <代码>",
         search: "node stock-fetcher.js search <关键词>",
-        market_list: "node stock-fetcher.js market-list <cn|hk|us|etf> [数量]",
+        market_list: "node stock-fetcher.js market-list <cn|hk|us|etf> [数量，0=全市场]",
         watchlist: "node stock-fetcher.js watchlist [add|remove <代码>]",
       },
     }));
@@ -717,7 +745,7 @@ async function main() {
   // ── 全市场候选列表 ──
   if (command === "market-list") {
     if (!input) return console.log(JSON.stringify({ error: "请输入市场" }));
-    const result = await getMarketCandidates(input, Number(option) || 120);
+    const result = await getMarketCandidates(input, option === undefined ? 0 : Number(option));
     console.log(JSON.stringify(result));
     return;
   }

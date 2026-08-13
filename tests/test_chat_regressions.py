@@ -168,6 +168,12 @@ def test_typed_manager_catalog_exposes_versioned_management_not_shell_or_executi
         "inspect_investment_agent_code",
         "modify_investment_agent_code",
         "remember_user_preference",
+        "search_project",
+        "list_manager_capabilities",
+        "get_cycle_evidence",
+        "install_manager_skill",
+        "load_manager_skill",
+        "install_manager_tool",
     }
     assert not ({"run_shell", "write_file", "execute_orders"} & tool_names)
 

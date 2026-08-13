@@ -47,10 +47,33 @@ _LEGACY_TOOL_NAMES = {
 # ── history/memory ───────────────────────────────────
 def load_history(limit: int = 30) -> List[Dict[str, Any]]:
     with _history_lock:
-        if not HISTORY_FILE.exists():
-            return []
         try:
-            data = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+            data = json.loads(HISTORY_FILE.read_text(encoding="utf-8")) if HISTORY_FILE.exists() else []
+            from src.manager.report_inbox import pending_events
+
+            known = {str(item.get("event_id")) for item in data if item.get("event_id")}
+            changed = False
+            consumed_paths: List[Path] = []
+            for event in pending_events():
+                event_id = str(event.get("event_id", ""))
+                if event_id and event_id not in known:
+                    data.append({
+                        "role": "assistant",
+                        "content": str(event.get("content", "")),
+                        "time": str(event.get("created_at", datetime.now().isoformat(timespec="seconds"))),
+                        "event_id": event_id,
+                        "source": "scheduler",
+                    })
+                    known.add(event_id)
+                    changed = True
+                event_path = Path(str(event.get("_path", "")))
+                if event_path.is_file():
+                    consumed_paths.append(event_path)
+            if changed:
+                RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+                HISTORY_FILE.write_text(json.dumps(data[-200:], ensure_ascii=False, indent=2), encoding="utf-8")
+            for event_path in consumed_paths:
+                event_path.unlink(missing_ok=True)
             return data[-limit:]
         except Exception:
             return []
