@@ -7,7 +7,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
 from src.config import cfg
@@ -181,6 +181,49 @@ def _fetch_snapshots(symbols: Sequence[str], workers: int) -> tuple[Dict[str, An
     return snapshots, errors
 
 
+def _enrich_research_packets(
+    market: str,
+    snapshots: Dict[str, Any],
+    *,
+    workers: int,
+    settings: Mapping[str, Any],
+) -> Dict[str, str]:
+    """Attach auditable company news/fundamentals before any Agent is called."""
+    from src.data.research import fetch_research_packet
+
+    errors: Dict[str, str] = {}
+    ttl = max(5, int(settings.get("research_data_ttl_minutes", 30)))
+    timeout = max(3, min(30, int(settings.get("research_data_timeout_seconds", 12))))
+    with ThreadPoolExecutor(max_workers=max(1, min(workers, len(snapshots) or 1))) as executor:
+        futures = {
+            executor.submit(
+                fetch_research_packet,
+                market,
+                symbol,
+                ttl_minutes=ttl,
+                timeout=timeout,
+            ): symbol
+            for symbol in snapshots
+        }
+        for future in as_completed(futures):
+            symbol = futures[future]
+            try:
+                packet = future.result()
+                snapshot = snapshots.get(symbol)
+                if not isinstance(snapshot, dict):
+                    continue
+                for key in ("news", "fundamentals", "sentiment"):
+                    value = packet.get(key)
+                    if value:
+                        snapshot[key] = value
+                if packet.get("errors"):
+                    snapshot["research_data_errors"] = packet["errors"]
+                snapshot["research_data_sources"] = packet.get("sources", [])
+            except Exception as exc:
+                errors[symbol] = str(exc)[:1000]
+    return errors
+
+
 def _agent_prompt(role: str, context: Mapping[str, Any]) -> List[Dict[str, str]]:
     schema = {
         "summary": "简短结论",
@@ -302,15 +345,40 @@ def run_autonomous_cycle(
     optimizer_hint: Optional[Mapping[str, Any]] = None,
     catch_up: bool = False,
     dry_run: bool = False,
+    progress_callback: Optional[Callable[[str], None]] = None,
 ) -> Dict[str, Any]:
+    def progress(message: str) -> None:
+        if progress_callback is not None:
+            try:
+                progress_callback(message)
+            except Exception:
+                logger.debug("Progress callback failed", exc_info=True)
+
     current = _now(now)
     market = market.lower().strip()
-    config = cfg.autonomous
+    from src.investment.mandate import effective_configs, get_mandate
+
+    mandate = get_mandate()
+    market_config = cfg.market_config(market)
+    config, trading_config, market_config = effective_configs(
+        cfg.autonomous,
+        cfg.trading,
+        market_config,
+        mandate,
+    )
     base: Dict[str, Any] = {
         "market": market,
         "label": label,
         "generated_at": current.isoformat(timespec="seconds"),
         "mode": "dry_run" if dry_run else "paper",
+        "mandate": {
+            "profile": mandate.get("profile"),
+            "display_name": mandate.get("display_name"),
+            "objective": mandate.get("objective"),
+            "risk_policy_version": mandate.get("risk_policy_version"),
+            "prompt_version": mandate.get("prompt_version"),
+            "version": mandate.get("version"),
+        },
     }
     if not autonomous_enabled(config):
         return {**base, "status": "disabled"}
@@ -328,6 +396,7 @@ def run_autonomous_cycle(
             return {**base, "status": "in_progress"}
 
         account = account_store.account(market)
+        progress("正在从全市场筛选优质候选，并合并已有持仓…")
         try:
             screening_outcome = _screening_outcome(market, account, config, current)
             symbols = screening_outcome.symbols
@@ -349,6 +418,17 @@ def run_autonomous_cycle(
             }
         prices = {symbol: _price(snapshot) for symbol, snapshot in snapshots.items()}
         prices = {symbol: price for symbol, price in prices.items() if price > 0}
+        selected_names = {
+            str(item.get("symbol", "")).upper(): str(item.get("name", "")).strip()
+            for item in screening_audit.get("selected", [])
+            if isinstance(item, Mapping) and item.get("symbol") and item.get("name")
+        }
+        security_names = {
+            symbol: str(snapshot.get("realtime", {}).get("name", "")).strip() or selected_names.get(symbol, "")
+            for symbol, snapshot in snapshots.items()
+            if isinstance(snapshot, Mapping)
+        }
+        security_names.update({symbol: name for symbol, name in selected_names.items() if name})
         minimum_prices = int(config.get("minimum_priced_symbols", 2))
         if len(prices) < minimum_prices:
             audit = {
@@ -362,12 +442,25 @@ def run_autonomous_cycle(
             path = _write_audit(audit, current, market, label)
             return {**audit, "audit_file": str(path)}
 
+        progress("正在为每只候选预取公司新闻、基本面和可用情绪数据…")
+        research_data_errors = _enrich_research_packets(
+            market,
+            snapshots,
+            workers=int(config.get("market_data_workers", 4)),
+            settings=config.get("agent_workflow", {}),
+        )
+
         compact_snapshots = {
             symbol: {
                 "price": prices.get(symbol),
                 "realtime": snapshot.get("realtime", {}),
                 "indicators": snapshot.get("indicators", {}),
-                "history": snapshot.get("history", [])[-10:],
+                "history": snapshot.get("history", [])[-60:],
+                "fundamentals": snapshot.get("fundamentals", {}),
+                "news": snapshot.get("news", []),
+                "sentiment": snapshot.get("sentiment", {}),
+                "research_data_sources": snapshot.get("research_data_sources", []),
+                "research_data_errors": snapshot.get("research_data_errors", {}),
             }
             for symbol, snapshot in snapshots.items()
             if symbol in prices
@@ -379,17 +472,27 @@ def run_autonomous_cycle(
             "account": _account_for_agents(account),
             "snapshots": compact_snapshots,
             "market_data_errors": market_errors,
+            "research_data_errors": research_data_errors,
             "macro_excerpt": macro_excerpt[:6000],
             "optimizer": dict(optimizer_hint or {}),
             "screening": screening_audit,
-            "market_rules": cfg.market_config(market),
+            "market_rules": market_config,
             "autonomous_constraints": dict(config),
+            "investment_mandate": dict(mandate),
         }
+        try:
+            from src.investment.reflection import InvestmentReflectionService
+
+            context["reflection_lessons"] = InvestmentReflectionService().recent(market, 5)
+        except Exception:
+            logger.debug("Could not load previous investment reflections", exc_info=True)
+            context["reflection_lessons"] = []
 
         roles = [role for role in config.get("committee_roles", list(_ROLE_INSTRUCTIONS)) if role in _ROLE_INSTRUCTIONS]
         committee: List[Dict[str, Any]] = []
         committee_errors: Dict[str, str] = {}
         staged_workflow: Dict[str, Any] = {}
+        progress(f"已获得 {len(symbols)} 个候选/持仓标的，正在运行多 Agent 研究链…")
         if not _staged_workflow_enabled(config):
             with ThreadPoolExecutor(max_workers=max(1, min(len(roles), int(config.get("agent_workers", 4))))) as executor:
                 futures = {executor.submit(_run_committee_member, role, context): role for role in roles}
@@ -423,29 +526,32 @@ def run_autonomous_cycle(
                 chair = dict(staged_workflow.get("portfolio_manager", {}))
                 chair["decisions"] = _normalize_decisions(
                     chair,
-                    int(config.get("max_decisions", 10)),
+                    max(int(config.get("max_decisions", 10)), len(symbols)),
                 )
             else:
                 chair = _chair_decision(market, context, committee, config)
+            progress("Agent 已完成逐标的买入/观望/卖出判断，正在执行硬风控…")
             risk = build_orders(
                 chair.get("decisions", []),
                 account=account,
                 prices=prices,
                 allowed_symbols=symbols,
-                market_config=cfg.market_config(market),
+                market_config=market_config,
                 autonomous_config=config,
-                trading_config=cfg.trading,
+                trading_config=trading_config,
                 now=current,
             )
             should_execute = bool(config.get("auto_execute", True)) and not dry_run
+            progress("硬风控完成，正在提交允许的模拟订单…" if should_execute else "硬风控完成，本轮仅生成决策…")
             execution = execute_orders(
                 market,
                 risk.get("orders", []) if should_execute else [],
-                market_config=cfg.market_config(market),
+                market_config=market_config,
                 trading_mode=str(cfg.trading.get("mode", "paper")),
                 now=current,
                 equity_snapshot=float(risk.get("equity", 0) or 0),
                 mark_prices=prices,
+                security_names=security_names,
             ) if should_execute else {"fills": [], "rejected": [], "dry_run": True}
             required_liquidations = risk.get("circuit_liquidation_quantities", {})
             filled_quantities: Dict[str, int] = {}
@@ -469,13 +575,16 @@ def run_autonomous_cycle(
                     updated_by="risk_engine",
                 )
             status = "executed" if execution.get("fills") else "no_trade"
+            progress("模拟执行完成，正在写入审计和最终报告…")
             audit = {
                 **base,
                 "status": status,
+                "account_before": _account_for_agents(account),
                 "allowed_symbols": symbols,
                 "screening": screening_audit,
                 "prices": prices,
                 "market_data_errors": market_errors,
+                "research_data_errors": research_data_errors,
                 "committee": committee,
                 "committee_errors": committee_errors,
                 "agent_workflow": staged_workflow,
@@ -486,16 +595,64 @@ def run_autonomous_cycle(
             }
         except Exception as exc:
             logger.exception("Autonomous cycle failed for %s", market)
-            audit = {
-                **base,
-                "status": "error",
-                "error": str(exc),
-                "allowed_symbols": symbols,
-                "screening": screening_audit,
-                "committee": committee,
-                "committee_errors": committee_errors,
-                "agent_workflow": staged_workflow,
-                "market_data_errors": market_errors,
-            }
+            # Fail closed for every discretionary decision, while still letting
+            # deterministic hard stops / trailing stops / drawdown liquidation
+            # protect an existing paper portfolio when the LLM graph fails.
+            try:
+                emergency_risk = build_orders(
+                    [],
+                    account=account,
+                    prices=prices,
+                    allowed_symbols=symbols,
+                    market_config=market_config,
+                    autonomous_config=config,
+                    trading_config=trading_config,
+                    now=current,
+                )
+                should_execute = bool(config.get("auto_execute", True)) and not dry_run
+                emergency_orders = emergency_risk.get("orders", [])
+                emergency_execution = execute_orders(
+                    market,
+                    emergency_orders if should_execute else [],
+                    market_config=market_config,
+                    trading_mode=str(cfg.trading.get("mode", "paper")),
+                    now=current,
+                    equity_snapshot=float(emergency_risk.get("equity", 0) or 0),
+                    mark_prices=prices,
+                    security_names=security_names,
+                ) if should_execute else {"fills": [], "rejected": [], "dry_run": True}
+                emergency_status = "protective_executed" if emergency_execution.get("fills") else "error"
+                audit = {
+                    **base,
+                    "status": emergency_status,
+                    "error": str(exc),
+                    "degraded_mode": "deterministic_protective_exits_only",
+                    "allowed_symbols": symbols,
+                    "screening": screening_audit,
+                    "committee": committee,
+                    "committee_errors": committee_errors,
+                    "agent_workflow": staged_workflow,
+                    "market_data_errors": market_errors,
+                    "research_data_errors": research_data_errors,
+                    "chair": {"decisions": []},
+                    "risk": emergency_risk,
+                    "execution": emergency_execution,
+                    "control": control,
+                }
+            except Exception as protective_exc:
+                logger.exception("Protective fallback also failed for %s", market)
+                audit = {
+                    **base,
+                    "status": "error",
+                    "error": str(exc),
+                    "protective_fallback_error": str(protective_exc),
+                    "allowed_symbols": symbols,
+                    "screening": screening_audit,
+                    "committee": committee,
+                    "committee_errors": committee_errors,
+                    "agent_workflow": staged_workflow,
+                    "market_data_errors": market_errors,
+                    "research_data_errors": research_data_errors,
+                }
         path = _write_audit(audit, current, market, label)
         return {**audit, "audit_file": str(path)}

@@ -301,6 +301,10 @@ def test_autonomous_cycle_runs_committee_risk_and_execution(monkeypatch, tmp_pat
     monkeypatch.setattr(controller, "load_state", lambda: {"paused": False, "kill_switch": False})
     monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
     monkeypatch.setattr(controller, "CYCLE_LOCK_DIR", tmp_path / "locks")
+    # The cycle overlays the persisted user mandate on runtime limits.  Point
+    # the mandate store at a missing file so this test exercises the limits
+    # given by its own autonomous config, not the host's mandate.json.
+    monkeypatch.setattr("src.investment.mandate.MANDATE_FILE", tmp_path / "no-mandate.json")
     monkeypatch.setattr(controller.account_store, "account", lambda market: {
         "cash": 100_000,
         "holdings": [],

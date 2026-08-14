@@ -21,7 +21,7 @@ def test_chat_ui_sanitizes_all_markdown_before_inner_html():
     assert "dompurify@" in html.lower()
     assert "return sanitizeHtml(rendered);" in html
     assert "body.innerHTML = sanitizeHtml(html);" in html
-    assert "appendMessage('user', renderMarkdown(text, true));" in html
+    assert "appendMessage('user', renderMarkdown(displayText, true));" in html
     assert "appendMessage(m.role, renderMarkdown(m.content || ''));" in html
 
     marked_lines = [line.strip() for line in html.splitlines() if "marked.parse" in line]
@@ -151,7 +151,7 @@ def test_legacy_tool_envelope_is_filtered_and_never_executed(monkeypatch):
     assert chat_server.load_history(10)[-1]["content"] == "已使用新的类型化 Agent 处理。"
 
 
-def test_typed_agent_catalog_excludes_shell_file_write_and_trading_execution():
+def test_typed_manager_catalog_exposes_versioned_management_not_shell_or_execution():
     tool_names = set(agent_runtime.MANAGER_AGENT._function_toolset.tools)
 
     assert tool_names == {
@@ -162,8 +162,68 @@ def test_typed_agent_catalog_excludes_shell_file_write_and_trading_execution():
         "search_security",
         "get_security_snapshot",
         "get_stock_screening",
+        "run_complete_investment_cycle",
+        "manage_investment_agent",
+        "run_portfolio_optimizer",
+        "inspect_investment_agent_code",
+        "modify_investment_agent_code",
+        "remember_user_preference",
+        # Management-plane extensions: capability registry, project search and
+        # cycle evidence lookup.  Still no shell, file writes or execution.
+        "search_project",
+        "list_manager_capabilities",
+        "get_cycle_evidence",
+        "install_manager_skill",
+        "load_manager_skill",
+        "install_manager_tool",
     }
     assert not ({"run_shell", "write_file", "execute_orders"} & tool_names)
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["跑一次美股分析", "进行一次美股分析", "跑一轮美股", "开始美股交易", "跑一轮完整的分析"],
+)
+def test_investment_language_is_understood_by_agent_not_keyword_router(monkeypatch, message):
+    captured = []
+
+    def fake_agent_events(value, **kwargs):
+        captured.append(value)
+        yield {"type": "result", "content": "由常驻 Agent 理解并处理"}
+
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", fake_agent_events)
+    events = list(chat_server.handle_chat_stream(message, request_id="semantic-agent"))
+
+    assert captured == [message]
+    assert events[-1]["content"] == "由常驻 Agent 理解并处理"
+    assert not hasattr(chat_server, "_full_cycle_request")
+
+
+def test_button_cycle_stream_runs_directly_without_llm(monkeypatch):
+    monkeypatch.setenv("INVESTMENT_AGENT_TRANSPORT", "local")
+    monkeypatch.setattr("src.scheduler.run_investment_cycle", lambda market, **kwargs: {
+        "status": "generated", "market": market, "report": "",
+        "autonomous": {"status": "no_trade", "fills": []},
+        "notification": {"status": "disabled"},
+    })
+    monkeypatch.setattr(
+        "src.ui.agent_runtime.run_agent_events",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not run")),
+    )
+
+    events = list(chat_server.handle_investment_cycle_stream("us", request_id="button-cycle"))
+
+    assert events[0] == {"type": "tool", "name": "run_complete_investment_cycle", "params": {"market": "us"}}
+    assert "美股完整投资轮次" in events[-1]["content"]
+
+
+def test_agent_limit_question_is_understood_by_manager_not_keyword_router(monkeypatch):
+    monkeypatch.setattr(
+        "src.ui.agent_runtime.run_agent_events",
+        lambda *args, **kwargs: iter([{"type": "result", "content": "当前限制由管理 Agent 解释"}]),
+    )
+    events = list(chat_server.handle_chat_stream("现在的工具请求上限是多少", request_id="agent-limits"))
+    assert events[-1]["content"] == "当前限制由管理 Agent 解释"
 
 
 class _MarketStatusConfig:
@@ -197,76 +257,18 @@ class _MarketStatusConfig:
         return "04:10"
 
 
-def test_market_status_uses_current_clock_actual_report_and_pause_state(
-    monkeypatch, tmp_path
-):
-    from src import scheduler
-    from src.trading import control, controller
-
-    fake_cfg = _MarketStatusConfig()
-    monkeypatch.setattr(chat_server, "cfg", fake_cfg)
-    monkeypatch.setattr(scheduler, "cfg", fake_cfg)
-    monkeypatch.setattr(scheduler, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(
-        control,
-        "load_state",
-        lambda: {
-            "paused": True,
-            "kill_switch": False,
-            "reason": "等待 dry-run 验证",
-        },
-    )
-    monkeypatch.setattr(controller, "autonomous_enabled", lambda: True)
-    (tmp_path / "20260811-us-2330.md").write_text(
-        "# US 2330 轮次报告\n\n"
-        "> 生成时间：2026-08-11T23:30:00+08:00 | 模式：定时运行\n",
-        encoding="utf-8",
-    )
-    current = datetime(2026, 8, 11, 23, 34, 45, tzinfo=ZoneInfo("Asia/Shanghai"))
-
-    answer = chat_server._build_market_status_answer("美股开始了吗", now=current)
-
-    assert answer is not None
-    assert "2026-08-11 23:34:45" in answer
-    assert "Asia/Shanghai，UTC+08:00" in answer
-    assert "当前是否在交易时段**：是" in answer
-    assert "23:30 已完成" in answer
-    assert "2026-08-12 01:00:00" in answer
-    assert "2026-08-12 04:10:00" in answer
-    assert "自主交易控制**：已暂停" in answer
-    assert "不会提交任何模拟订单" in answer
-    assert "15:10" not in answer
-
-
-def test_us_cross_midnight_session_is_active(monkeypatch):
-    from src import scheduler
-
-    fake_cfg = _MarketStatusConfig()
-    monkeypatch.setattr(chat_server, "cfg", fake_cfg)
-    monkeypatch.setattr(scheduler, "cfg", fake_cfg)
-    sessions = fake_cfg.market_config("us")["trading"]["session"]
-
-    current = datetime(2026, 8, 12, 1, 15, tzinfo=ZoneInfo("Asia/Shanghai"))
-
-    assert chat_server._session_is_active("us", current, sessions) is True
-
-
-def test_market_status_question_bypasses_llm(monkeypatch):
-    monkeypatch.setattr(
-        chat_server,
-        "_build_market_status_answer",
-        lambda message: "北京时间 23:34，美股 23:30 轮次已完成，自主交易已暂停。",
-    )
-    monkeypatch.setattr(
-        "src.llm.registry.resolve_llm",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not be called")),
-    )
+def test_market_status_question_uses_manager_tool_reasoning(monkeypatch):
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", lambda *args, **kwargs: iter([
+        {"type": "tool", "name": "consult_ops_agent", "params": {}},
+        {"type": "result", "content": "北京时间 23:34，美股 23:30 轮次已完成，自主交易已暂停。"},
+    ]))
 
     events = list(
         chat_server.handle_chat_stream("美股开始了吗", request_id="market-status")
     )
 
-    assert events[0] == {"type": "tool", "name": "market_status", "params": {}}
+    assert events[0]["type"] == "status"
+    assert events[1]["name"] == "consult_ops_agent"
     assert events[-1]["type"] == "final"
     assert "23:30 轮次已完成" in events[-1]["content"]
 
@@ -278,7 +280,7 @@ class _AutonomyControlConfig:
     enabled_markets = ["cn", "hk", "us", "etf"]
 
 
-def test_market_scoped_start_command_requires_global_confirmation_and_bypasses_llm(
+def test_market_scoped_start_language_does_not_unlock_runtime_pause(
     monkeypatch, tmp_path
 ):
     from src.trading import control
@@ -287,24 +289,36 @@ def test_market_scoped_start_command_requires_global_confirmation_and_bypasses_l
     monkeypatch.setattr(control, "CONTROL_FILE", control_file)
     monkeypatch.setattr(chat_server, "cfg", _AutonomyControlConfig())
     control.set_paused(True, reason="等待人工确认")
-    monkeypatch.setattr(
-        "src.llm.registry.resolve_llm",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not be called")),
-    )
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", _immediate_agent_events)
 
     events = list(
         chat_server.handle_chat_stream("开始美股交易", request_id="market-scoped-resume")
     )
 
-    assert events[0] == {"type": "tool", "name": "autonomy_control", "params": {}}
     assert events[-1]["type"] == "final"
-    assert "尚未执行" in events[-1]["content"]
-    assert "全局控制" in events[-1]["content"]
-    assert "解除全局暂停并恢复自主模拟交易" in events[-1]["content"]
     assert control.load_state()["paused"] is True
 
 
-def test_explicit_global_resume_command_clears_runtime_pause(monkeypatch, tmp_path):
+def test_full_cycle_result_does_not_report_paused_round_as_success():
+    from src.investment.reporting import format_cycle_result
+
+    answer = format_cycle_result({
+        "status": "generated",
+        "market": "us",
+        "report": "",
+        "notification": {"status": "skipped", "reason": "missing webhook"},
+        "autonomous": {
+            "status": "paused",
+            "control": {"reason": "人工暂停"},
+            "fills": [],
+        },
+    })
+    assert "⚠️" in answer
+    assert "运行时安全暂停" in answer
+    assert "人工暂停" in answer
+
+
+def test_explicit_global_resume_command_is_delegated_to_manager(monkeypatch, tmp_path):
     from src.trading import control
 
     control_file = tmp_path / "control.json"
@@ -312,10 +326,11 @@ def test_explicit_global_resume_command_clears_runtime_pause(monkeypatch, tmp_pa
     monkeypatch.setattr(chat_server, "cfg", _AutonomyControlConfig())
     monkeypatch.delenv("AUTONOMOUS_TRADING_ENABLED", raising=False)
     control.set_paused(True, reason="等待人工确认")
-    monkeypatch.setattr(
-        "src.llm.registry.resolve_llm",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM must not be called")),
-    )
+    def fake_events(*args, **kwargs):
+        control.set_paused(False, reason="管理 Agent 恢复", updated_by="conversation-manager")
+        yield {"type": "tool", "name": "manage_investment_agent", "params": {"action": "resume"}}
+        yield {"type": "result", "content": "已解除全局暂停"}
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", fake_events)
 
     events = list(
         chat_server.handle_chat_stream(
@@ -324,19 +339,14 @@ def test_explicit_global_resume_command_clears_runtime_pause(monkeypatch, tmp_pa
         )
     )
 
-    assert events[0] == {"type": "tool", "name": "autonomy_control", "params": {}}
+    assert events[1]["name"] == "manage_investment_agent"
     assert "已解除全局暂停" in events[-1]["content"]
-    assert "A 股、港股、美股、ETF" in events[-1]["content"]
     state = control.load_state()
     assert state["paused"] is False
-    assert state["updated_by"] == "human"
+    assert state["updated_by"] == "conversation-manager"
 
 
-def test_market_status_question_is_not_misclassified_as_control_command():
-    assert chat_server._autonomy_control_request("美股开始了吗") is None
-
-
-def test_autonomy_status_is_deterministic_and_explains_pause_semantics(monkeypatch):
+def test_autonomy_status_is_answered_through_manager_tool(monkeypatch):
     from src.trading import control, controller
 
     monkeypatch.setattr(chat_server, "cfg", _AutonomyControlConfig())
@@ -350,10 +360,10 @@ def test_autonomy_status_is_deterministic_and_explains_pause_semantics(monkeypat
             "reason": "等待 dry-run 验证",
         },
     )
-    monkeypatch.setattr(
-        "src.ui.agent_runtime.run_agent_events",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("Agent must not run")),
-    )
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", lambda *args, **kwargs: iter([
+        {"type": "tool", "name": "manage_investment_agent", "params": {"action": "status"}},
+        {"type": "result", "content": "配置开关**：已打开\n运行时暂停**：是\n调度和报告继续运行，模拟订单不会提交"},
+    ]))
 
     events = list(
         chat_server.handle_chat_stream(
@@ -362,59 +372,13 @@ def test_autonomy_status_is_deterministic_and_explains_pause_semantics(monkeypat
         )
     )
 
-    assert events[0] == {"type": "tool", "name": "autonomy_status", "params": {}}
+    assert events[1]["name"] == "manage_investment_agent"
     assert events[-1]["type"] == "final"
     assert "配置开关**：已打开" in events[-1]["content"]
     assert "运行时暂停**：是" in events[-1]["content"]
     assert "调度和报告继续运行" in events[-1]["content"]
     assert "模拟订单不会提交" in events[-1]["content"]
 
-
-@pytest.mark.parametrize("text", ["分析 A 股市场", "分析项目代码", "看看配置"])
-def test_generic_analysis_requests_do_not_enter_stock_route(monkeypatch, text):
-    calls = []
-    monkeypatch.setattr(chat_server, "_stock_fetcher", lambda command, value: calls.append((command, value)))
-    assert chat_server._build_stock_analysis_context(text) is None
-    assert calls == []
-
-
-def test_unknown_chinese_stock_search_does_not_fall_through_to_snapshot(monkeypatch):
-    calls = []
-
-    def fake_fetch(command, value):
-        calls.append((command, value))
-        return {"count": 0, "stocks": []}
-
-    monkeypatch.setattr(chat_server, "_stock_fetcher", fake_fetch)
-    assert chat_server._build_stock_analysis_context("分析火星股份走势") is None
-    assert calls == [("search", "火星股份")]
-
-
-@pytest.mark.parametrize(
-    ("text", "expected_query", "expected_code", "expects_search"),
-    [
-        ("分析茅台", "茅台", "sh600519", True),
-        ("AAPL走势", "AAPL", "AAPL", False),
-        ("hk00700", "hk00700", "hk00700", False),
-        ("00700", "00700", "00700", False),
-    ],
-)
-def test_security_stock_requests_still_resolve(monkeypatch, text, expected_query, expected_code, expects_search):
-    calls = []
-
-    def fake_fetch(command, value):
-        calls.append((command, value))
-        if command == "search":
-            return {"count": 1, "stocks": [{"symbol": "sh600519", "name": "贵州茅台"}]}
-        return {"code": value, "price": 123.0}
-
-    monkeypatch.setattr(chat_server, "_stock_fetcher", fake_fetch)
-    context = chat_server._build_stock_analysis_context(text)
-    assert context is not None
-    assert context["query"] == expected_query
-    assert context["resolved_code"] == expected_code
-    assert calls[-1] == ("snapshot", expected_code)
-    assert any(command == "search" for command, _ in calls) is expects_search
 
 
 class _BlockingStream:

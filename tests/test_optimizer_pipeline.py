@@ -106,16 +106,7 @@ def test_dashboard_optimizer_files_are_filtered_by_market(tmp_path):
     assert len(_optimizer_files(tmp_path, "all")) == 2
 
 
-def test_optimizer_intent_detection_avoids_explanations_negations_and_market_tokens():
-    assert chat_server._build_optimizer_request("解释一下 Black-Litterman 模型") is None
-    assert chat_server._build_optimizer_request("不要运行优化器") is None
-    assert chat_server._build_optimizer_request("运行一次 US 组合优化") == {"market": "us", "symbols": None}
-    assert chat_server._build_optimizer_request("执行 A 股优化器 600519,000858") == {
-        "market": "cn", "symbols": ["600519", "000858"]
-    }
-
-
-def test_chat_optimizer_request_bypasses_tool_loop(monkeypatch):
+def test_chat_optimizer_request_uses_manager_tool(monkeypatch):
     result = {
         "market": "cn",
         "symbols": ["600519", "000858"],
@@ -131,11 +122,14 @@ def test_chat_optimizer_request_bypasses_tool_loop(monkeypatch):
         },
         "dropped_symbols": {},
     }
-    monkeypatch.setattr(chat_server, "_optimizer_tool", lambda **kwargs: result)
+    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", lambda *args, **kwargs: iter([
+        {"type": "tool", "name": "consult_portfolio_agent", "params": {}},
+        {"type": "result", "content": "组合优化已由管理 Agent 执行"},
+    ]))
     events = list(chat_server.handle_chat_stream("运行一次优化器分析", request_id="optimizer-fast-path"))
 
-    assert events[0]["type"] == "tool"
-    assert events[0]["name"] == "optimizer"
+    assert events[1]["type"] == "tool"
+    assert events[1]["name"] == "consult_portfolio_agent"
     assert events[-1]["type"] == "final"
-    assert "组合优化已完成" in events[-1]["content"]
+    assert "组合优化已由管理 Agent 执行" in events[-1]["content"]
     assert "工具调用轮次" not in events[-1]["content"]

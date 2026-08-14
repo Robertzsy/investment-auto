@@ -64,6 +64,21 @@ def test_advanced_agent_and_hard_universe_controls_are_not_exposed():
         assert removed not in settings
 
 
+def test_operation_mode_switch_is_prominent_on_chat_and_settings():
+    chat = (UI / "index.html").read_text(encoding="utf-8")
+    settings = (UI / "settings.html").read_text(encoding="utf-8")
+
+    assert 'id="operationModeQuick"' in chat
+    assert 'id="cycleRunBtn"' in chat
+    assert 'id="cycleMarket"' in chat
+    assert "一键完整投资轮次" in chat
+    assert "fetch('/api/investment-cycle'" not in chat
+    assert "runStreamingRequest('/api/investment-cycle'" in chat
+    assert 'id="operationMode"' in settings
+    assert "全自动：定时执行完整投资轮次" in settings
+    assert "手动整轮：只在我触发时执行完整投资轮次" in settings
+
+
 def test_market_context_is_embedded_in_dashboard_not_main_navigation():
     pages = {
         name: (UI / name).read_text(encoding="utf-8")
@@ -75,3 +90,33 @@ def test_market_context_is_embedded_in_dashboard_not_main_navigation():
     assert "市场环境研判" in pages["macro.html"]
     for content in pages.values():
         assert "📰 宏观日报" not in content
+
+
+def test_chat_controls_are_consolidated_in_agent_console():
+    chat = (UI / "index.html").read_text(encoding="utf-8")
+
+    assert 'class="chat-shell"' in chat
+    assert 'class="agent-console"' in chat
+    assert "投资 Agent 控制台" in chat
+    assert 'class="advanced-model"' in chat
+    assert chat.index('id="cycleRunBtn"') < chat.index('id="suggestions"')
+
+
+def test_dashboard_uses_market_context_as_left_rail():
+    dashboard = (UI / "dashboard.html").read_text(encoding="utf-8")
+
+    assert 'class="dashboard-shell"' in dashboard
+    assert '<aside class="market-insight"' in dashboard
+    assert '<main class="dashboard-main">' in dashboard
+    assert dashboard.index('<aside class="market-insight"') < dashboard.index('id="statsCards"')
+
+
+def test_settings_has_control_center_index_and_search():
+    settings = (UI / "settings.html").read_text(encoding="utf-8")
+
+    assert 'class="section mode-panel investor-control-center"' in settings
+    assert 'id="settingsStrategyProfile"' in settings
+    assert 'id="settingsIndex"' in settings
+    assert 'id="settingsSearch"' in settings
+    assert 'href="#section-market-risk"' in settings
+    assert 'id="dirtyIndicator"' in settings

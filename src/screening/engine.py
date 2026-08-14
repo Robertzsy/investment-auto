@@ -88,7 +88,13 @@ def _parse_time(value: Any) -> Optional[datetime]:
     return parsed
 
 
-def _discovery_cache(market: str, now: datetime, refresh_minutes: int) -> Optional[Dict[str, Any]]:
+def _discovery_cache(
+    market: str,
+    now: datetime,
+    refresh_minutes: int,
+    *,
+    allow_stale: bool = False,
+) -> Optional[Dict[str, Any]]:
     path = SCREENING_DIR / f"discovery-{market}.json"
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -97,11 +103,13 @@ def _discovery_cache(market: str, now: datetime, refresh_minutes: int) -> Option
             return None
         if generated.tzinfo is None and now.tzinfo is not None:
             generated = generated.replace(tzinfo=now.tzinfo)
-        if now - generated > timedelta(minutes=max(1, refresh_minutes)):
+        if not allow_stale and now - generated > timedelta(minutes=max(1, refresh_minutes)):
             return None
         if not isinstance(payload.get("data"), list):
             return None
         payload["cached"] = True
+        if allow_stale:
+            payload["stale"] = True
         return payload
     except (OSError, json.JSONDecodeError, TypeError):
         return None
@@ -113,7 +121,8 @@ def _discover(
     now: datetime,
     store: Optional[MongoScreeningStore] = None,
 ) -> Dict[str, Any]:
-    limit = max(10, min(500, int(settings.get("discovery_limit", 120))))
+    requested_limit = int(settings.get("discovery_limit", 0))
+    limit = max(10, min(50_000, requested_limit)) if requested_limit > 0 else 0
     refresh_minutes = max(1, int(settings.get("refresh_minutes", 30)))
     if store is not None:
         try:
@@ -141,18 +150,45 @@ def _discover(
                 logger.warning("MongoDB discovery hydration failed; using JSON: %s", exc)
                 store = None
         return cached
-    payload = fetcher.market_list(
-        market,
-        limit=limit,
-        timeout=max(15, int(settings.get("discovery_timeout_seconds", 50))),
-    )
+    try:
+        payload = fetcher.market_list(
+            market,
+            limit=limit,
+            timeout=max(15, int(settings.get("discovery_timeout_seconds", 50))),
+        )
+    except Exception as provider_error:
+        stale = _discovery_cache(market, now, refresh_minutes, allow_stale=True)
+        if stale is not None:
+            stale["cache_backend"] = "json-stale"
+            stale["provider_error"] = str(provider_error)[:1000]
+            logger.warning("Full-market provider failed; using stale JSON universe: %s", provider_error)
+            return stale
+        if store is not None:
+            try:
+                stale = store.read_discovery(
+                    market,
+                    now=now,
+                    refresh_minutes=60 * 24 * 365 * 10,
+                    limit=limit,
+                )
+                if stale is not None:
+                    stale["cache_backend"] = "mongodb-stale"
+                    stale["stale"] = True
+                    stale["provider_error"] = str(provider_error)[:1000]
+                    logger.warning("Full-market provider failed; using stale MongoDB universe: %s", provider_error)
+                    return stale
+            except Exception as stale_error:
+                logger.warning("Stale MongoDB universe also failed: %s", stale_error)
+        raise
     result = {
         "generated_at": now.isoformat(timespec="seconds"),
         "market": market,
         "source": payload.get("source", "market-data-provider"),
         "cached": False,
         "cache_backend": "provider",
-        "data": payload.get("data", [])[:limit],
+        "scope": payload.get("scope", "bounded" if limit else "full-market"),
+        "total_count": int(payload.get("total_count", len(payload.get("data", []))) or 0),
+        "data": payload.get("data", [])[:limit] if limit else payload.get("data", []),
     }
     _write_json(SCREENING_DIR / f"discovery-{market}.json", result)
     if store is not None:
@@ -460,6 +496,7 @@ def run_screening(
     workers = max(1, int(autonomous_config.get("market_data_workers", 4)))
     store = get_screening_store(settings)
     discovery_error = ""
+    discovered_count = 0
     rejected: Dict[str, int] = {}
 
     if not enabled:
@@ -475,6 +512,7 @@ def run_screening(
             discovery = _discover(market, settings, now, store)
             source = str(discovery.get("source", "market-data-provider"))
             status = "screened"
+            discovered_count = len(discovery.get("data", []))
             rows, rejected = _filter_candidates(discovery.get("data", []), market, settings)
             if not rows:
                 raise RuntimeError("all discovered candidates were filtered out")
@@ -525,6 +563,7 @@ def run_screening(
         "status": status,
         "source": source,
         "configured_hard_pool": bool(configured),
+        "discovered_count": discovered_count or len(rows),
         "candidate_count": len(rows),
         "prefetched_count": len(preselected),
         "scored_count": len(scored),

@@ -70,6 +70,49 @@ def test_env_save_validates_and_updates_running_environment(
     assert "BAD\nKEY=value" not in (tmp_path / ".env").read_text(encoding="utf-8")
 
 
+def test_operation_mode_api_enables_complete_cycle_execution(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("INVESTMENT_AGENT_TRANSPORT", "local")
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    config_path = config_dir / "config.yaml"
+    config_path.write_text("autonomous:\n  enabled: false\n  auto_execute: false\n", encoding="utf-8")
+    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr("src.config.cfg._path", config_path)
+    monkeypatch.setattr("src.config.cfg.reload", lambda: None)
+
+    handler = _FakeHandler(b'{"mode":"automatic"}')
+    server.ChatHandler._handle_autonomy_control(handler, "mode")  # type: ignore[arg-type]
+
+    assert handler.responses[-1][0] == 200
+    assert handler.responses[-1][1]["ok"] is True
+    assert handler.responses[-1][1]["mode"] == "automatic"
+    saved = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert saved["autonomous"] == {
+        "enabled": True,
+        "auto_execute": True,
+        "operation_mode": "automatic",
+    }
+
+    invalid = _FakeHandler(b'{"mode":"sometimes"}')
+    server.ChatHandler._handle_autonomy_control(invalid, "mode")  # type: ignore[arg-type]
+    assert invalid.responses[-1][0] == 400
+
+
+def test_autonomy_status_api_exposes_operation_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from src.trading import controller
+
+    monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
+    handler = _FakeHandler()
+
+    server.ChatHandler._handle_autonomy_status(handler)  # type: ignore[arg-type]
+
+    status, payload = handler.responses[-1]
+    assert status == 200
+    assert payload["operation_mode"] in {"manual", "automatic"}
+    assert isinstance(payload["auto_execute"], bool)
+    assert "control" in payload
+
+
 def test_market_config_api_exposes_rules_and_updates_only_risk_controls(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -374,6 +417,33 @@ def test_chat_and_cancel_handlers_forward_valid_request_id(monkeypatch: pytest.M
 
     assert cancelled == [request_id]
     assert responses[-1] == (200, {"ok": True, "cancelled": True})
+
+
+def test_investment_cycle_endpoint_validates_and_forwards_market(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = b'{"market":"us","request_id":"cycle-123"}'
+    handler = server.ChatHandler.__new__(server.ChatHandler)
+    handler.headers = {"Content-Length": str(len(payload))}
+    handler.rfile = io.BytesIO(payload)
+    handler.wfile = io.BytesIO()
+    handler.send_response = lambda status: None  # type: ignore[method-assign]
+    handler.send_header = lambda key, value: None  # type: ignore[method-assign]
+    handler.end_headers = lambda: None  # type: ignore[method-assign]
+    forwarded = []
+    monkeypatch.setattr(
+        "src.ui.chat_server.handle_investment_cycle_stream",
+        lambda market, request_id=None: forwarded.append((market, request_id)) or iter([
+            {"type": "final", "content": "done"}
+        ]),
+    )
+
+    handler._handle_investment_cycle()
+
+    assert forwarded == [("us", "cycle-123")]
+    assert b'"type": "final"' in handler.wfile.getvalue()
+
+    invalid = _FakeHandler(b'{"market":"mars"}')
+    server.ChatHandler._handle_investment_cycle(invalid)  # type: ignore[arg-type]
+    assert invalid.responses[-1][0] == 400
 
 
 def test_invalid_request_id_is_rejected() -> None:

@@ -101,6 +101,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_get_history()
         if path == "/api/autonomy":
             return self._handle_autonomy_status()
+        if path == "/api/investment/mandate":
+            return self._handle_investment_mandate()
 
         # Static files
         if path == "/" or path == "":
@@ -118,6 +120,10 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/chat":
             return self._handle_chat()
+        if path == "/api/investment-cycle":
+            return self._handle_investment_cycle()
+        if path == "/api/investment/mandate":
+            return self._handle_set_investment_mandate()
         if path == "/api/history/clear":
             return self._handle_clear_history()
         if path == "/api/chat/cancel":
@@ -194,6 +200,51 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 self.wfile.flush()
             except BrokenPipeError:
                 logger.warning("SSE client disconnected while sending error")
+        finally:
+            self.close_connection = True
+
+    def _handle_investment_cycle(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"error": "payload must be a JSON object"})
+        market = str(data.get("market", "")).strip().lower()
+        if market not in {"cn", "hk", "us", "etf"}:
+            return self._json_response(400, {"error": "market must be cn, hk, us, or etf"})
+        request_id = data.get("request_id")
+        if request_id is not None and (
+            not isinstance(request_id, str) or not _REQUEST_ID_RE.fullmatch(request_id)
+        ):
+            return self._json_response(400, {"error": "invalid request_id"})
+
+        from .chat_server import handle_investment_cycle_stream
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        try:
+            for event in handle_investment_cycle_stream(market, request_id=request_id):
+                payload = json.dumps(event, ensure_ascii=False)
+                self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                self.wfile.flush()
+                if event.get("type") in {"final", "cancelled", "error"}:
+                    break
+        except BrokenPipeError:
+            logger.warning("Investment-cycle SSE client disconnected")
+        except Exception as exc:
+            logger.exception("investment cycle stream error")
+            try:
+                payload = json.dumps({"type": "error", "content": str(exc)}, ensure_ascii=False)
+                self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                self.wfile.flush()
+            except BrokenPipeError:
+                pass
         finally:
             self.close_connection = True
 
@@ -343,28 +394,55 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
     def _handle_autonomy_status(self):
         try:
-            from src.trading.control import load_state
-            from src.trading.controller import AUDIT_DIR, autonomous_enabled
+            from src.investment.command_bus import InvestmentAgentClient
 
-            files = sorted(AUDIT_DIR.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True) if AUDIT_DIR.exists() else []
-            latest = None
-            if files:
-                try:
-                    audit = json.loads(files[0].read_text(encoding="utf-8"))
-                    latest = {
-                        "file": files[0].name,
-                        "market": audit.get("market"),
-                        "status": audit.get("status"),
-                        "generated_at": audit.get("generated_at"),
-                        "fills": len(audit.get("execution", {}).get("fills", [])),
-                    }
-                except (OSError, json.JSONDecodeError):
-                    latest = {"file": files[0].name, "status": "unreadable"}
+            self._json_response(200, InvestmentAgentClient().issue("status", requested_by="chat-ui", timeout=30))
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_investment_mandate(self):
+        try:
+            from src.investment.mandate import STRATEGIES, get_mandate
+
             self._json_response(200, {
-                "enabled": autonomous_enabled(),
-                "control": load_state(),
-                "latest_cycle": latest,
+                "mandate": get_mandate(),
+                "strategies": {
+                    key: {
+                        "profile": value.profile,
+                        "display_name": value.display_name,
+                        "objective": value.objective,
+                        "max_total_position_pct": value.max_total_position_pct,
+                        "min_cash_reserve_pct": value.min_cash_reserve_pct,
+                        "max_position_pct": value.max_position_pct,
+                        "min_confidence": value.min_confidence,
+                        "max_drawdown_pct": value.max_drawdown_pct,
+                    }
+                    for key, value in STRATEGIES.items()
+                },
             })
+        except Exception as e:
+            self._json_response(500, {"error": str(e)})
+
+    def _handle_set_investment_mandate(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"error": "payload must be a JSON object"})
+        try:
+            from src.investment.command_bus import InvestmentAgentClient
+
+            result = InvestmentAgentClient().issue(
+                "set_strategy",
+                {"profile": data.get("profile")},
+                requested_by="chat-ui",
+                timeout=30,
+            )
+            self._json_response(200, result)
+        except ValueError as e:
+            self._json_response(400, {"error": str(e)})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
 
@@ -380,19 +458,26 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 return self._json_response(400, {"error": "payload must be a JSON object"})
         reason = str(data.get("reason", ""))[:500]
         try:
-            from src.trading import control
+            if action == "mode":
+                mode = str(data.get("mode", "")).lower()
+                if mode not in {"manual", "automatic"}:
+                    return self._json_response(400, {"error": "mode must be manual or automatic"})
+                from src.investment.command_bus import InvestmentAgentClient
 
-            if action == "pause":
-                result = control.set_paused(True, reason=reason or "Web 控制台暂停")
-            elif action == "resume":
-                result = control.set_paused(False, reason=reason or "Web 控制台恢复")
-            elif action == "kill":
-                result = control.activate_kill_switch(reason=reason or "Web 控制台紧急停止")
-            elif action == "reset-kill":
-                result = control.reset_kill_switch(reason=reason or "Web 控制台解除紧急停止")
-            else:
+                result = InvestmentAgentClient().issue(
+                    "set_mode", {"mode": mode}, requested_by="chat-ui", timeout=30,
+                )
+                return self._json_response(200, result)
+
+            command = {"pause": "pause", "resume": "resume", "kill": "kill", "reset-kill": "reset_kill"}.get(action)
+            if command is None:
                 return self._json_response(404, {"error": "unknown autonomy action"})
-            self._json_response(200, {"ok": True, "control": result})
+            from src.investment.command_bus import InvestmentAgentClient
+
+            result = InvestmentAgentClient().issue(
+                command, {"reason": reason}, requested_by="chat-ui", timeout=30,
+            )
+            self._json_response(200, result)
         except RuntimeError as e:
             self._json_response(409, {"error": str(e)})
         except Exception as e:
@@ -603,12 +688,16 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 try:
                     rt = fetcher.realtime(h["code"])
                     last_price = rt.get("price", cost_price)
+                    realtime_name = str(rt.get("name", "")).strip()
                 except Exception:
                     last_price = h.get("lastPrice", cost_price)
+                    realtime_name = ""
+                stored_name = str(h.get("name", "")).strip()
+                display_name = realtime_name if stored_name.upper() in {"", str(h["code"]).upper()} and realtime_name else stored_name
                 mv = last_price * quantity
                 holdings_value += mv
                 all_holdings.append({
-                    "market": m, "code": h["code"], "name": h.get("name", ""),
+                    "market": m, "code": h["code"], "name": display_name,
                     "shares": quantity, "cost_price": cost_price,
                     "last_price": last_price, "market_value": mv,
                 })

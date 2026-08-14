@@ -173,7 +173,9 @@ class MongoScreeningStore:
         cursor = self.db.securities.find({
             "market": market,
             "discovery_id": meta.get("discovery_id"),
-        }).sort("amount", self._descending).limit(limit)
+        }).sort("amount", self._descending)
+        if limit > 0:
+            cursor = cursor.limit(limit)
         rows = []
         for document in cursor:
             for key in ("_id", "market", "discovery_id", "updated_at"):
@@ -187,6 +189,8 @@ class MongoScreeningStore:
             "source": str(meta.get("source", "mongodb")),
             "cached": True,
             "cache_backend": "mongodb",
+            "scope": "bounded" if limit > 0 else "full-market",
+            "total_count": int(meta.get("count", len(rows)) or len(rows)),
             "data": rows,
         }
 

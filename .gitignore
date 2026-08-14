@@ -15,8 +15,18 @@ runtime/optimizer/
 runtime/screener/
 runtime/macro/
 runtime/trading/
+runtime/investment/
+runtime/memory/
+runtime/deploy-backups/
+runtime/launcher/
+runtime/manager/
+runtime/research/
 /runtime/*.lock
 /runtime/chat_*
+
+# release artifacts
+release/
+InvestmentAuto.exe
 /data/*
 !/data/macro/
 *.db

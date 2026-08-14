@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from src.data import fetcher
 from src import main as main_module
 from src.subprocess_utils import decode_subprocess_output
-from src.ui import chat_server
+from src.platform import market_tools
 
 
 def test_windows_stdio_is_reconfigured_to_utf8(monkeypatch):
@@ -40,8 +40,8 @@ def test_stock_fetcher_captures_bytes_instead_of_locale_text(monkeypatch):
             returncode=0,
         )
 
-    monkeypatch.setattr(chat_server.subprocess, "run", fake_run)
-    assert chat_server._stock_fetcher("snapshot", "600519") == {"name": "贵州茅台"}
+    monkeypatch.setattr(market_tools.subprocess, "run", fake_run)
+    assert market_tools.stock_fetcher("snapshot", "600519") == {"name": "贵州茅台"}
 
 
 def test_data_fetcher_decodes_node_utf8(monkeypatch):

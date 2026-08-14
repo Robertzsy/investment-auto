@@ -88,6 +88,7 @@ def test_compose_runs_scheduler_and_loopback_only_chat():
         "CHAT_PORT": 8080,
         "CHAT_OPEN_BROWSER": "false",
         "CHAT_START_SCHEDULER": "false",
+        "INVESTMENT_AGENT_TRANSPORT": "queue",
         "MONGODB_URI": "mongodb://mongodb:27017",
     }
     assert services["scheduler"]["environment"]["MONGODB_URI"] == "mongodb://mongodb:27017"
