@@ -382,6 +382,7 @@ def test_call_role_repairs_citations_instead_of_retrying(monkeypatch, tmp_path):
             }, ensure_ascii=False)
 
     monkeypatch.setattr(agent_workflow, "resolve_llm", lambda role: LLM())
+    monkeypatch.setattr(agent_workflow, "_architecture_settings", lambda: {"citation_auto_repair": True})
     result = agent_workflow._call_role(
         "bull_researcher",
         stage="research_debate_1",

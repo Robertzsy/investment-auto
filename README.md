@@ -137,6 +137,28 @@ docker compose logs -f scheduler chat
 
 Compose 中聊天服务在容器内监听 `0.0.0.0:8080`，但端口只发布到宿主机回环地址 `127.0.0.1:8080`，不会直接暴露到局域网或公网。`config/` 与 `runtime/` 由两个服务共享挂载；`.env` 仅作为运行时环境文件使用，不会进入镜像构建上下文。
 
+## 架构升级（0.5.0）
+
+系统采用 DSH 式的分层架构，全部由 config/config.yaml 的 architecture: 段控制，未配置该段时行为与旧版完全一致（可整体回退）：
+
+- **工具中介交互**：tool_mediated_roles 中的角色通过原生 function calling 工作——list_evidence_ids 查询合法证据目录，submit_analysis 当场校验引用并返回具体错误，模型原地修正，不再整次重试。
+- **引用自动修复**：citation_auto_repair 对可判定的引用格式错误（漏轮次后缀、裸角色名、漏引必须上游）自动修复并在审计中记录 citation_repairs；不可修复才重试。
+- **摘要跨界**：完整证据图归档到 runtime/trading/evidence/，审计与下游提示词只携带压缩摘要（evidence_text_max_chars），管理工具可经 evidence_ref 回溯任意决策的原始证据。
+- **可续工作单元**：checkpoint_cycles 开启后每个研究阶段原子落盘 runtime/trading/checkpoints/，超时、崩溃或重启只续跑未完成阶段；下单执行采用 fail-safe——未确认成交的恢复轮次绝不重放下单，由下一轮自然补上。
+
+## 离线研究循环（Ralph 模式）
+
+```bash
+python -m src.main research --task backtest --market cn --objective 验证5日动量规则 --max-rounds 6
+python -m src.main research --task strategy_experiment --objective 寻找低波动因子权重组合 --max-rounds 6
+python -m src.main research --task bugfix --objective 修复XX模块缺陷 --max-rounds 6
+```
+
+- 每轮启动全新 Agent（无对话记忆），工作区 runtime/research/workspace/<run>/ 是唯一长期记忆，轮间只传递有界结构化报告。
+- 任务类型：backtest（确定性规则回测，不复用生产账户）、strategy_experiment（参数对比实验）、bugfix（复现→修改→全量测试→失败自动回滚）。
+- **受限 shell**：研究循环的命令执行限制在项目目录内，采用可执行文件白名单 + argv 直执行（无 shell 元字符）+ 路径边界校验 + 最小化环境（不含生产密钥）；交易执行路径与管理对话 Agent 永远没有 shell。
+- 研究结论要进入生产配置时，必须经 apply_experiment_to_config（版本化变更管理器：SHA-256 记录、版本备份、全量测试、失败自动回滚）。
+
 ## 多模型接入
 
 系统默认接入以下主流模型，可在 `config.yaml` 中直接指定：

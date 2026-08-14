@@ -562,7 +562,7 @@ def _call_role(
                 # Citation-format mistakes dominate agent failures.  Repair
                 # unambiguous ones instead of regenerating the whole answer;
                 # an unrecoverable payload is retried as before.
-                auto_repair = bool(_architecture_settings().get("citation_auto_repair", True))
+                auto_repair = bool(_architecture_settings().get("citation_auto_repair", False))
                 if not auto_repair:
                     raise
                 repaired_payload, repair_notes = repair_citations(
@@ -1031,7 +1031,7 @@ def run_analysis_workflow(
 
     archive_ref = ""
     try:
-        if bool(_architecture_settings().get("evidence_store", True)):
+        if bool(_architecture_settings().get("evidence_store", False)):
             archive_ref = evidence_store.save_cycle_evidence(
                 generated_at,
                 str(context.get("market", "market")),
