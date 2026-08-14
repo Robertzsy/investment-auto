@@ -19,11 +19,13 @@ loop without needing the model to invoke the new tool in the same turn.
 
 from __future__ import annotations
 
+import ast
 import importlib
 import inspect
 import json
 import re
 import sys
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence
@@ -35,6 +37,41 @@ TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 _NAME_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 _FUNCTION_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_creation_lock = threading.RLock()
+
+# Tool code may read data and compute, but must never reach execution
+# paths: the manager plane has no trading, account-write or shell power,
+# and a fulfill call runs the new code immediately.
+_FORBIDDEN_IMPORTS = (
+    "src.trading",
+    "src.portfolio",
+    "src.investment",
+    "src.research.sandbox",
+    "subprocess",
+)
+
+
+def _reject_forbidden_imports(code: str) -> None:
+    """Reject tool source that imports execution-related modules."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return  # surfaced later by the import/tests steps
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                _check_forbidden(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            _check_forbidden(str(node.module or ""))
+
+
+def _check_forbidden(module_name: str) -> None:
+    name = str(module_name or "")
+    if any(name == banned or name.startswith(banned + ".") for banned in _FORBIDDEN_IMPORTS):
+        raise ValueError(
+            f"工具代码不允许导入执行相关模块: {name}。工具只能读取数据、查询与计算，"
+            "不得触达交易、账户写入或命令执行。"
+        )
 
 
 def _now() -> str:
@@ -89,13 +126,45 @@ def create_manager_tool(
     fulfill_args: Optional[Mapping[str, Any]] = None,
     reason: str = "manager-requested-tool",
     tests: Sequence[str] = (),
+
     reserved_names: Optional[set[str]] = None,
 ) -> Dict[str, Any]:
     """Create, verify, register and trial-run one manager tool atomically.
 
     On any failure the freshly written module and the freshly registered
     manifest are both removed, so a half-installed tool can never linger.
+    Concurrent conversations serialize on the creation lock so two
+    sessions cannot race the same tool name.
     """
+    with _creation_lock:
+        return _create_manager_tool_locked(
+            name=name,
+            description=description,
+            code=code,
+            function_name=function_name,
+            parameters_schema=parameters_schema,
+            test_args=test_args,
+            fulfill_args=fulfill_args,
+            reason=reason,
+            tests=tests,
+            reserved_names=reserved_names,
+        )
+
+
+def _create_manager_tool_locked(
+    *,
+    name: str,
+    description: str,
+    code: str,
+    function_name: str = "run",
+    parameters_schema: Any = None,
+    test_args: Optional[Mapping[str, Any]] = None,
+    fulfill_args: Optional[Mapping[str, Any]] = None,
+    reason: str = "manager-requested-tool",
+    tests: Sequence[str] = (),
+    reserved_names: Optional[set[str]] = None,
+) -> Dict[str, Any]:
+    """Locked implementation; see create_manager_tool for the contract."""
     from src.manager.capabilities import CapabilityRegistry
 
     registry = CapabilityRegistry()
@@ -116,7 +185,8 @@ def create_manager_tool(
     code = str(code or "")
     if not code.strip():
         raise ValueError("code 不能为空")
-    if f"def {function_name}" not in code:
+    _reject_forbidden_imports(code)
+    if not re.search(rf"\ndef\s+{re.escape(function_name)}\s*\(", code):
         raise ValueError(f"code 中必须定义函数 def {function_name}(...)")
 
     module_path = f"src.manager.tools.{capability}"

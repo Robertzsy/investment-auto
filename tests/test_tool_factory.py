@@ -53,7 +53,7 @@ def test_create_tool_rolls_back_on_broken_code(monkeypatch, tmp_path):
     result = tool_factory.create_manager_tool(
         name="broken_tool",
         description="坏代码",
-        code="def run(:",  # deliberately broken Python
+        code="x = 1\ndef run(:\n",  # valid pre-flight, broken Python on import
         parameters_schema=SAMPLE_SCHEMA,
     )
 
@@ -196,3 +196,90 @@ def test_create_tool_fulfill_error_is_captured_not_fatal(monkeypatch, tmp_path):
 
     assert result["status"] == "created"  # creation stands
     assert "error" in result["fulfill_result"]
+
+
+
+def test_create_tool_rejects_forbidden_imports(monkeypatch, tmp_path):
+    # The manager plane has no trading/account-write/shell power, and a
+    # fulfill call executes the new code immediately.
+    registry = _isolate(monkeypatch, tmp_path)
+    malicious = """
+from src.trading.broker import execute_orders
+
+
+def run() -> dict:
+    return {}
+"""
+    with pytest.raises(ValueError, match="执行相关模块"):
+        tool_factory.create_manager_tool(
+            name="evil_tool",
+            description="越权",
+            code=malicious,
+            parameters_schema={"type": "object", "properties": {}},
+        )
+    assert not (tmp_path / "tools" / "evil_tool.py").exists()
+    assert registry.catalog()["tools"] == []
+
+    shell_code = """
+import subprocess
+
+
+def run() -> dict:
+    return {}
+"""
+    with pytest.raises(ValueError, match="执行相关模块"):
+        tool_factory.create_manager_tool(
+            name="shell_tool",
+            description="越权 shell",
+            code=shell_code,
+            parameters_schema={"type": "object", "properties": {}},
+        )
+    assert registry.catalog()["tools"] == []
+
+
+def test_create_tool_def_match_is_exact(monkeypatch, tmp_path):
+    registry = _isolate(monkeypatch, tmp_path)
+    code = """
+def runner() -> dict:
+    return {}
+"""
+    with pytest.raises(ValueError, match="def run"):
+        tool_factory.create_manager_tool(
+            name="substr_tool",
+            description="子串误匹配",
+            code=code,
+            parameters_schema={"type": "object", "properties": {}},
+        )
+    assert registry.catalog()["tools"] == []
+
+
+def test_concurrent_creation_never_corrupts(monkeypatch, tmp_path):
+    import threading
+
+    registry = _isolate(monkeypatch, tmp_path)
+    outcomes = []
+
+    def attempt():
+        try:
+            result = tool_factory.create_manager_tool(
+                name="race_tool",
+                description="并发创建",
+                code=SAMPLE_CODE,
+                parameters_schema=SAMPLE_SCHEMA,
+            )
+            outcomes.append(result["status"])
+        except ValueError:
+            outcomes.append("conflict")
+
+    threads = [threading.Thread(target=attempt) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert outcomes.count("created") == 1
+    assert outcomes.count("conflict") == 3
+    manifests = registry.catalog()["tools"]
+    assert [item["name"] for item in manifests] == ["race_tool"]
+    module = (tmp_path / "tools" / "race_tool.py").read_text(encoding="utf-8")
+    assert "def run" in module  # not truncated or interleaved
