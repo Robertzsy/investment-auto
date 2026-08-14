@@ -305,3 +305,144 @@ def test_invalid_agent_output_is_saved_for_diagnosis(monkeypatch, tmp_path):
     saved = json.loads(diagnostics[-1].read_text(encoding="utf-8"))
     assert saved["role"] == "research_manager"
     assert saved["output_chars"] == len('{"summary":"broken"')
+
+
+
+def test_repair_citations_normalizes_round_suffix_mistakes():
+    evidence = {"AGENT:BULL_RESEARCHER": {"summary": "bull"}}
+    repaired, notes = agent_workflow.repair_citations(
+        {"citations": ["AGENT:BULL_RESEARCHER:R1"]}, evidence
+    )
+    assert repaired["citations"] == ["AGENT:BULL_RESEARCHER"]
+    assert any("AGENT:BULL_RESEARCHER:R1 -> AGENT:BULL_RESEARCHER" in n for n in notes)
+
+
+def test_repair_citations_attaches_missing_round_suffix():
+    evidence = {"AGENT:BULL_RESEARCHER:R1": {"summary": "bull"}}
+    repaired, notes = agent_workflow.repair_citations(
+        {"citations": ["AGENT:BULL_RESEARCHER"]}, evidence
+    )
+    assert repaired["citations"] == ["AGENT:BULL_RESEARCHER:R1"]
+    assert any("-> AGENT:BULL_RESEARCHER:R1" in n for n in notes)
+
+
+def test_repair_citations_maps_bare_role_name():
+    evidence = {"AGENT:NEWS_ANALYST": {"summary": "news"}}
+    repaired, notes = agent_workflow.repair_citations(
+        {"findings": [{"claim": "宏观事件", "evidence_ids": ["NEWS_ANALYST"]}]}, evidence
+    )
+    assert repaired["findings"][0]["evidence_ids"] == ["AGENT:NEWS_ANALYST"]
+
+
+def test_repair_citations_attaches_missing_mandatory_upstream():
+    evidence = {
+        "AGENT:BULL_RESEARCHER:R1": {"summary": "bull"},
+        "AGENT:BEAR_RESEARCHER:R1": {"summary": "bear"},
+    }
+    repaired, notes = agent_workflow.repair_citations(
+        {"citations": ["AGENT:BULL_RESEARCHER:R1"]},
+        evidence,
+        required_upstream_prefixes=("AGENT:BULL_RESEARCHER", "AGENT:BEAR_RESEARCHER"),
+        require_all_upstream_prefixes=True,
+    )
+    assert "AGENT:BEAR_RESEARCHER:R1" in repaired["citations"]
+    assert any("auto_attached AGENT:BEAR_RESEARCHER:R1" in n for n in notes)
+
+
+def test_repair_citations_leaves_unknown_ids_for_retry():
+    evidence = {"MARKET:600519": {"price": 100}}
+    repaired, notes = agent_workflow.repair_citations(
+        {"citations": ["FAKE:1"]}, evidence,
+        required_upstream_prefixes=("AGENT:BULL_RESEARCHER",),
+    )
+    assert repaired["citations"] == ["FAKE:1"]
+    assert notes == []
+
+
+def test_call_role_repairs_citations_instead_of_retrying(monkeypatch, tmp_path):
+    calls = []
+
+    class LLM:
+        provider_name = "deepseek"
+
+        def chat(self, messages, **kwargs):
+            calls.append(kwargs)
+            # Forgets the mandatory upstream cite entirely.
+            return json.dumps({
+                "summary": "引用修复测试",
+                "findings": [{"claim": "判断", "impact": "neutral", "evidence_ids": ["MARKET:600519"]}],
+                "stance": "HOLD",
+                "confidence": 0.6,
+                "data_gaps": [],
+                "citations": ["MARKET:600519"],
+                "memory_note": "",
+            }, ensure_ascii=False)
+
+    monkeypatch.setattr(agent_workflow, "resolve_llm", lambda role: LLM())
+    result = agent_workflow._call_role(
+        "bull_researcher",
+        stage="research_debate_1",
+        context=_context(),
+        evidence={
+            "MARKET:600519": {"price": 100},
+            "AGENT:TECHNICAL_ANALYST": {"summary": "tech"},
+        },
+        settings=_config()["agent_workflow"],
+        memory_store=agent_workflow.AgentMemoryStore(tmp_path),
+        generated_at="2026-08-12T10:00:00+08:00",
+        required_upstream_prefixes=("AGENT:TECHNICAL_ANALYST",),
+    )
+
+    assert len(calls) == 1  # repaired, no second LLM call
+    assert "AGENT:TECHNICAL_ANALYST" in result["citations"]
+    assert any("auto_attached" in note for note in result["citation_repairs"])
+
+
+def test_call_role_skips_repair_when_disabled(monkeypatch, tmp_path):
+    responses = iter([
+        json.dumps({
+            "summary": "第一次缺引用",
+            "findings": [{"claim": "判断", "impact": "neutral", "evidence_ids": ["MARKET:600519"]}],
+            "stance": "HOLD",
+            "confidence": 0.6,
+            "data_gaps": [],
+            "citations": ["MARKET:600519"],
+            "memory_note": "",
+        }, ensure_ascii=False),
+        json.dumps({
+            "summary": "第二次补上",
+            "findings": [{"claim": "判断", "impact": "neutral", "evidence_ids": ["AGENT:TECHNICAL_ANALYST"]}],
+            "stance": "HOLD",
+            "confidence": 0.6,
+            "data_gaps": [],
+            "citations": ["AGENT:TECHNICAL_ANALYST"],
+            "memory_note": "",
+        }, ensure_ascii=False),
+    ])
+    calls = []
+
+    class LLM:
+        provider_name = "deepseek"
+
+        def chat(self, messages, **kwargs):
+            calls.append(kwargs)
+            return next(responses)
+
+    monkeypatch.setattr(agent_workflow, "resolve_llm", lambda role: LLM())
+    monkeypatch.setattr(agent_workflow, "_architecture_settings", lambda: {"citation_auto_repair": False})
+    result = agent_workflow._call_role(
+        "bull_researcher",
+        stage="research_debate_1",
+        context=_context(),
+        evidence={
+            "MARKET:600519": {"price": 100},
+            "AGENT:TECHNICAL_ANALYST": {"summary": "tech"},
+        },
+        settings={**_config()["agent_workflow"], "json_retries": 1},
+        memory_store=agent_workflow.AgentMemoryStore(tmp_path),
+        generated_at="2026-08-12T10:00:00+08:00",
+        required_upstream_prefixes=("AGENT:TECHNICAL_ANALYST",),
+    )
+
+    assert len(calls) == 2  # repair disabled: full retry as before
+    assert "citation_repairs" not in result

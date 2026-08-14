@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import re
@@ -390,6 +391,119 @@ def validate_citations(
     return citations
 
 
+def repair_citations(
+    payload: Mapping[str, Any],
+    allowed_ids: Iterable[str],
+    *,
+    required_upstream_prefixes: Sequence[str] = (),
+    require_all_upstream_prefixes: bool = False,
+) -> tuple[Dict[str, Any], List[str]]:
+    """Normalize citation IDs and attach missing mandatory upstream citations.
+
+    Most agent failures are citation-format mistakes, not reasoning failures:
+    the model references upstream reports by role name, drops the round
+    suffix, or forgets to put them in the top-level citations block.  Instead
+    of burning a full regeneration, repair the payload when the fix is
+    unambiguous:
+
+    * exact catalog ID stays untouched;
+    * a bare report ID gains the missing round suffix (or loses a wrong one);
+    * a bare role name such as NEWS_ANALYST maps to AGENT:NEWS_ANALYST;
+    * mandatory upstream IDs the model forgot are attached to top-level
+      citations -- only system-supplied upstream Agent IDs, never raw facts.
+
+    Returns the repaired payload and repair notes.  An unrecoverable payload
+    is returned untouched with empty notes so the caller retries as before.
+    """
+    allowed = {str(item).strip() for item in allowed_ids}
+    agent_allowed = sorted(
+        candidate for candidate in allowed if str(candidate).startswith("AGENT:")
+    )
+    repairs: List[str] = []
+
+    def _normalize(raw: str) -> Optional[str]:
+        value = raw.strip().upper()
+        if not value or value in allowed:
+            return None
+        # Strip a wrong round suffix: AGENT:BULL_RESEARCHER:R1 when the
+        # catalog only carries the bare report ID.
+        if ":" in value:
+            bare = value.rsplit(":", 1)[0]
+            if bare in allowed:
+                return bare
+        # Attach the missing round suffix when exactly one candidate matches.
+        suffixed = sorted(
+            candidate for candidate in agent_allowed if candidate.startswith(value + ":")
+        )
+        if len(suffixed) == 1:
+            return suffixed[0]
+        if len(suffixed) > 1:
+            return None  # ambiguous
+        # Model wrote a bare role name (NEWS_ANALYST) instead of an ID.
+        prefixed = sorted(
+            candidate for candidate in agent_allowed if candidate == "AGENT:" + value
+        )
+        if len(prefixed) == 1:
+            return prefixed[0]
+        prefixed_round = sorted(
+            candidate for candidate in agent_allowed if candidate.startswith("AGENT:" + value + ":")
+        )
+        if len(prefixed_round) == 1:
+            return prefixed_round[0]
+        return None
+
+    def _replace(container: Any, path: str) -> None:
+        if not isinstance(container, list):
+            return
+        for index, item in enumerate(container):
+            if not isinstance(item, str):
+                continue
+            fixed = _normalize(str(item))
+            if fixed:
+                container[index] = fixed
+                repairs.append(path + "[" + str(index) + "]: " + item.strip() + " -> " + fixed)
+
+    repaired = copy.deepcopy(dict(payload))
+    if isinstance(repaired.get("citations"), list):
+        _replace(repaired["citations"], "citations")
+    findings = repaired.get("findings", [])
+    if isinstance(findings, list):
+        for finding in findings:
+            if isinstance(finding, dict):
+                _replace(finding.get("evidence_ids"), "findings.evidence_ids")
+    decisions = repaired.get("decisions", [])
+    if isinstance(decisions, list):
+        for decision in decisions:
+            if isinstance(decision, dict):
+                _replace(decision.get("evidence_ids"), "decisions.evidence_ids")
+
+    available_prefixes = [
+        prefix for prefix in required_upstream_prefixes
+        if any(evidence_id.startswith(prefix) for evidence_id in allowed)
+    ]
+    if available_prefixes:
+        citations = (
+            list(repaired["citations"]) if isinstance(repaired.get("citations"), list) else []
+        )
+        cited = [str(item) for item in citations]
+        cited_prefixes = {
+            prefix for prefix in available_prefixes
+            if any(citation.startswith(prefix) for citation in cited)
+        }
+        missing = [prefix for prefix in available_prefixes if prefix not in cited_prefixes]
+        if missing and (require_all_upstream_prefixes or not cited_prefixes):
+            targets = missing if require_all_upstream_prefixes else missing[:1]
+            for prefix in targets:
+                exact = sorted(
+                    evidence_id for evidence_id in allowed if evidence_id.startswith(prefix)
+                )
+                if not exact:
+                    continue
+                repaired["citations"] = [*citations, exact[0]]
+                repairs.append("citations: auto_attached " + exact[0])
+    return repaired, repairs
+
+
 def validate_portfolio_coverage(payload: Mapping[str, Any], required_symbols: Sequence[str]) -> None:
     decisions = payload.get("decisions", [])
     if not isinstance(decisions, list):
@@ -462,6 +576,14 @@ def _evidence_text(evidence: Mapping[str, Any], max_chars: int = 42000) -> str:
         for evidence_id, value in ordered
     ]
     return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))[:max_chars]
+
+
+def _architecture_settings() -> Dict[str, Any]:
+    """Read the architecture feature-flag block from the global config."""
+    from src.config import cfg
+
+    value = cfg.raw.get("architecture", {})
+    return dict(value) if isinstance(value, Mapping) else {}
 
 
 def _call_role(
@@ -588,18 +710,48 @@ def _call_role(
                 **attempt_kwargs,
             )
             payload = _parse_json_object(text)
-            citations = validate_citations(
-                payload,
-                scoped_evidence,
-                required=require_citations,
-                minimum=minimum_citations,
-                require_decision_citations=portfolio,
-                required_upstream_prefixes=upstream_prefixes,
-                require_all_upstream_prefixes=require_all_upstreams,
-            )
+            citation_repairs: List[str] = []
+            try:
+                citations = validate_citations(
+                    payload,
+                    scoped_evidence,
+                    required=require_citations,
+                    minimum=minimum_citations,
+                    require_decision_citations=portfolio,
+                    required_upstream_prefixes=upstream_prefixes,
+                    require_all_upstream_prefixes=require_all_upstreams,
+                )
+            except ValueError as validation_error:
+                # Citation-format mistakes dominate agent failures.  Repair
+                # unambiguous ones instead of regenerating the whole answer;
+                # an unrecoverable payload is retried as before.
+                auto_repair = bool(_architecture_settings().get("citation_auto_repair", True))
+                if not auto_repair:
+                    raise
+                repaired_payload, repair_notes = repair_citations(
+                    payload,
+                    scoped_evidence,
+                    required_upstream_prefixes=upstream_prefixes,
+                    require_all_upstream_prefixes=require_all_upstreams,
+                )
+                if not repair_notes:
+                    raise
+                citations = validate_citations(
+                    repaired_payload,
+                    scoped_evidence,
+                    required=require_citations,
+                    minimum=minimum_citations,
+                    require_decision_citations=portfolio,
+                    required_upstream_prefixes=upstream_prefixes,
+                    require_all_upstream_prefixes=require_all_upstreams,
+                )
+                payload = repaired_payload
+                citation_repairs = repair_notes
             if portfolio:
                 validate_portfolio_coverage(payload, context.get("allowed_symbols", []))
             payload.update({"role": role, "role_name": ROLE_NAMES[role], "stage": stage, "citations": citations})
+            if citation_repairs:
+                payload["citation_repairs"] = citation_repairs
             # Outcome-blind self summaries are not lessons.  Normal workflow
             # calls keep memory pending until a delayed evaluator can attach
             # observed returns; direct callers may explicitly persist it.

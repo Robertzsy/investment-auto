@@ -1,3 +1,23 @@
+architecture:
+  audit_summary_only: true
+  checkpoint_cycles: true
+  citation_auto_repair: true
+  evidence_store: true
+  evidence_text_max_chars: 16000
+  research:
+    enabled: true
+    max_rounds: 6
+    shell: restricted
+    shell_timeout_seconds: 60
+    workspace: runtime/research
+  resume_stale_minutes: 90
+  tool_mediated: true
+  tool_mediated_roles:
+  - research_manager
+  - trader
+  - risk_manager
+  - portfolio_manager
+  tool_retries: 2
 accounts:
   currency_map:
     cn: CNY
