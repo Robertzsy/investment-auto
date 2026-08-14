@@ -163,3 +163,45 @@ def test_discard_checkpoint_removes_directory(monkeypatch, tmp_path):
     checkpoints.save_stage("cycle-y", "s1", {"a": 1})
     checkpoints.discard_checkpoint("cycle-y")
     assert not (tmp_path / "checkpoints" / "cycle-y").exists()
+
+
+
+def _age_checkpoint(cycle_id, updated_at):
+    """Rewrite a checkpoint index with an arbitrary updated_at."""
+    index = checkpoints._index_path(cycle_id)
+    payload = json.loads(index.read_text(encoding="utf-8"))
+    payload["updated_at"] = updated_at.isoformat(timespec="seconds")
+    index.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_list_execution_pending_has_no_staleness_bound(monkeypatch, tmp_path):
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
+    checkpoints.init_checkpoint("pending-old", "cn", ["600519"])
+    checkpoints.mark_execution_pending("pending-old")
+    _age_checkpoint("pending-old", NOW - timedelta(days=7))
+    checkpoints.init_checkpoint("pending-new", "cn", ["600519"])
+    checkpoints.mark_execution_pending("pending-new")
+    checkpoints.init_checkpoint("research-old", "cn", ["600519"])
+    checkpoints.mark_research_completed("research-old")
+    _age_checkpoint("research-old", NOW - timedelta(days=7))
+
+    pending = checkpoints.list_execution_pending("cn")
+    ids = [item["cycle_id"] for item in pending]
+    # any age is returned; non-pending states are not
+    assert "pending-old" in ids and "pending-new" in ids
+    assert "research-old" not in ids
+    assert "pending-old" in [i["cycle_id"] for i in checkpoints.list_execution_pending()]
+    assert checkpoints.list_execution_pending("us") == []
+
+
+def test_ordinary_resume_keeps_staleness_bound(monkeypatch, tmp_path):
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
+    checkpoints.init_checkpoint("research-new", "cn", ["600519"])
+    checkpoints.mark_research_completed("research-new")
+    checkpoints.init_checkpoint("research-old", "cn", ["600519"])
+    checkpoints.mark_research_completed("research-old")
+    _age_checkpoint("research-old", NOW - timedelta(hours=3))
+
+    ids = [item["cycle_id"] for item in checkpoints.list_incomplete(now=NOW, stale_minutes=90)]
+    assert "research-new" in ids
+    assert "research-old" not in ids  # ordinary resume stays time-bounded

@@ -467,12 +467,11 @@ def run_autonomous_cycle(
             try:
                 from src.trading import checkpoints
 
-                stale_minutes = int(architecture.get("resume_stale_minutes", 90))
-                pending_cycles = [
-                    item for item in checkpoints.list_incomplete(now=current, stale_minutes=stale_minutes)
-                    if str(item.get("market", "")) == market
-                    and item.get("status") == "execution_pending"
-                ]
+                # No staleness bound here: an unconfirmed pending
+                # execution must freeze a cycle however old it is.
+                # (The stale_minutes window only governs ordinary
+                # running/research_completed resume below.)
+                pending_cycles = checkpoints.list_execution_pending(market)
                 if pending_cycles:
                     for item in pending_cycles:
                         checkpoints.discard_checkpoint(item["cycle_id"])

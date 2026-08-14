@@ -575,3 +575,32 @@ def test_normal_cycle_marks_execution_pending_and_completed(monkeypatch, tmp_pat
     assert ("pending", result["checkpoint"]["cycle_id"]) in marks
     assert ("completed", result["checkpoint"]["cycle_id"]) in marks
     checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"
+
+
+@pytest.mark.parametrize("age", [timedelta(minutes=91), timedelta(days=7)])
+def test_aged_pending_checkpoint_still_freezes_execution(monkeypatch, tmp_path, age):
+    # The freeze gate must find unconfirmed pending executions of ANY age;
+    # adjacent rounds can exceed the 90-minute resume window, and a crash
+    # plus restart can delay the next cycle by days.
+    checkpoints = _staged_autonomous_setup(monkeypatch, tmp_path)
+    checkpoints.init_checkpoint("old-pending", "cn", ["600519"], input_hash="fixed-hash")
+    checkpoints.mark_execution_pending("old-pending")
+    index = checkpoints._index_path("old-pending")
+    payload = json.loads(index.read_text(encoding="utf-8"))
+    payload["updated_at"] = (NOW - age).isoformat(timespec="seconds")
+    index.write_text(json.dumps(payload), encoding="utf-8")
+
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", _fake_staged_workflow)
+    broker_called = []
+
+    def fake_execute(market, orders, **kwargs):
+        broker_called.append(orders)
+        return {"fills": [], "rejected": []}
+
+    monkeypatch.setattr(controller, "execute_orders", fake_execute)
+    result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
+
+    assert result["status"] == "blocked"
+    assert broker_called == [], "broker must never run against aged unconfirmed fills"
+    notes = result.get("checkpoint", {}).get("notes", [])
+    assert any("frozen" in note for note in notes)

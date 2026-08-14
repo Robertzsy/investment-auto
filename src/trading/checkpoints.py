@@ -157,6 +157,35 @@ def mark_research_completed(cycle_id: str) -> None:
     update_index(cycle_id, {"status": "research_completed"})
 
 
+def list_execution_pending(market: str = "") -> List[Dict[str, Any]]:
+    """Return every unconfirmed execution_pending checkpoint, of any age.
+
+    A pending marker means orders may already have been sent but their
+    fills were never confirmed, so no staleness bound may apply: the
+    fail-safe gate must freeze at least one cycle for each such
+    checkpoint, however old.  Ordinary running/research_completed
+    resume stays bounded by resume_stale_minutes via list_incomplete.
+    """
+    normalized_market = str(market or "").strip().lower()
+    results: List[Dict[str, Any]] = []
+    if not CHECKPOINT_DIR.exists():
+        return results
+    for path in sorted(
+        CHECKPOINT_DIR.glob("*/index.json"), key=lambda item: item.stat().st_mtime, reverse=True
+    ):
+        payload = _read_json(path)
+        if not payload:
+            continue
+        if payload.get("status") != "execution_pending":
+            continue
+        if payload.get("execution_completed"):
+            continue
+        if normalized_market and str(payload.get("market", "")).lower() != normalized_market:
+            continue
+        results.append(payload)
+    return results
+
+
 def list_incomplete(now: Optional[datetime] = None, stale_minutes: int = 90) -> List[Dict[str, Any]]:
     """Return recoverable, non-stale checkpoint indexes, newest first.
 
