@@ -40,7 +40,7 @@ from src.manager.tool_factory import uninstall_manager_tool_complete
 from src.ui.agent_runtime import ChatAgentDeps, MANAGER_AGENT, _memory_instructions
 
 
-async def _run(request: str, nonce: str, max_requests: int):
+async def _run(request: str, nonce: str, max_requests: int, total_tokens: int):
     registry = CapabilityRegistry()
     before = {item["name"] for item in registry.catalog()["tools"]}
     created_calls: list[dict] = []
@@ -71,7 +71,7 @@ async def _run(request: str, nonce: str, max_requests: int):
         usage_limits=UsageLimits(
             request_limit=max_requests,
             tool_calls_limit=max_requests * 2,
-            total_tokens_limit=200_000,
+            total_tokens_limit=total_tokens,
         ),
         instructions=_memory_instructions(""),
         toolsets=[CapabilityRegistry().toolset(reserved)],
@@ -86,6 +86,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--request", default="帮我查一下今天 A 股成交额排名")
     parser.add_argument("--max-requests", type=int, default=40)
+    parser.add_argument("--total-tokens", type=int, default=600_000)
     parser.add_argument("--keep", action="store_true", help="Keep created eval tools")
     args = parser.parse_args()
 
@@ -94,7 +95,7 @@ def main() -> int:
     created: list[str] = []
     try:
         output, created, created_calls, tool_results = asyncio.run(
-            _run(request, nonce, args.max_requests)
+            _run(request, nonce, args.max_requests, args.total_tokens)
         )
         called = len(created_calls) >= 1
         result_nonce = any(
