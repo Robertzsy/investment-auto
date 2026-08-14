@@ -288,6 +288,9 @@ def test_invalid_agent_output_is_saved_for_diagnosis(monkeypatch, tmp_path):
 
     monkeypatch.setattr(agent_workflow, "resolve_llm", lambda role: LLM())
     monkeypatch.setattr(agent_workflow, "AGENT_FAILURE_DIR", tmp_path / "failures")
+    # The host config enables tool-mediated roles; this legacy-path test
+    # drives the JSON pipeline explicitly.
+    monkeypatch.setattr(agent_workflow, "_architecture_settings", lambda: {})
 
     with pytest.raises(RuntimeError, match="原始输出诊断"):
         agent_workflow._call_role(

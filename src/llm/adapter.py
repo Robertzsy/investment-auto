@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import threading
 from typing import Any, Dict, Iterator, List, Optional
 
@@ -64,6 +65,51 @@ class GenericOpenAILLM(BaseLLM):
             params["extra_body"] = extra_body
         resp = self._client.chat.completions.create(**params)
         return resp.choices[0].message.content or ""
+
+    def chat_tools(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Dict[str, Any]],
+        *,
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Return content plus normalized tool_calls from one completion."""
+        extra_body = kwargs.pop("extra_body", None) or None
+        params: Dict[str, Any] = dict(
+            model=self._model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tools=tools,
+            tool_choice="auto",
+            **kwargs,
+        )
+        if extra_body:
+            params["extra_body"] = extra_body
+        resp = self._client.chat.completions.create(**params)
+        message = resp.choices[0].message
+        tool_calls = []
+        for call in getattr(message, "tool_calls", None) or []:
+            function = getattr(call, "function", None)
+            raw_arguments = getattr(function, "arguments", "") if function is not None else ""
+            try:
+                arguments = json.loads(raw_arguments) if raw_arguments else {}
+            except json.JSONDecodeError:
+                arguments = {"_raw": raw_arguments}
+            tool_calls.append({
+                "id": getattr(call, "id", "") or "",
+                "type": getattr(call, "type", "function") or "function",
+                "function": {
+                    "name": getattr(function, "name", "") if function is not None else "",
+                    "arguments": arguments,
+                },
+            })
+        return {
+            "content": getattr(message, "content", "") or "",
+            "tool_calls": tool_calls or None,
+        }
 
     def chat_stream(
         self,

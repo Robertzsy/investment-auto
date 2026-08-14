@@ -24,6 +24,23 @@ class BaseLLM(ABC):
         """Return the assistant text content from a chat-completion call."""
         ...
 
+    def chat_tools(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Dict[str, Any]],
+        *,
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """OpenAI-style completion returning content and tool_calls.
+
+        The default implementation only produces text and no tool calls;
+        providers with a native function-calling transport override it.
+        """
+        text = self.chat(messages, temperature=temperature, max_tokens=max_tokens, **kwargs)
+        return {"content": text, "tool_calls": None}
+
     def chat_stream(
         self,
         messages: List[Dict[str, str]],
