@@ -33,7 +33,7 @@
 - 收盘补跑默认不交易（trade_on_catch_up: false）；修复 Windows checkpoint
   瞬时文件占用。
 
-全量测试 **217 项通过**。
+全量测试 **225 项通过**。
 
 ### 复核修复（第二轮）
 
@@ -43,9 +43,25 @@
 - 回滚后核验源码与清单确实消失；核验失败返回 rollback_failed 并禁用清单；
 - uninstall_manager_tool 完整卸载：清单 + 源码 + import 缓存，同名工具可重建；
 - 按工具名线程锁 + 跨进程文件锁（含陈旧锁回收）；async 工具函数被拒绝；
-- 新增真正的 Agent 级测试：scripted 假模型驱动真实 MANAGER_AGENT 运行循环，验证
-  「自然语言需求 → 一次 create_manager_tool 调用 → fulfill_result 同轮回传模型」；
+- 新增 Agent 级执行链测试：scripted 假模型驱动真实 MANAGER_AGENT 运行循环，验证
+  「一次 create_manager_tool 调用 → fulfill_result 同轮回传模型」（该测试证明执行链，
+  不证明模型自主判断；自主判断由 scripts/eval-manager-tooling.py 可选真实 API 评估覆盖）；
 - 管理指令强化：现有工具无法完成的可复用需求必须自建工具，不得直接回答做不到。
+
+### 复核修复（第三、四轮）
+
+- 试调用/fulfill 契约：只有 fulfill_args 时一次执行兼任试调用与 fulfill；test 与
+  fulfill 参数相同只执行一次；两者都没有且存在必填参数时写盘前报明确参数错误；
+- 并发锁改为**操作系统级文件锁**（msvcrt.locking / fcntl.flock）：内核原子、进程
+  退出自动释放，彻底消除陈旧锁检查-删除的 TOCTOU 窗口；创建与卸载共用同一套锁；
+- 跨进程锁互斥测试（multiprocessing + 同步屏障验证临界区不重叠）；创建/卸载竞争
+  测试补断言（无异常、双方至少各成功一次）；
+- 写盘前必填参数检测覆盖关键字参数（def run(*, market: str)）；
+- 签名校验补全：schema 属性必须全部是函数参数、无默认值参数必须列入 required、
+  拒绝 *args/**kwargs 与仅位置参数；
+- def 匹配改为多行行首锚定，首行即 def 的合法模块不再误判；
+- eval 脚本强化：nonce 校验码要求同时出现在工具返回与最终答案，事件流捕获
+  create_manager_tool 调用，pass/fail 与退出码，finally 自动卸载测试工具（--keep 保留）。
 
 ---
 

@@ -29,12 +29,16 @@ import re
 import sys
 import threading
 import time
-import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 from pydantic_core import to_jsonable_python
 
@@ -58,9 +62,9 @@ _FORBIDDEN_IMPORTS = (
 
 _name_locks: Dict[str, threading.Lock] = {}
 _name_locks_guard = threading.Lock()
-# Stale detection must outlive the longest allowed test command (180s) and
-# the manager tool timeout (420s); 600s leaves a wide margin.
-_FILE_LOCK_STALE_SECONDS = 600
+# OS-level advisory locks (msvcrt.locking / fcntl.flock) are atomic in the
+# kernel and auto-release when the holder exits, so there is no stale-file
+# check-then-unlink race at all.
 
 
 def _now() -> str:
@@ -81,39 +85,47 @@ def _per_name_lock(name: str) -> threading.Lock:
 
 @contextmanager
 def _file_lock(name: str) -> Iterator[None]:
-    """Cross-process exclusive lock; stale files (crashed holder) are reaped."""
+    """Cross-process exclusive lock backed by OS advisory locking.
+
+    msvcrt.locking / fcntl.flock serialize atomically in the kernel and
+    release automatically when the holder process exits, so a crashed
+    holder can never leave a lock another process must guess about.
+    """
     directory = ROOT / "runtime" / "manager" / "locks"
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{name}.lock"
-    token = f"{os.getpid()}:{uuid.uuid4().hex}"
-    acquired = False
-    for _attempt in range(50):  # up to ~5s
-        try:
-            descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(descriptor, token.encode("ascii"))
-            os.close(descriptor)
-            acquired = True
-            break
-        except FileExistsError:
+    descriptor = os.open(path, os.O_CREAT | os.O_RDWR)
+    try:
+        if descriptor == 0:  # never lock stdin accidentally
+            raise RuntimeError("unexpected lock descriptor")
+        os.write(descriptor, b" ")  # msvcrt needs at least one byte
+        acquired = False
+        for _attempt in range(50):  # up to ~5s
             try:
-                if time.time() - path.stat().st_mtime > _FILE_LOCK_STALE_SECONDS:
-                    path.unlink(missing_ok=True)
+                if os.name == "nt":
+                    msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+                else:
+                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except OSError:
+                time.sleep(0.1)
+        if not acquired:
+            raise RuntimeError(f"工具创建锁获取超时（{name}），可能存在并发进程冲突")
+        try:
+            yield
+        finally:
+            try:
+                if os.name == "nt":
+                    # The fd position after the initial write is the same
+                    # region both lock and unlock address.
+                    msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(descriptor, fcntl.LOCK_UN)
             except OSError:
                 pass
-            time.sleep(0.1)
-    if not acquired:
-        raise RuntimeError(f"工具创建锁获取超时（{name}），可能存在并发进程冲突")
-    try:
-        yield
     finally:
-        # Only the owner releases; a stale reaper must never delete a
-        # live holder's lock between the check and the unlink.
-        try:
-            current = path.read_text(encoding="ascii", errors="ignore").strip()
-            if current == token:
-                path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        os.close(descriptor)
 
 
 def _reject_forbidden_imports(code: str) -> None:
@@ -199,7 +211,10 @@ def _verify_function(schema: Mapping[str, Any], function: Callable[..., Any], fu
 
 
 def _static_required_params(code: str, function_name: str) -> List[str]:
-    """Parse the entry function's required parameters without importing."""
+    """Parse the entry function's required parameters without importing.
+
+    Covers positional AND keyword-only parameters (def run(*, market: str)).
+    """
     try:
         tree = ast.parse(code)
     except SyntaxError:
@@ -208,7 +223,15 @@ def _static_required_params(code: str, function_name: str) -> List[str]:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
             positional = list(node.args.posonlyargs) + list(node.args.args)
             default_count = len(node.args.defaults)
-            return [argument.arg for argument in positional[:len(positional) - default_count]]
+            required = [argument.arg for argument in positional[:len(positional) - default_count]]
+            kwonly = node.args.kwonlyargs
+            kw_defaults = node.args.kw_defaults or []
+            required += [
+                argument.arg
+                for argument, default in zip(kwonly, kw_defaults)
+                if default is None
+            ]
+            return required
     return []
 
 

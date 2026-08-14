@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -556,21 +557,18 @@ def test_top_level_def_is_accepted(monkeypatch, tmp_path):
     assert result["trial_call"]["result"]["ok"] is True
 
 
-def test_stale_file_lock_is_reaped(monkeypatch, tmp_path):
-    import time as _time
-
+def test_leftover_lock_file_does_not_block_os_lock(monkeypatch, tmp_path):
+    # With OS advisory locking the file itself is never deleted, so a
+    # leftover file from a previous run (no live holder) is harmless.
     monkeypatch.setattr(tool_factory, "ROOT", tmp_path)
     lock_dir = tmp_path / "runtime" / "manager" / "locks"
     lock_dir.mkdir(parents=True)
-    lock_path = lock_dir / "old.lock"
+    lock_path = lock_dir / "leftover.lock"
     lock_path.write_text("99999:deadbeef", encoding="ascii")
-    stale = _time.time() - 3600
-    import os as _os
-    _os.utime(lock_path, (stale, stale))
 
-    with tool_factory._file_lock("old"):
-        assert lock_path.exists()  # reaped and re-acquired
-    assert not lock_path.exists()  # owner released it
+    with tool_factory._file_lock("leftover"):
+        assert lock_path.exists()  # the file persists; the kernel owns the lock
+    assert lock_path.exists()  # release unlocks, never deletes
 
 
 def test_create_uninstall_race_keeps_invariant(monkeypatch, tmp_path):
@@ -579,21 +577,27 @@ def test_create_uninstall_race_keeps_invariant(monkeypatch, tmp_path):
     registry = _isolate(monkeypatch, tmp_path)
     stop = threading.Event()
     errors = []
+    created_count = [0]
+    removed_count = [0]
 
     def creator():
         while not stop.is_set():
             try:
-                tool_factory.create_manager_tool(
+                outcome = tool_factory.create_manager_tool(
                     name="race_io", description="竞争", code=SAMPLE_CODE,
                     parameters_schema=SAMPLE_SCHEMA, test_args={"symbol": "x"},
                 )
+                if outcome.get("status") == "created":
+                    created_count[0] += 1
             except Exception as exc:
                 errors.append(str(exc)[:120])
 
     def remover():
         while not stop.is_set():
             try:
-                tool_factory.uninstall_manager_tool_complete("race_io")
+                outcome = tool_factory.uninstall_manager_tool_complete("race_io")
+                if outcome.get("status") == "uninstalled":
+                    removed_count[0] += 1
             except Exception as exc:
                 errors.append(str(exc)[:120])
 
@@ -606,6 +610,10 @@ def test_create_uninstall_race_keeps_invariant(monkeypatch, tmp_path):
     for thread in threads:
         thread.join()
 
+    # Both sides must have made real progress; clean conflict errors only.
+    assert created_count[0] >= 1
+    assert removed_count[0] >= 1
+    assert errors == []
     # Invariant: the manifest exists if and only if the source exists.
     manifests = [item["name"] for item in registry.catalog()["tools"]]
     source = (tmp_path / "tools" / "race_io.py").exists()
@@ -613,3 +621,73 @@ def test_create_uninstall_race_keeps_invariant(monkeypatch, tmp_path):
     if source:
         content = (tmp_path / "tools" / "race_io.py").read_text(encoding="utf-8")
         assert "def run" in content
+
+
+
+def _lock_worker(lock_name: str, result_path: str, barrier, sleep_s: float, index: int):
+    """Child-process worker: barrier-synchronized OS-lock acquisition."""
+    import os as _os
+    import sys as _sys
+    import time as _time
+    from pathlib import Path as _Path
+
+    _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+    from src.manager import tool_factory as _tf
+
+    barrier.wait()
+    with _tf._file_lock(lock_name):
+        with open(result_path, "a", encoding="utf-8") as handle:
+            handle.write(f"{index}:start:{_time.time():.4f}\n")
+        _time.sleep(sleep_s)
+        with open(result_path, "a", encoding="utf-8") as handle:
+            handle.write(f"{index}:end:{_time.time():.4f}\n")
+
+
+def test_cross_process_os_lock_serializes(monkeypatch, tmp_path):
+    import multiprocessing
+
+    monkeypatch.setattr(tool_factory, "ROOT", tmp_path)
+    result_path = str(tmp_path / "timeline.txt")
+    barrier = multiprocessing.Barrier(2)
+    processes = [
+        multiprocessing.Process(
+            target=_lock_worker,
+            args=("cross_proc", result_path, barrier, 0.6, index),
+        )
+        for index in (0, 1)
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(timeout=30)
+    for process in processes:
+        assert process.exitcode == 0, process.exitcode
+
+    lines = [line.strip() for line in Path(result_path).read_text(encoding="utf-8").splitlines()]
+    assert len(lines) == 4, lines
+    events = {}
+    for line in lines:
+        index, kind, moment = line.split(":", 2)
+        events[(int(index), kind)] = float(moment)
+    # The two critical sections must not overlap: barrier-synchronized
+    # processes still serialize through the OS lock.
+    intervals = sorted(
+        (events[(index, "start")], events[(index, "end")], index) for index in (0, 1)
+    )
+    (first_start, first_end, _), (second_start, second_end, _) = intervals
+    assert first_end <= second_start + 0.05
+
+
+def test_kwonly_required_params_blocked_before_write(monkeypatch, tmp_path):
+    registry = _isolate(monkeypatch, tmp_path)
+    kwonly = """
+def run(*, market: str) -> dict:
+    return {}
+"""
+    with pytest.raises(ValueError, match="请提供 test_args_json"):
+        tool_factory.create_manager_tool(
+            name="kwonly_tool", description="关键字必填", code=kwonly,
+            parameters_schema={"type": "object", "properties": {"market": {"type": "string"}}, "required": ["market"]},
+        )
+    assert not (tmp_path / "tools" / "kwonly_tool.py").exists()
+    assert registry.catalog()["tools"] == []
