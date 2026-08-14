@@ -33,8 +33,11 @@ def test_chat_ui_sanitizes_all_markdown_before_inner_html():
 
 @pytest.fixture(autouse=True)
 def isolated_chat_state(monkeypatch, tmp_path):
+    from src.investment import service
+
     monkeypatch.setattr(chat_server, "HISTORY_FILE", tmp_path / "chat_history.json")
     monkeypatch.setattr(chat_server, "MEMORY_FILE", tmp_path / "chat_memory.md")
+    monkeypatch.setattr(service, "COMMAND_DIR", tmp_path / "investment_commands")
     with chat_server._cancel_lock:
         chat_server._cancel_events.clear()
         chat_server._active_request_ids.clear()
@@ -163,6 +166,7 @@ def test_typed_manager_catalog_exposes_versioned_management_not_shell_or_executi
         "get_security_snapshot",
         "get_stock_screening",
         "run_complete_investment_cycle",
+        "reset_paper_account",
         "manage_investment_agent",
         "run_portfolio_optimizer",
         "inspect_investment_agent_code",
@@ -176,6 +180,9 @@ def test_typed_manager_catalog_exposes_versioned_management_not_shell_or_executi
         "install_manager_skill",
         "load_manager_skill",
         "install_manager_tool",
+        # Transactional one-shot tool creation and removal.
+        "create_manager_tool",
+        "uninstall_manager_tool",
     }
     assert not ({"run_shell", "write_file", "execute_orders"} & tool_names)
 

@@ -122,14 +122,23 @@ class ChangeManager:
 
     @staticmethod
     def _run_tests(commands: Iterable[str]) -> list[Dict[str, Any]]:
+        python = str(ROOT / ".venv" / "Scripts" / "python.exe")
         allowed = {
-            "python -m pytest -q": [str(ROOT / ".venv" / "Scripts" / "python.exe"), "-m", "pytest", "-q"],
-            "python -m compileall src": [str(ROOT / ".venv" / "Scripts" / "python.exe"), "-m", "compileall", "-q", "src"],
+            "python -m pytest -q": [python, "-m", "pytest", "-q"],
+            "python -m compileall src": [python, "-m", "compileall", "-q", "src"],
         }
         results = []
         for command in commands:
             normalized = re.sub(r"\s+", " ", str(command).strip())
             argv = allowed.get(normalized)
+            if argv is None:
+                # Whitelisted subset: python -m pytest -q <project test file(s)>.
+                match = re.fullmatch(r"python -m pytest -q ([A-Za-z0-9_./\\-]+)", normalized)
+                if match:
+                    parts = [part for part in re.split(r"[\\/]", match.group(1)) if part]
+                    candidate = (ROOT / Path(*parts)).resolve()
+                    if candidate.exists() and any(ROOT / "tests" in path.parents or path == ROOT / "tests" for path in [candidate]):
+                        argv = [python, "-m", "pytest", "-q", str(candidate.relative_to(ROOT)).replace("\\", "/")]
             if argv is None:
                 raise ValueError(f"不允许的测试命令: {command}")
             completed = subprocess.run(argv, cwd=str(ROOT), capture_output=True, timeout=180)

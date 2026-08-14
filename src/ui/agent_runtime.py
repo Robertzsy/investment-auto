@@ -32,9 +32,9 @@ ROOT = Path(__file__).resolve().parents[2]
 REPORT_DIR = ROOT / "runtime" / "reports"
 AUDIT_DIR = ROOT / "runtime" / "trading" / "audit"
 
-_REQUEST_LIMIT = 20
-_TOOL_CALL_LIMIT = 40
-_TOTAL_TOKEN_LIMIT = 160_000
+_REQUEST_LIMIT = 32
+_TOOL_CALL_LIMIT = 64
+_TOTAL_TOKEN_LIMIT = 240_000
 _QUEUE_POLL_SECONDS = 0.05
 
 
@@ -353,6 +353,46 @@ async def run_complete_investment_cycle(ctx: RunContext[ChatAgentDeps], market: 
     return tool_result
 
 
+async def reset_paper_account(
+    ctx: RunContext[ChatAgentDeps],
+    market: str,
+    reason: str = "用户要求将模拟持仓重置为初始状态",
+) -> Dict[str, Any]:
+    """Reset one market's simulated account in one atomic management command.
+
+    This never starts an analysis or trading cycle. It is allowed outside
+    trading hours, refuses every non-paper trading mode, preserves the other
+    market accounts, and creates a recoverable backup before the reset.
+
+    Args:
+        market: One of cn, hk, us, or etf.
+        reason: Short auditable reason supplied by the user or manager.
+    """
+    normalized = str(market or "").strip().lower()
+    if normalized not in {"cn", "hk", "us", "etf"}:
+        raise ValueError("market 必须是 cn、hk、us 或 etf")
+    from src.investment.command_bus import InvestmentAgentClient
+
+    result = await asyncio.to_thread(
+        InvestmentAgentClient().issue,
+        "reset_paper_account",
+        {"market": normalized, "reason": str(reason)[:500]},
+        requested_by="conversation-manager",
+        timeout=60,
+    )
+    previous = result.get("previous", {})
+    report = (
+        f"✅ {normalized.upper()} 模拟账户已重置为初始状态\n\n"
+        f"- 重置前持仓：{int(previous.get('holdings', 0) or 0)} 只\n"
+        f"- 重置前交易记录：{int(previous.get('trades', 0) or 0)} 条\n"
+        f"- 初始资金：{float(result.get('account', {}).get('totalCapital', 0) or 0):,.2f}\n"
+        f"- 可恢复备份：{result.get('backup', '')}\n\n"
+        "本操作只修改模拟账户，没有启动分析、下单或实盘操作。"
+    )
+    ctx.deps.authoritative_report = report
+    return {**result, "user_report": report}
+
+
 def manage_investment_agent(action: str, value: str = "", reason: str = "") -> Dict[str, Any]:
     """Manage the standalone investment Agent through its command contract.
 
@@ -533,6 +573,63 @@ def install_manager_tool(
     )
 
 
+def create_manager_tool(
+    name: str,
+    description: str,
+    code: str,
+    function_name: str = "run",
+    parameters_schema_json: str = "",
+    test_args_json: str = "",
+    tests: str = "",
+) -> Dict[str, Any]:
+    """Create, test, register and trial-run a brand-new manager tool in ONE call.
+
+    This is the closed-loop way to give yourself a missing capability: write
+    the whole pipeline happens transactionally - module file, import check,
+    signature/schema check, tests, manifest registration and one trial call.
+    Any failure rolls the code file and the manifest back together.  The new
+    tool is available from the next message.
+
+    Args:
+        name: snake_case tool name such as query_holdings_summary.
+        description: What the tool does, when to use it, in Chinese.
+        code: Complete Python module source defining the function.  The module
+            lives under src/manager/tools/<name>.py and may import from src.
+        function_name: Entry function inside the module (default run).
+        parameters_schema_json: JSON object schema with type=object and
+            properties matching the function parameters.
+        test_args_json: Optional JSON object with concrete trial arguments.
+        tests: Optional whitelisted test command, e.g. python -m pytest -q
+            tests/test_your_tool.py.  Empty runs compileall only.
+    """
+    from src.manager.tool_factory import create_manager_tool as _create
+
+    test_args = None
+    if str(test_args_json or "").strip():
+        import json as _json
+
+        test_args = _json.loads(test_args_json)
+    test_commands = [item.strip() for item in str(tests or "").split(",") if item.strip()]
+    return _create(
+        name=name,
+        description=description,
+        code=code,
+        function_name=function_name,
+        parameters_schema=parameters_schema_json,
+        test_args=test_args,
+        reason="conversation-manager",
+        tests=test_commands,
+        reserved_names=set(MANAGER_AGENT._function_toolset.tools),
+    )
+
+
+def uninstall_manager_tool(name: str) -> Dict[str, Any]:
+    """Remove one registered runtime tool; its source module stays on disk."""
+    from src.manager.capabilities import CapabilityRegistry
+
+    return CapabilityRegistry().uninstall_tool(name)
+
+
 MANAGER_AGENT = Agent(
     name="investment_auto_manager",
     deps_type=ChatAgentDeps,
@@ -544,6 +641,8 @@ MANAGER_AGENT = Agent(
         "要按语义调用 run_complete_investment_cycle，且每个请求只调用一次。该工具已经包含"
         "全市场选股、候选与持仓分析、买入/观望/卖出决策、硬风控、模拟下单和最终报告；"
         "不得先单独刷新选股，也不得要求用户逐步确认。缺少市场时优先从最近对话和长期记忆推断，仍无法确定才追问。\n"
+        "1a. 用户要求清空持仓、恢复初始资金或重置某个市场模拟账户时，只调用一次 reset_paper_account；"
+        "该工具自带 paper 模式校验、互斥锁、备份和结果验证，成功后立即回复，不得搜索文件、修改代码、运行筛选或再次读取状态。\n"
         "2. 当前账户、报告、调度、风控问题必须调用相应 specialist；证券行情使用 search/security snapshot。\n"
         "   选股、候选池和筛选分数必须调用 stock screening；用户明确要求立即刷新时设置 refresh=true。\n"
         "3. 一般只调用一个 specialist；只有确实需要跨域综合时才调用多个。完整投资工具返回 user_report 后，"
@@ -556,8 +655,9 @@ MANAGER_AGENT = Agent(
         "新文件使用空 expected_sha256。修改会运行全量测试，失败自动回滚。不得操作项目目录以外的路径。\n"
         "7. 每次任务结束都要检查用户目标是否完成、工具是否失败、外部状态是否验证。不要输出工具 JSON，"
         "不猜测时间、日志、行情或进程状态；涉及投资判断要注明是模拟研究信息。"
-        "8. 不知道文件位置时必须先 search_project。需要可复用知识时可自动安装 Skill；需要新 Tool 时先用文件工具"
-        "实现并测试 src 内函数，再注册为 Tool。安装的新 Tool 从下一次对话起自动可用。"
+        "8. 不知道文件位置时必须先 search_project。需要可复用知识时可自动安装 Skill；缺少能力需要新工具时，"
+        "直接调用 create_manager_tool 一次性完成代码生成、测试、注册与试调用，不要再手动走多步流程；"
+        "只有必须修改已有函数时才用文件工具加 install_manager_tool。安装的新工具从下一次对话起自动可用。"
     ),
     tools=[
         Tool(consult_portfolio_agent, sequential=True, timeout=80),
@@ -568,6 +668,7 @@ MANAGER_AGENT = Agent(
         Tool(get_security_snapshot, sequential=True, timeout=50),
         Tool(get_stock_screening, sequential=True, timeout=180),
         Tool(run_complete_investment_cycle, sequential=True, timeout=420),
+        Tool(reset_paper_account, sequential=True, timeout=60),
         Tool(manage_investment_agent, sequential=True, timeout=60),
         Tool(run_portfolio_optimizer, sequential=True, timeout=240),
         Tool(inspect_investment_agent_code, sequential=True, timeout=20),
@@ -579,6 +680,8 @@ MANAGER_AGENT = Agent(
         Tool(install_manager_skill, sequential=True, timeout=20),
         Tool(load_manager_skill, sequential=True, timeout=10),
         Tool(install_manager_tool, sequential=True, timeout=30),
+        Tool(create_manager_tool, sequential=True, timeout=420),
+        Tool(uninstall_manager_tool, sequential=True, timeout=20),
     ],
     retries=1,
     tool_timeout=90,
@@ -692,6 +795,17 @@ def run_agent_events(
         if thinking:
             settings["extra_body"] = {"thinking": {"type": "enabled"}}
         try:
+            limit_config = cfg.raw.get("manager_agent", {}).get("usage_limits", {})
+
+            def bounded_limit(name: str, default: int, minimum: int, maximum: int) -> int:
+                try:
+                    return max(minimum, min(int(limit_config.get(name, default)), maximum))
+                except (TypeError, ValueError):
+                    return default
+
+            request_limit = bounded_limit("request_limit", _REQUEST_LIMIT, 8, 128)
+            tool_call_limit = bounded_limit("tool_call_limit", _TOOL_CALL_LIMIT, 8, 256)
+            total_token_limit = bounded_limit("total_token_limit", _TOTAL_TOKEN_LIMIT, 32_000, 1_000_000)
             reserved = set(MANAGER_AGENT._function_toolset.tools)
             from src.manager.capabilities import CapabilityRegistry
 
@@ -701,9 +815,9 @@ def run_agent_events(
                 deps=deps,
                 model_settings=settings,
                 usage_limits=UsageLimits(
-                    request_limit=_REQUEST_LIMIT,
-                    tool_calls_limit=_TOOL_CALL_LIMIT,
-                    total_tokens_limit=_TOTAL_TOKEN_LIMIT,
+                    request_limit=request_limit,
+                    tool_calls_limit=tool_call_limit,
+                    total_tokens_limit=total_token_limit,
                 ),
                 cancellation_token=cancellation_token,
                 event_stream_handler=event_handler,
@@ -726,12 +840,23 @@ def run_agent_events(
         except RunCancelled:
             events.put({"type": "cancelled"})
         except RepeatedToolLoop as exc:
-            events.put({"type": "error", "content": str(exc)})
+            if deps.authoritative_report:
+                events.put({"type": "result", "content": deps.authoritative_report})
+            else:
+                events.put({"type": "error", "content": str(exc)})
         except UsageLimitExceeded:
-            events.put({
-                "type": "error",
-                "content": "Agent 已达到本轮工具/请求上限并安全停止，请把问题拆小后重试。",
-            })
+            if deps.authoritative_report:
+                events.put({"type": "result", "content": deps.authoritative_report})
+            else:
+                completed = "、".join(deps.completed_tool_calls[-8:]) or "无"
+                events.put({
+                    "type": "error",
+                    "content": (
+                        f"管理 Agent 已达到本轮安全上限（模型请求 {request_limit} 次 / "
+                        f"工具调用 {tool_call_limit} 次）。本轮已完成工具：{completed}。"
+                        "任务没有产生可验证的最终结果，已停止以避免循环调用。"
+                    ),
+                })
         except Exception as exc:
             logger.exception("Agent run failed")
             try:

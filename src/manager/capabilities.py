@@ -120,6 +120,16 @@ class CapabilityRegistry:
         _write_json(self.tool_dir / f"{capability}.json", payload)
         return {"status": "installed_next_turn", "kind": "tool", **payload}
 
+    def uninstall_tool(self, name: str) -> Dict[str, Any]:
+        """Remove one registered tool manifest; used by transactional rollback."""
+        capability = _name(name)
+        path = self.tool_dir / f"{capability}.json"
+        if not path.is_file():
+            return {"status": "not_found", "kind": "tool", "name": capability}
+        path.unlink()
+        return {"status": "uninstalled", "kind": "tool", "name": capability}
+
+
     def catalog(self) -> Dict[str, List[Dict[str, Any]]]:
         def records(directory: Path) -> List[Dict[str, Any]]:
             result = []

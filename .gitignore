@@ -34,6 +34,10 @@ InvestmentAuto.exe
 portfolio.json
 watchlist.json
 
+# runtime-installed manager tools (created via create_manager_tool)
+src/manager/tools/*
+!src/manager/tools/__init__.py
+
 # python
 __pycache__/
 *.py[cod]
