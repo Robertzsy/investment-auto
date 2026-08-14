@@ -33,7 +33,19 @@
 - 收盘补跑默认不交易（trade_on_catch_up: false）；修复 Windows checkpoint
   瞬时文件占用。
 
-全量测试 **209 项通过**。
+全量测试 **217 项通过**。
+
+### 复核修复（第二轮）
+
+- 试调用成为强制步骤：未提供 test_args 时以空参数执行；试调用失败（含返回值不可
+  JSON 序列化）整体回滚，坏工具不会留在注册表；
+- fulfill 失败时状态明确为 created_fulfill_failed（工具保留、闭环状态如实标记）；
+- 回滚后核验源码与清单确实消失；核验失败返回 rollback_failed 并禁用清单；
+- uninstall_manager_tool 完整卸载：清单 + 源码 + import 缓存，同名工具可重建；
+- 按工具名线程锁 + 跨进程文件锁（含陈旧锁回收）；async 工具函数被拒绝；
+- 新增真正的 Agent 级测试：scripted 假模型驱动真实 MANAGER_AGENT 运行循环，验证
+  「自然语言需求 → 一次 create_manager_tool 调用 → fulfill_result 同轮回传模型」；
+- 管理指令强化：现有工具无法完成的可复用需求必须自建工具，不得直接回答做不到。
 
 ---
 

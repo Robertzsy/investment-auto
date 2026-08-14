@@ -628,10 +628,10 @@ def create_manager_tool(
 
 
 def uninstall_manager_tool(name: str) -> Dict[str, Any]:
-    """Remove one registered runtime tool; its source module stays on disk."""
-    from src.manager.capabilities import CapabilityRegistry
+    """Remove one runtime tool completely: manifest, source module and import cache."""
+    from src.manager.tool_factory import uninstall_manager_tool_complete
 
-    return CapabilityRegistry().uninstall_tool(name)
+    return uninstall_manager_tool_complete(name)
 
 
 MANAGER_AGENT = Agent(
@@ -664,6 +664,8 @@ MANAGER_AGENT = Agent(
         "当用户当前的需求本身就是这个新能力时，把用户原始需求的调用参数写入 fulfill_args_json，"
         "创建后直接使用返回的 fulfill_result 回答用户，不要要求用户再发一次消息；"
         "只有必须修改已有函数时才用文件工具加 install_manager_tool。"
+        "9. 当用户的需求无法用现有工具完成、且该需求是稳定可复用的能力时，必须调用 create_manager_tool "
+        "自行补足能力，不得直接回答「做不到」；创建失败时按返回的 error/problems 修正后重试一次。"
     ),
     tools=[
         Tool(consult_portfolio_agent, sequential=True, timeout=80),

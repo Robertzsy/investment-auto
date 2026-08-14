@@ -145,14 +145,25 @@ def test_create_tool_verifies_required_signature_parameters(monkeypatch, tmp_pat
     assert registry.catalog()["tools"] == []
 
 
-def test_uninstall_tool_removes_manifest(monkeypatch, tmp_path):
+def test_uninstall_removes_source_and_allows_recreation(monkeypatch, tmp_path):
     registry = _isolate(monkeypatch, tmp_path)
     tool_factory.create_manager_tool(
-        name="temp_tool", description="临时", code=SAMPLE_CODE, parameters_schema=SAMPLE_SCHEMA,
+        name="temp_tool", description="临时", code=SAMPLE_CODE,
+        parameters_schema=SAMPLE_SCHEMA, test_args={"symbol": "a"},
     )
-    assert registry.uninstall_tool("temp_tool")["status"] == "uninstalled"
+    removed = tool_factory.uninstall_manager_tool_complete("temp_tool")
+    assert removed["status"] == "uninstalled"
+    assert removed["source_removed"] is True
+    assert not (tmp_path / "tools" / "temp_tool.py").exists()
     assert registry.catalog()["tools"] == []
-    assert registry.uninstall_tool("temp_tool")["status"] == "not_found"
+    # The same name can now be created again.
+    again = tool_factory.create_manager_tool(
+        name="temp_tool", description="重建", code=SAMPLE_CODE,
+        parameters_schema=SAMPLE_SCHEMA, test_args={"symbol": "b"},
+    )
+    assert again["status"] == "created"
+    assert tool_factory.uninstall_manager_tool_complete("temp_tool")["status"] == "uninstalled"
+    assert tool_factory.uninstall_manager_tool_complete("temp_tool")["status"] == "not_found"
 
 
 def test_chat_regression_catalog_updated_for_new_tools():
@@ -181,7 +192,8 @@ def test_create_tool_fulfills_current_request_in_one_turn(monkeypatch, tmp_path)
     # no second message is needed before the result is usable.
     assert result["fulfill_result"]["result"]["symbol"] == "HK00700"
     assert result["fulfill_result"]["result"]["count"] == 1
-    assert result["trial_call"]["skipped"] == "未提供 test_args"
+    # Empty test_args still runs a real trial (SAMPLE_CODE defaults symbol).
+    assert result["trial_call"]["result"]["count"] == 1
 
 
 def test_create_tool_fulfill_error_is_captured_not_fatal(monkeypatch, tmp_path):
@@ -194,7 +206,7 @@ def test_create_tool_fulfill_error_is_captured_not_fatal(monkeypatch, tmp_path):
         fulfill_args={"missing": "nope"},  # missing required arg raises
     )
 
-    assert result["status"] == "created"  # creation stands
+    assert result["status"] == "created_fulfill_failed"  # creation stands, clearly flagged
     assert "error" in result["fulfill_result"]
 
 
@@ -283,3 +295,168 @@ def test_concurrent_creation_never_corrupts(monkeypatch, tmp_path):
     assert [item["name"] for item in manifests] == ["race_tool"]
     module = (tmp_path / "tools" / "race_tool.py").read_text(encoding="utf-8")
     assert "def run" in module  # not truncated or interleaved
+
+
+
+def test_trial_call_failure_rolls_back(monkeypatch, tmp_path):
+    # A tool that fails its own verification case must never stay registered.
+    registry = _isolate(monkeypatch, tmp_path)
+    bad = """
+def run(symbol: str) -> dict:
+    raise RuntimeError("boom")
+"""
+    result = tool_factory.create_manager_tool(
+        name="trial_fail", description="试调用失败", code=bad,
+        parameters_schema={"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]},
+        test_args={"symbol": "x"},
+    )
+    assert result["status"] == "rolled_back"
+    assert result["stage"] == "trial_call"
+    assert not (tmp_path / "tools" / "trial_fail.py").exists()
+    assert registry.catalog()["tools"] == []
+
+
+def test_unserializable_result_rolls_back(monkeypatch, tmp_path):
+    registry = _isolate(monkeypatch, tmp_path)
+    code = """
+def run() -> object:
+    return lambda: 1
+"""
+    result = tool_factory.create_manager_tool(
+        name="unserial", description="不可序列化", code=code,
+        parameters_schema={"type": "object", "properties": {}},
+    )
+    assert result["status"] == "rolled_back"
+    assert result["stage"] == "trial_call"
+
+
+def test_async_tool_function_rejected(monkeypatch, tmp_path):
+    registry = _isolate(monkeypatch, tmp_path)
+    code = """
+async def run() -> dict:
+    return {}
+"""
+    result = tool_factory.create_manager_tool(
+        name="async_tool", description="异步", code=code,
+        parameters_schema={"type": "object", "properties": {}},
+    )
+    assert result["status"] == "rolled_back"
+    assert result["stage"] == "import_verify"
+    assert registry.catalog()["tools"] == []
+
+
+def test_mandatory_trial_call_without_args(monkeypatch, tmp_path):
+    # No test_args means an empty trial: parameterless tools pass, tools
+    # with required parameters fail their trial and roll back.
+    registry = _isolate(monkeypatch, tmp_path)
+    needs_arg = """
+def run(symbol: str) -> dict:
+    return {}
+"""
+    result = tool_factory.create_manager_tool(
+        name="needs_arg", description="缺参数", code=needs_arg,
+        parameters_schema={"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]},
+    )
+    assert result["status"] == "rolled_back"  # empty trial cannot supply the required arg
+    assert registry.catalog()["tools"] == []
+
+
+
+def test_agent_level_creates_tool_and_answers_in_one_turn(monkeypatch, tmp_path):
+    """End-to-end: the real MANAGER_AGENT run loop receives a natural-language
+    request it lacks a tool for, calls create_manager_tool once with
+    fulfill_args, and receives the fulfill result back in the same turn.
+    A scripted fake model drives the loop (no network)."""
+    import asyncio
+    import queue as _queue
+    from datetime import datetime
+
+    from pydantic_ai import CancellationToken, UsageLimits
+    from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
+    from pydantic_ai.models import Model
+
+    registry = _isolate(monkeypatch, tmp_path)
+
+    class ScriptedModel(Model):
+        def __init__(self, responses):
+            super().__init__()
+            self._responses = list(responses)
+            self.seen_messages = []
+
+        @property
+        def model_name(self) -> str:
+            return "scripted-model"
+
+        @property
+        def system(self) -> str:
+            return "scripted"
+
+        @property
+        def provider(self):
+            return None
+
+        async def request(self, messages, model_settings, model_request_parameters):
+            self.seen_messages.append(messages)
+            if not self._responses:
+                raise AssertionError("scripted model exhausted")
+            return self._responses.pop(0)
+
+    tool_code = """
+def run(market: str) -> dict:
+    return {"market": market, "rows": [{"code": "600519", "amount": 1.2}]}
+"""
+    schema = {"type": "object", "properties": {"market": {"type": "string"}}, "required": ["market"]}
+    create_args = {
+        "name": "amount_ranking",
+        "description": "查询市场成交额排名",
+        "code": tool_code,
+        "function_name": "run",
+        "parameters_schema_json": json.dumps(schema),
+        "test_args_json": json.dumps({"market": "cn"}),
+        "fulfill_args_json": json.dumps({"market": "cn"}),
+    }
+    model = ScriptedModel([
+        ModelResponse(
+            parts=[ToolCallPart(tool_name="create_manager_tool", args=create_args)],
+            timestamp=datetime.now(),
+        ),
+        ModelResponse(
+            parts=[TextPart(content="已创建工具并查询：600519 排名第一")],
+            timestamp=datetime.now(),
+        ),
+    ])
+
+    async def scenario():
+        from src.manager.capabilities import CapabilityRegistry
+        from src.ui import agent_runtime
+
+        deps = agent_runtime.ChatAgentDeps(
+            cancellation_token=CancellationToken(),
+            event_queue=_queue.Queue(),
+        )
+        reserved = set(agent_runtime.MANAGER_AGENT._function_toolset.tools)
+        result = await agent_runtime.MANAGER_AGENT.run(
+            "帮我查一下 A 股今天成交额排名",
+            model=model,
+            deps=deps,
+            usage_limits=UsageLimits(request_limit=8, tool_calls_limit=16, total_tokens_limit=50000),
+            toolsets=[CapabilityRegistry().toolset(reserved)],
+        )
+        return str(result.output)
+
+    output = asyncio.run(scenario())
+
+    assert "600519" in output
+    # The tool really got created through the Agent call, with source+manifest.
+    manifests = registry.catalog()["tools"]
+    assert [item["name"] for item in manifests] == ["amount_ranking"]
+    assert (tmp_path / "tools" / "amount_ranking.py").is_file()
+    # The same-turn fulfill result reached the model as a tool return message.
+    all_parts = [
+        part for messages in model.seen_messages for message in messages for part in message.parts
+    ]
+    tool_return_contents = [
+        getattr(part, "content", "") for part in all_parts
+        if getattr(part, "part_kind", "") == "tool-return"
+    ]
+    assert any("600519" in str(content) for content in tool_return_contents)

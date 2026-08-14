@@ -3,18 +3,19 @@
 The manager says "add me a tool that does X" and create_manager_tool runs
 the whole pipeline in one atomic call:
 
-    validate inputs
+    validate inputs (names, schema, forbidden imports, async ban)
       -> write the tool module (atomic; existing tool names are rejected)
-      -> import + verify the function signature against the JSON schema
+      -> import + verify signature/schema/async/serializability
       -> run compile/tests (whitelisted commands only)
       -> register the tool manifest
-      -> make one verification call with caller-provided test arguments
-      -> any failure rolls back the code file AND the manifest together
+      -> trial call with mandatory test arguments (failure rolls back)
+      -> optional fulfill call for the user's CURRENT request
+      -> any failure rolls the code file AND the manifest back together,
+         and the rollback verifies both are really gone (rollback_failed
+         plus manifest disabling when they are not)
 
-Registration lands in the runtime capability catalog; the conversation
-runtime rebuilds its toolset on every request, so the new tool is available
-from the next message.  The verification call inside this tool closes the
-loop without needing the model to invoke the new tool in the same turn.
+Concurrent creations of the same name serialize on a per-name thread lock
+plus a cross-process file lock.
 """
 
 from __future__ import annotations
@@ -23,13 +24,18 @@ import ast
 import importlib
 import inspect
 import json
+import os
 import re
 import sys
 import threading
+import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, Iterator, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
+
+from pydantic_core import to_jsonable_python
 
 ROOT = Path(__file__).resolve().parents[2]
 TOOL_MODULE_DIR = ROOT / "src" / "manager" / "tools"
@@ -37,7 +43,6 @@ TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 _NAME_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 _FUNCTION_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_creation_lock = threading.RLock()
 
 # Tool code may read data and compute, but must never reach execution
 # paths: the manager plane has no trading, account-write or shell power,
@@ -49,6 +54,58 @@ _FORBIDDEN_IMPORTS = (
     "src.research.sandbox",
     "subprocess",
 )
+
+_name_locks: Dict[str, threading.Lock] = {}
+_name_locks_guard = threading.Lock()
+_FILE_LOCK_STALE_SECONDS = 60
+
+
+def _now() -> str:
+    return datetime.now(TIMEZONE).isoformat(timespec="seconds")
+
+
+def _clean_name(value: str) -> str:
+    name = re.sub(r"[^a-z0-9_]+", "_", str(value or "").strip().lower()).strip("_")
+    if not _NAME_RE.fullmatch(name):
+        raise ValueError("工具名必须是 2-64 位小写字母、数字或下划线，且以字母开头")
+    return name
+
+
+def _per_name_lock(name: str) -> threading.Lock:
+    with _name_locks_guard:
+        return _name_locks.setdefault(name, threading.Lock())
+
+
+@contextmanager
+def _file_lock(name: str) -> Iterator[None]:
+    """Cross-process exclusive lock; stale files (crashed holder) are reaped."""
+    directory = ROOT / "runtime" / "manager" / "locks"
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{name}.lock"
+    acquired = False
+    for _attempt in range(50):  # up to ~5s
+        try:
+            descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(descriptor, b"1")
+            os.close(descriptor)
+            acquired = True
+            break
+        except FileExistsError:
+            try:
+                if time.time() - path.stat().st_mtime > _FILE_LOCK_STALE_SECONDS:
+                    path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            time.sleep(0.1)
+    if not acquired:
+        raise RuntimeError(f"工具创建锁获取超时（{name}），可能存在并发进程冲突")
+    try:
+        yield
+    finally:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def _reject_forbidden_imports(code: str) -> None:
@@ -74,17 +131,6 @@ def _check_forbidden(module_name: str) -> None:
         )
 
 
-def _now() -> str:
-    return datetime.now(TIMEZONE).isoformat(timespec="seconds")
-
-
-def _clean_name(value: str) -> str:
-    name = re.sub(r"[^a-z0-9_]+", "_", str(value or "").strip().lower()).strip("_")
-    if not _NAME_RE.fullmatch(name):
-        raise ValueError("工具名必须是 2-64 位小写字母、数字或下划线，且以字母开头")
-    return name
-
-
 def _validate_schema(schema: Any) -> Dict[str, Any]:
     if isinstance(schema, str):
         try:
@@ -99,6 +145,8 @@ def _validate_schema(schema: Any) -> Dict[str, Any]:
 
 
 def _verify_function(schema: Mapping[str, Any], function: Callable[..., Any], function_name: str) -> None:
+    if inspect.iscoroutinefunction(function):
+        raise ValueError(f"工具函数 {function_name} 不能是 async 函数")
     signature = inspect.signature(function)
     properties = schema.get("properties", {})
     if not isinstance(properties, Mapping):
@@ -115,6 +163,35 @@ def _verify_function(schema: Mapping[str, Any], function: Callable[..., Any], fu
         )
 
 
+def _trial_invoke(function: Callable[..., Any], arguments: Mapping[str, Any]) -> Any:
+    """Invoke and require a JSON-serializable result."""
+    value = function(**dict(arguments))
+    return to_jsonable_python(value)
+
+
+def uninstall_manager_tool_complete(name: str) -> Dict[str, Any]:
+    """Remove manifest, source module and the import cache entry together.
+
+    This lets a tool with the same name be recreated afterwards.
+    """
+    from src.manager.capabilities import CapabilityRegistry
+
+    capability = _clean_name(name)
+    registry = CapabilityRegistry()
+    manifest = registry.uninstall_tool(capability)
+    file_path = TOOL_MODULE_DIR / f"{capability}.py"
+    source_removed = False
+    if file_path.exists():
+        file_path.unlink()
+        source_removed = True
+    sys.modules.pop(f"src.manager.tools.{capability}", None)
+    return {
+        "status": manifest["status"],
+        "name": capability,
+        "source_removed": source_removed,
+    }
+
+
 def create_manager_tool(
     *,
     name: str,
@@ -126,29 +203,32 @@ def create_manager_tool(
     fulfill_args: Optional[Mapping[str, Any]] = None,
     reason: str = "manager-requested-tool",
     tests: Sequence[str] = (),
-
     reserved_names: Optional[set[str]] = None,
 ) -> Dict[str, Any]:
     """Create, verify, register and trial-run one manager tool atomically.
 
-    On any failure the freshly written module and the freshly registered
-    manifest are both removed, so a half-installed tool can never linger.
-    Concurrent conversations serialize on the creation lock so two
-    sessions cannot race the same tool name.
+    The trial call is mandatory (empty args count as a valid trial for
+    parameterless tools) and a failed trial rolls the whole creation back.
+    A failed fulfill keeps the tool but reports created_fulfill_failed.
+    Rollback verifies that both the module and the manifest really
+    disappeared; otherwise it reports rollback_failed and disables the
+    manifest.
     """
-    with _creation_lock:
-        return _create_manager_tool_locked(
-            name=name,
-            description=description,
-            code=code,
-            function_name=function_name,
-            parameters_schema=parameters_schema,
-            test_args=test_args,
-            fulfill_args=fulfill_args,
-            reason=reason,
-            tests=tests,
-            reserved_names=reserved_names,
-        )
+    capability = _clean_name(name)
+    with _per_name_lock(capability):
+        with _file_lock(capability):
+            return _create_manager_tool_locked(
+                name=name,
+                description=description,
+                code=code,
+                function_name=function_name,
+                parameters_schema=parameters_schema,
+                test_args=test_args,
+                fulfill_args=fulfill_args,
+                reason=reason,
+                tests=tests,
+                reserved_names=reserved_names,
+            )
 
 
 def _create_manager_tool_locked(
@@ -186,29 +266,53 @@ def _create_manager_tool_locked(
     if not code.strip():
         raise ValueError("code 不能为空")
     _reject_forbidden_imports(code)
-    if not re.search(rf"\ndef\s+{re.escape(function_name)}\s*\(", code):
+    if not re.search(rf"\n(?:async\s+)?def\s+{re.escape(function_name)}\s*\(", code):
         raise ValueError(f"code 中必须定义函数 def {function_name}(...)")
 
     module_path = f"src.manager.tools.{capability}"
     file_path = TOOL_MODULE_DIR / f"{capability}.py"
+    manifest_path = registry.tool_dir / f"{capability}.json"
     steps: list[str] = []
     created_file = False
     registered = False
 
     def rollback(stage: str, error: Exception) -> Dict[str, Any]:
-        # Code and manifest roll back together.  Existing tools are never
-        # overwritten, so removing the fresh file restores the prior state.
+        # Code and manifest roll back together, then verify both are gone.
+        problems: list[str] = []
         if created_file:
             try:
                 if file_path.exists():
                     file_path.unlink()
-            except Exception:
-                pass
+            except Exception as exc:
+                problems.append(f"源码删除失败: {str(exc)[:200]}")
+            if file_path.exists():
+                problems.append("源码删除后仍存在")
         if registered:
             try:
                 registry.uninstall_tool(capability)
-            except Exception:
-                pass
+            except Exception as exc:
+                problems.append(f"清单删除失败: {str(exc)[:200]}")
+            if manifest_path.exists():
+                # Last resort: disable the manifest so the toolset never loads it.
+                try:
+                    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    if isinstance(payload, dict):
+                        payload["enabled"] = False
+                        temporary = manifest_path.with_suffix(".json.tmp")
+                        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+                        temporary.replace(manifest_path)
+                except Exception as exc:
+                    problems.append(f"清单禁用失败: {str(exc)[:200]}")
+                problems.append("清单删除失败，已禁用")
+        if problems:
+            return {
+                "status": "rollback_failed",
+                "name": capability,
+                "stage": stage,
+                "error": str(error)[:2000],
+                "problems": problems,
+                "steps": steps,
+            }
         return {
             "status": "rolled_back",
             "name": capability,
@@ -268,27 +372,27 @@ def _create_manager_tool_locked(
         registered = True
 
         steps.append("trial_call")
-        trial: Optional[Dict[str, Any]] = None
-        if isinstance(test_args, Mapping):
-            try:
-                trial = {"result": function(**dict(test_args))}
-            except Exception as exc:
-                trial = {"error": str(exc)[:1000]}
-        else:
-            trial = {"skipped": "未提供 test_args"}
+        # A trial call is mandatory: no verification means no registration.
+        trial_arguments = dict(test_args) if isinstance(test_args, Mapping) else {}
+        try:
+            trial = {"result": _trial_invoke(function, trial_arguments)}
+        except Exception as exc:
+            raise ValueError(f"试调用失败: {str(exc)[:800]}") from exc
 
         steps.append("fulfill")
         fulfill: Optional[Dict[str, Any]] = None
         if isinstance(fulfill_args, Mapping):
             try:
-                fulfill = {"result": function(**dict(fulfill_args))}
+                fulfill = {"result": _trial_invoke(function, dict(fulfill_args))}
             except Exception as exc:
                 fulfill = {"error": str(exc)[:1000]}
-        else:
-            fulfill = None
+
+        status = "created"
+        if fulfill is not None and "error" in fulfill:
+            status = "created_fulfill_failed"
 
         return {
-            "status": "created",
+            "status": status,
             "name": capability,
             "module": module_path,
             "function": function_name,
