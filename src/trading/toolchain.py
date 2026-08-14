@@ -17,6 +17,7 @@ resort, so tool-mediated rounds that never submit still fall back safely.
 
 from __future__ import annotations
 
+import copy
 import json
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -76,7 +77,9 @@ _TOOL_SPECS: List[Dict[str, Any]] = [
 
 
 def _tool_specs(portfolio: bool) -> List[Dict[str, Any]]:
-    specs = [dict(spec) for spec in _TOOL_SPECS]
+    # Deep copy: the portfolio branch mutates the submit tool description,
+    # which must not leak into the shared global specs.
+    specs = copy.deepcopy(_TOOL_SPECS)
     if portfolio:
         payload = specs[1]["function"]["parameters"]["properties"]["payload"]
         payload["description"] = (
@@ -205,6 +208,9 @@ def run_tool_mediated_chat(
     caller's outer retry can take over.
     """
     tools = _tool_specs(portfolio)
+    # json_object output mode is meaningless (and can conflict) when the
+    # provider is expected to emit tool calls instead of a JSON body.
+    chat_kwargs = {key: value for key, value in chat_kwargs.items() if key != "response_format"}
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": system},
         {"role": "user", "content": user},
@@ -250,10 +256,23 @@ def run_tool_mediated_chat(
                 )
                 repaired["citations"] = citations
                 return repaired, repair_notes
+        # OpenAI-compatible APIs expect function.arguments as a JSON
+        # string when an assistant tool call is replayed; the adapter
+        # parses it into a dict for local execution.
+        replay_calls = []
+        for call in tool_calls:
+            replay = dict(call)
+            function = replay.get("function")
+            if isinstance(function, dict) and isinstance(function.get("arguments"), dict):
+                replay["function"] = dict(function)
+                replay["function"]["arguments"] = json.dumps(
+                    function["arguments"], ensure_ascii=False
+                )
+            replay_calls.append(replay)
         messages.append({
             "role": "assistant",
             "content": response.get("content") or "",
-            "tool_calls": tool_calls,
+            "tool_calls": replay_calls,
         })
         submitted: Optional[Dict[str, Any]] = None
         repair_notes: List[str] = []

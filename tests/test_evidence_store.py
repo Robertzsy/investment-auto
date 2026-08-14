@@ -36,8 +36,8 @@ def test_compact_report_trims_findings_but_keeps_decisions():
     assert len(compact["memory_note"]) == 160
 
 
-def test_save_and_load_cycle_evidence_roundtrip(tmp_path):
-    evidence_store.EVIDENCE_DIR = tmp_path / "evidence"
+def test_save_and_load_cycle_evidence_roundtrip(monkeypatch, tmp_path):
+    monkeypatch.setattr(evidence_store, "EVIDENCE_DIR", tmp_path / "evidence")
     ref = evidence_store.save_cycle_evidence(
         "2026-08-14T10:30:00+08:00", "cn",
         {"catalog": {"MARKET:600519": {"price": 100}}, "portfolio_evidence": {}},
@@ -46,7 +46,6 @@ def test_save_and_load_cycle_evidence_roundtrip(tmp_path):
     assert (tmp_path / "evidence").exists()
     loaded = evidence_store.load_cycle_evidence(ref)
     assert loaded["catalog"]["MARKET:600519"]["price"] == 100
-    evidence_store.EVIDENCE_DIR = evidence_store.ROOT / "runtime" / "trading" / "evidence"
 
 
 def test_workflow_archives_evidence_and_returns_compact_summary(monkeypatch, tmp_path):

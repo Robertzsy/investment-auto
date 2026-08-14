@@ -675,7 +675,8 @@ def _checkpointed(checkpoint, stage, runner):
 
         saved = checkpoints.load_stage(cycle_id, stage)
         if isinstance(saved, Mapping):
-            return saved, True
+            cleaned = {key: value for key, value in saved.items() if key not in ("stage", "saved_at")}
+            return cleaned, True
     result = runner()
     if cycle_id:
         from src.trading import checkpoints

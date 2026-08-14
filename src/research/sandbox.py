@@ -41,6 +41,9 @@ def minimal_env() -> Dict[str, str]:
     for key, value in os.environ.items():
         if key.startswith("DSH_"):
             env[key] = value
+    # Children run with the workspace as cwd, so the project root must be
+    # importable for pytest runs inside the bugfix task.
+    env["PYTHONPATH"] = str(ROOT)
     return env
 
 

@@ -82,7 +82,6 @@ def _parser() -> argparse.ArgumentParser:
                         help="Research task type (research command)")
     parser.add_argument("--objective", default="", help="Immutable research objective")
     parser.add_argument("--max-rounds", type=int, default=6, help="Fresh-agent round cap")
-    parser.add_argument("--extra-symbols", default="", help="Comma-separated symbols for research tools")
     return parser
 
 

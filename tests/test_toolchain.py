@@ -95,6 +95,13 @@ def test_tool_mediated_chat_queries_catalog_then_submits():
     second_call_messages = llm.calls[1]["messages"]
     tool_messages = [m for m in second_call_messages if m["role"] == "tool"]
     assert tool_messages and "AGENT:TECHNICAL_ANALYST" in tool_messages[0]["content"]
+    # Replayed assistant tool calls must carry arguments as JSON strings
+    # (OpenAI-compatible wire format), not as parsed dicts.
+    assistant_calls = [m for m in second_call_messages if m["role"] == "assistant" and m.get("tool_calls")]
+    assert assistant_calls
+    replayed = assistant_calls[0]["tool_calls"][0]["function"]["arguments"]
+    assert isinstance(replayed, str)
+    assert json.loads(replayed)["prefix"] == "AGENT:"
 
 
 def test_tool_mediated_chat_repairs_submit_without_rejection():

@@ -9,7 +9,6 @@ itself never judges them.
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -32,8 +31,10 @@ TASK_DESCRIPTIONS: Dict[str, str] = {
         "给出可复现的推荐参数；生产配置只能通过 apply_code_change 版本化修改。"
     ),
     "bugfix": (
-        "先复现缺陷（运行测试或复现脚本），定位后通过 apply_code_change 修改代码，"
-        "该工具会执行全量测试并在失败时自动回滚；每个修改都要写清原因。"
+        "先复现缺陷：工作区 cwd 在 runtime/research/workspace 下，PYTHONPATH 已指向项目根，"
+        "跑测试用 python -m pytest <项目根相对路径>（例如 python -m pytest tests/test_core.py）。"
+        "定位后通过 apply_code_change 修改代码，该工具会执行全量测试并在失败时自动回滚；"
+        "每个修改都要写清原因。"
     ),
 }
 
@@ -183,6 +184,16 @@ def run_research_loop(
 
     workspace = ResearchWorkspace(workspace_root)
     workspace.initialize(objective, task)
+    if market:
+        try:
+            import json as _json
+
+            meta_path = workspace.run_dir / "meta.json"
+            meta = _json.loads(meta_path.read_text(encoding="utf-8"))
+            meta["market"] = str(market).lower()
+            meta_path.write_text(_json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
     factory = agent_factory or default_agent_factory
     agent = factory(extra_tools=extra_tools)
     from pydantic_ai import UsageLimits

@@ -48,15 +48,22 @@ def save_cycle_evidence(cycle_id: Any, market: str, payload: Mapping[str, Any]) 
 def load_cycle_evidence(reference: str) -> Optional[Dict[str, Any]]:
     """Load an archived evidence graph by its audit reference."""
     normalized = str(reference or "").replace("/", chr(92))
-    candidate = ROOT / normalized
-    if not candidate.exists():
-        # References are usually relative to the project root; be tolerant.
-        candidate = EVIDENCE_DIR / Path(normalized).name
-    try:
-        payload = json.loads(candidate.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    return payload if isinstance(payload, Mapping) else None
+    candidates = [ROOT / normalized]
+    relative = Path(normalized)
+    if "evidence" in relative.parts:
+        # Strip a runtime/trading/evidence prefix and re-anchor on the
+        # (possibly redirected) evidence directory.
+        index = relative.parts.index("evidence")
+        candidates.append(EVIDENCE_DIR.joinpath(*relative.parts[index + 1:]))
+    candidates.append(EVIDENCE_DIR / relative.name)
+    for candidate in candidates:
+        try:
+            payload = json.loads(candidate.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(payload, Mapping):
+            return payload
+    return None
 
 
 def compact_report(payload: Mapping[str, Any], *, portfolio: bool = False) -> Dict[str, Any]:

@@ -10,8 +10,8 @@ from src.trading import agent_workflow, checkpoints
 NOW = datetime(2026, 8, 14, 12, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
 
 
-def test_stage_roundtrip_and_list_stages(tmp_path):
-    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+def test_stage_roundtrip_and_list_stages(monkeypatch, tmp_path):
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
     checkpoints.init_checkpoint("cycle-1", "cn", ["600519"])
     checkpoints.save_stage("cycle-1", "600519:base_analysis", {"reports": {"technical_analyst": {"summary": "ok"}}})
 
@@ -19,11 +19,10 @@ def test_stage_roundtrip_and_list_stages(tmp_path):
     assert saved["reports"]["technical_analyst"]["summary"] == "ok"
     assert checkpoints.list_stages("cycle-1") == ["600519-base_analysis"]  # stage names are sanitized
     assert checkpoints.load_checkpoint("cycle-1")["status"] == "running"
-    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"
 
 
-def test_list_incomplete_filters_stale_and_completed(tmp_path):
-    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+def test_list_incomplete_filters_stale_and_completed(monkeypatch, tmp_path):
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
     checkpoints.init_checkpoint("fresh", "cn", ["600519"])
     checkpoints.init_checkpoint("done", "cn", ["600519"])
     checkpoints.mark_completed("done")
@@ -37,11 +36,10 @@ def test_list_incomplete_filters_stale_and_completed(tmp_path):
     ids = [item["cycle_id"] for item in incomplete]
     assert ids == []  # fresh is stale, done is completed
 
-    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"
 
 
 def test_checkpointed_reuses_archived_stage(monkeypatch, tmp_path):
-    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
     calls = []
 
     def runner():
@@ -54,7 +52,6 @@ def test_checkpointed_reuses_archived_stage(monkeypatch, tmp_path):
     result2, resumed2 = agent_workflow._checkpointed(checkpoint, "stage-a", runner)
     assert result2["value"] == 42 and resumed2
     assert len(calls) == 1  # runner did not re-run
-    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"
 
 
 def _context() -> dict:
@@ -98,7 +95,7 @@ def _config() -> dict:
 
 
 def test_interrupted_symbol_research_resumes_without_new_llm_calls(monkeypatch, tmp_path):
-    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
     calls = []
 
     def fake_call(role, **kwargs):
@@ -143,11 +140,10 @@ def test_interrupted_symbol_research_resumes_without_new_llm_calls(monkeypatch, 
     assert second["trader"]["summary"] == "resume-test"
     assert len(calls) == first_calls  # every stage came from the archive
 
-    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"
 
 
-def test_execution_fail_safe_state_machine(tmp_path):
-    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+def test_execution_fail_safe_state_machine(monkeypatch, tmp_path):
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
     checkpoints.init_checkpoint("cycle-x", "cn", ["600519"])
     checkpoints.mark_execution_pending("cycle-x")
     state = checkpoints.load_checkpoint("cycle-x")
@@ -156,13 +152,11 @@ def test_execution_fail_safe_state_machine(tmp_path):
     checkpoints.mark_execution_completed("cycle-x")
     state = checkpoints.load_checkpoint("cycle-x")
     assert state["execution_completed"] and state["status"] == "completed"
-    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"
 
 
-def test_discard_checkpoint_removes_directory(tmp_path):
-    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+def test_discard_checkpoint_removes_directory(monkeypatch, tmp_path):
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
     checkpoints.init_checkpoint("cycle-y", "cn", ["600519"])
     checkpoints.save_stage("cycle-y", "s1", {"a": 1})
     checkpoints.discard_checkpoint("cycle-y")
     assert not (tmp_path / "checkpoints" / "cycle-y").exists()
-    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"
