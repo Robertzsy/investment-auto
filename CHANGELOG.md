@@ -1,6 +1,58 @@
 # 更新日志
 
+## 0.5.1 — 下单 fail-safe 修复（2026-08-14）
+
+复核发现 0.5.0 的下单 fail-safe 存在三处真实漏洞，全部修复：
+
+### 1. 显式执行状态机（修复核心漏洞）
+
+旧实现中研究工作流提前把 checkpoint 标记为 completed，导致「进入执行但成交未确认」的
+checkpoint 对恢复扫描不可见，崩溃重启后可能重放订单。现改为显式状态机：
+
+```text
+running → research_completed → execution_pending → completed（终态）
+```
+
+- 研究工作流只能标记 research_completed，执行状态完全由调度器持有；
+- 标记 execution_pending 会翻转状态，恢复扫描必然发现；
+- 任何 execution_pending 的 checkpoint 都会让**下一整轮冻结**（broker 不被调用），
+  随后丢弃该 checkpoint 并写入审计原因；
+- **fail-closed 写入**：pending 标记写失败 → 拒绝下单；恢复检查异常 → 冻结；
+  completed 标记失败 → 告警并让下一轮安全冻结。
+
+### 2. 冻结闸门无时效限制
+
+冻结扫描曾复用 90 分钟恢复窗口，超过 90 分钟的 pending 会被漏掉（相邻轮次间隔
+本身就可能超过 90 分钟）。现在 list_execution_pending 扫描**任何年龄**的未确认
+pending；普通 running/research_completed 恢复仍保留 90 分钟时效窗口。
+
+### 3. 输入指纹补全
+
+checkpoint 恢复前的输入指纹现在覆盖：账户现金与持仓、完整授权书、市场交易规则、
+交易配置（佣金/滑点/整手/T+1）与全部风控限制。现金或持仓变化即作废旧研究决策。
+
+### 其它修复
+
+- 工具模式专属 system prompt（不再与「输出纯 JSON、不调用工具」冲突）；
+- tool 模式剥离 response_format、回传工具参数用 JSON 字符串（OpenAI 兼容线格式）；
+- 证据库路径统一正斜杠，Linux/Docker 下可加载；
+- architecture.research.*（enabled/shell/workspace/max_rounds/timeout）全面接线，
+  管理面研究工具同样受其约束；shell 超时由配置封顶；
+- bugfix 任务提示改用带引号的正斜杠 pytest 路径（shlex 不吞路径）；
+- cycle_evidence 返回真实证据 ID；证据归档失败升级为 warning 并写入审计；
+- checkpoint 索引并发锁、阶段元数据剥离、最新优先选择；
+- 新增 citation_attach_upstream 开关；sandbox 边界文档如实表述（启发式约束，
+  非 OS 沙箱，仅限可信环境）；
+- 未配置 architecture: 段时所有新行为默认关闭，旧配置零风险升级。
+
+全量测试 **194 项通过**，其中 fail-safe 相关测试覆盖全部崩溃窗口：
+正常路径状态演进、pending 冻结（broker 不被调用）、研究完成恢复、
+以及 91 分钟与 7 天超龄 pending 冻结。
+
+---
+
 ## 0.5.0 — 架构升级（2026-08-14）
+
 
 采用 DSH 式分层架构对交易工作流与离线研发能力做了一次系统性升级。全部新功能由
 `config/config.yaml` 的 `architecture:` 段控制；**未配置该段时行为与旧版完全一致**，
