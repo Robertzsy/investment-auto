@@ -367,7 +367,7 @@ def test_autonomous_cycle_uses_staged_workflow_portfolio_decisions(monkeypatch, 
         "600519": {"realtime": {"price": 100}, "history": [], "indicators": {}},
     }, {}))
     from src.trading import agent_workflow
-    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", lambda context, config: {
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", lambda context, config, **kwargs: {
         "workflow": "tradingagents_staged_v1",
         "portfolio_manager": {
             "thesis": "test",

@@ -667,6 +667,23 @@ def _add_reports(evidence: Dict[str, Any], reports: Mapping[str, Any], round_num
         evidence[_report_evidence_id(role, round_number)] = report
 
 
+def _checkpointed(checkpoint, stage, runner):
+    """Run runner() or reuse its archived stage result; returns (result, resumed)."""
+    cycle_id = checkpoint.get("cycle_id") if isinstance(checkpoint, Mapping) else None
+    if cycle_id:
+        from src.trading import checkpoints
+
+        saved = checkpoints.load_stage(cycle_id, stage)
+        if isinstance(saved, Mapping):
+            return saved, True
+    result = runner()
+    if cycle_id:
+        from src.trading import checkpoints
+
+        checkpoints.save_stage(cycle_id, stage, result)
+    return result, False
+
+
 def _run_symbol_research(
     symbol: str,
     *,
@@ -675,20 +692,31 @@ def _run_symbol_research(
     settings: Mapping[str, Any],
     memory_store: AgentMemoryStore,
     generated_at: str,
+    checkpoint: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Run a complete, isolated research graph for one security."""
+    """Run a complete, isolated research graph for one security.
+
+    With an active checkpoint each stage is archived as it completes, so an
+    interrupted cycle resumes from the first unfinished stage.
+    """
     child_context = _symbol_context(context, symbol)
     child_evidence = evidence_for_symbol(evidence, symbol)
     errors: Dict[str, str] = {}
     timings: Dict[str, float] = {}
 
-    started = time.monotonic()
-    base_reports, stage_errors = _parallel_roles(
-        ROLE_GROUPS["base"], stage=f"{symbol}:base_analysis", context=child_context,
-        evidence=child_evidence, settings=settings, memory_store=memory_store,
-        generated_at=generated_at,
-    )
-    timings["base_analysis"] = round(time.monotonic() - started, 3)
+    def _run_base():
+        started = time.monotonic()
+        reports, stage_errors = _parallel_roles(
+            ROLE_GROUPS["base"], stage=f"{symbol}:base_analysis", context=child_context,
+            evidence=child_evidence, settings=settings, memory_store=memory_store,
+            generated_at=generated_at,
+        )
+        return {"reports": reports, "errors": stage_errors, "timing": round(time.monotonic() - started, 3)}
+
+    base_result, base_resumed = _checkpointed(checkpoint, f"{symbol}:base_analysis", _run_base)
+    base_reports = dict(base_result.get("reports", {}) or {})
+    stage_errors = dict(base_result.get("errors", {}) or {})
+    timings["base_analysis"] = base_result.get("timing", 0.0)
     errors.update(stage_errors)
     required_base = max(1, int(settings.get("minimum_base_analysts", 4)))
     if len(base_reports) < required_base:
@@ -698,65 +726,88 @@ def _run_symbol_research(
     debate_rounds: List[Dict[str, Any]] = []
     rounds = max(1, min(3, int(settings.get("research_debate_rounds", 1))))
     for round_number in range(1, rounds + 1):
-        started = time.monotonic()
-        reports: Dict[str, Any] = {}
-        for role in ROLE_GROUPS["research"]:
-            if not _role_enabled(settings, role):
-                raise RuntimeError(f"{symbol} 的 {ROLE_NAMES[role]}不能停用")
-            opponent = "bear_researcher" if role == "bull_researcher" else "bull_researcher"
-            prior_prefixes = tuple(
-                prefix for prefix in (
-                    _report_evidence_id(opponent, round_number),
-                    _report_evidence_id(opponent, round_number - 1) if round_number > 1 else "",
-                ) if prefix
-            )
-            allowed = _upstream_evidence(
-                child_evidence,
-                (*ROLE_UPSTREAM_PREFIXES[role], *prior_prefixes),
-            )
-            report = _call_role(
-                role, stage=f"{symbol}:research_debate_{round_number}", context=child_context,
-                evidence=child_evidence, allowed_evidence=allowed, settings=settings,
-                memory_store=memory_store, generated_at=generated_at,
-                required_upstream_prefixes=(prior_prefixes or ROLE_UPSTREAM_PREFIXES[role]),
-                extra_instruction=(
-                    f"只研究 {symbol}。直接回应当前辩论历史；"
-                    "不得把 HOLD 当成多头或空头立场，必须提出本方最强论证。"
-                ),
-            )
-            reports[role] = report
+        def _run_debate(round_number: int = round_number):
+            started = time.monotonic()
+            reports: Dict[str, Any] = {}
+            for role in ROLE_GROUPS["research"]:
+                if not _role_enabled(settings, role):
+                    raise RuntimeError(f"{symbol} 的 {ROLE_NAMES[role]}不能停用")
+                opponent = "bear_researcher" if role == "bull_researcher" else "bull_researcher"
+                prior_prefixes = tuple(
+                    prefix for prefix in (
+                        _report_evidence_id(opponent, round_number),
+                        _report_evidence_id(opponent, round_number - 1) if round_number > 1 else "",
+                    ) if prefix
+                )
+                allowed = _upstream_evidence(
+                    child_evidence,
+                    (*ROLE_UPSTREAM_PREFIXES[role], *prior_prefixes),
+                )
+                report = _call_role(
+                    role, stage=f"{symbol}:research_debate_{round_number}", context=child_context,
+                    evidence=child_evidence, allowed_evidence=allowed, settings=settings,
+                    memory_store=memory_store, generated_at=generated_at,
+                    required_upstream_prefixes=(prior_prefixes or ROLE_UPSTREAM_PREFIXES[role]),
+                    extra_instruction=(
+                        f"只研究 {symbol}。直接回应当前辩论历史；"
+                        "不得把 HOLD 当成多头或空头立场，必须提出本方最强论证。"
+                    ),
+                )
+                reports[role] = report
+                child_evidence[_report_evidence_id(role, round_number)] = report
+            return {"reports": reports, "timing": round(time.monotonic() - started, 3)}
+
+        debate_result, _debate_resumed = _checkpointed(
+            checkpoint, f"{symbol}:research_debate_{round_number}", _run_debate
+        )
+        reports = dict(debate_result.get("reports", {}) or {})
+        for role, report in reports.items():
             child_evidence[_report_evidence_id(role, round_number)] = report
-        timings[f"research_debate_{round_number}"] = round(time.monotonic() - started, 3)
+        timings[f"research_debate_{round_number}"] = debate_result.get("timing", 0.0)
         debate_rounds.append({"round": round_number, "reports": reports})
 
-    started = time.monotonic()
-    manager_prefixes = tuple(
-        _report_evidence_id(role, rounds) for role in ROLE_GROUPS["research"]
+    def _run_manager():
+        started = time.monotonic()
+        manager_prefixes = tuple(
+            _report_evidence_id(role, rounds) for role in ROLE_GROUPS["research"]
+        )
+        manager_allowed = _upstream_evidence(child_evidence, manager_prefixes)
+        research_manager = _call_role(
+            "research_manager", stage=f"{symbol}:research_judgement", context=child_context,
+            evidence=child_evidence, allowed_evidence=manager_allowed, settings=settings,
+            memory_store=memory_store, generated_at=generated_at,
+            required_upstream_prefixes=manager_prefixes, require_all_upstreams=True,
+            extra_instruction=f"只裁决 {symbol}，必须分别评价最新多头和空头论证。",
+        )
+        return {"report": research_manager, "timing": round(time.monotonic() - started, 3)}
+
+    manager_result, _manager_resumed = _checkpointed(
+        checkpoint, f"{symbol}:research_judgement", _run_manager
     )
-    manager_allowed = _upstream_evidence(child_evidence, manager_prefixes)
-    research_manager = _call_role(
-        "research_manager", stage=f"{symbol}:research_judgement", context=child_context,
-        evidence=child_evidence, allowed_evidence=manager_allowed, settings=settings,
-        memory_store=memory_store, generated_at=generated_at,
-        required_upstream_prefixes=manager_prefixes, require_all_upstreams=True,
-        extra_instruction=f"只裁决 {symbol}，必须分别评价最新多头和空头论证。",
-    )
-    timings["research_judgement"] = round(time.monotonic() - started, 3)
+    research_manager = dict(manager_result.get("report", {}) or {})
+    timings["research_judgement"] = manager_result.get("timing", 0.0)
     child_evidence[_report_evidence_id("research_manager")] = research_manager
 
-    started = time.monotonic()
-    trader_allowed = _upstream_evidence(child_evidence, ("AGENT:RESEARCH_MANAGER",))
-    trader = _call_role(
-        "trader", stage=f"{symbol}:trade_proposal", context=child_context,
-        evidence=child_evidence, allowed_evidence=trader_allowed, settings=settings,
-        memory_store=memory_store, generated_at=generated_at,
-        required_upstream_prefixes=("AGENT:RESEARCH_MANAGER",),
-        extra_instruction=(
-            f"只针对 {symbol} 给出 BUY、HOLD 或 SELL 候选建议。"
-            "说明入场/退出条件和方向，但不要生成组合目标权重。"
-        ),
+    def _run_trader():
+        started = time.monotonic()
+        trader_allowed = _upstream_evidence(child_evidence, ("AGENT:RESEARCH_MANAGER",))
+        trader = _call_role(
+            "trader", stage=f"{symbol}:trade_proposal", context=child_context,
+            evidence=child_evidence, allowed_evidence=trader_allowed, settings=settings,
+            memory_store=memory_store, generated_at=generated_at,
+            required_upstream_prefixes=("AGENT:RESEARCH_MANAGER",),
+            extra_instruction=(
+                f"只针对 {symbol} 给出 BUY、HOLD 或 SELL 候选建议。"
+                "说明入场/退出条件和方向，但不要生成组合目标权重。"
+            ),
+        )
+        return {"report": trader, "timing": round(time.monotonic() - started, 3)}
+
+    trader_result, _trader_resumed = _checkpointed(
+        checkpoint, f"{symbol}:trade_proposal", _run_trader
     )
-    timings["trade_proposal"] = round(time.monotonic() - started, 3)
+    trader = dict(trader_result.get("report", {}) or {})
+    timings["trade_proposal"] = trader_result.get("timing", 0.0)
     child_evidence[_report_evidence_id("trader")] = trader
 
     return {
@@ -798,6 +849,7 @@ def run_analysis_workflow(
     config: Mapping[str, Any],
     *,
     memory_store: Optional[AgentMemoryStore] = None,
+    checkpoint: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     settings = config.get("agent_workflow", {})
     if not isinstance(settings, Mapping) or not bool(settings.get("enabled", True)):
@@ -814,6 +866,12 @@ def run_analysis_workflow(
     ))
     if not symbols:
         raise RuntimeError("逐标的研究没有收到任何允许标的")
+    checkpoint_cycle_id = checkpoint.get("cycle_id") if isinstance(checkpoint, Mapping) else None
+    resumed_stages: List[str] = []
+    if checkpoint_cycle_id:
+        from src.trading import checkpoints
+
+        resumed_stages = checkpoints.list_stages(checkpoint_cycle_id)
 
     started = time.monotonic()
     symbol_research, symbol_errors = _parallel_symbol_research(
@@ -823,6 +881,7 @@ def run_analysis_workflow(
         settings=settings,
         memory_store=store,
         generated_at=generated_at,
+        checkpoint=checkpoint,
     )
     timings["symbol_research"] = round(time.monotonic() - started, 3)
     errors.update({f"symbol:{key}": value for key, value in symbol_errors.items()})
@@ -844,96 +903,128 @@ def run_analysis_workflow(
         portfolio_evidence[evidence_id] = symbol_research[symbol]["trader"]
         trader_prefixes.append(evidence_id)
 
-    started = time.monotonic()
-    proposal = _call_role(
-        "portfolio_manager", stage="portfolio_proposal", context=context,
-        evidence=portfolio_evidence, allowed_evidence=portfolio_evidence,
-        settings=settings, memory_store=store, generated_at=generated_at,
-        required_upstream_prefixes=tuple(trader_prefixes), require_all_upstreams=True,
-        extra_instruction=(
-            "这是风控前组合草案。逐一覆盖全部 allowed_symbols；候选股票决定 BUY/HOLD，"
-            "已有持仓决定 BUY/HOLD/SELL。每只股票必须引用它自己的 AGENT:TRADER:代码 报告。"
-        ),
-        portfolio=True,
-    )
-    timings["portfolio_proposal"] = round(time.monotonic() - started, 3)
+    def _run_proposal():
+        started = time.monotonic()
+        result = _call_role(
+            "portfolio_manager", stage="portfolio_proposal", context=context,
+            evidence=portfolio_evidence, allowed_evidence=portfolio_evidence,
+            settings=settings, memory_store=store, generated_at=generated_at,
+            required_upstream_prefixes=tuple(trader_prefixes), require_all_upstreams=True,
+            extra_instruction=(
+                "这是风控前组合草案。逐一覆盖全部 allowed_symbols；候选股票决定 BUY/HOLD，"
+                "已有持仓决定 BUY/HOLD/SELL。每只股票必须引用它自己的 AGENT:TRADER:代码 报告。"
+            ),
+            portfolio=True,
+        )
+        return {"proposal": result, "timing": round(time.monotonic() - started, 3)}
+
+    proposal_result, _proposal_resumed = _checkpointed(checkpoint, "portfolio_proposal", _run_proposal)
+    proposal = dict(proposal_result.get("proposal", {}) or {})
+    timings["portfolio_proposal"] = proposal_result.get("timing", 0.0)
     portfolio_evidence["AGENT:PORTFOLIO_MANAGER:PROPOSAL"] = proposal
 
     risk_rounds: List[Dict[str, Any]] = []
     risk_round_count = max(1, min(3, int(settings.get("risk_debate_rounds", 1))))
     for round_number in range(1, risk_round_count + 1):
-        started = time.monotonic()
-        reports: Dict[str, Any] = {}
-        previous_id = "AGENT:PORTFOLIO_MANAGER:PROPOSAL"
-        for role in ROLE_GROUPS["risk"]:
-            if not _role_enabled(settings, role):
-                raise RuntimeError(f"{ROLE_NAMES[role]}不能停用，否则风险讨论不完整")
-            if reports:
-                previous_role = next(reversed(reports))
-                previous_id = _report_evidence_id(previous_role, round_number)
-            elif round_number > 1:
-                previous_id = _report_evidence_id(ROLE_GROUPS["risk"][-1], round_number - 1)
-            discussion_prefixes = (
-                "AGENT:PORTFOLIO_MANAGER:PROPOSAL",
-                *tuple(
-                    _report_evidence_id(previous_role, round_number)
-                    for previous_role in reports
-                ),
-            )
-            if round_number > 1:
-                discussion_prefixes += tuple(
-                    _report_evidence_id(previous_role, round_number - 1)
-                    for previous_role in ROLE_GROUPS["risk"]
+        def _run_risk_round(round_number: int = round_number):
+            started = time.monotonic()
+            reports: Dict[str, Any] = {}
+            previous_id = "AGENT:PORTFOLIO_MANAGER:PROPOSAL"
+            for role in ROLE_GROUPS["risk"]:
+                if not _role_enabled(settings, role):
+                    raise RuntimeError(f"{ROLE_NAMES[role]}不能停用，否则风险讨论不完整")
+                if reports:
+                    previous_role = next(reversed(reports))
+                    previous_id = _report_evidence_id(previous_role, round_number)
+                elif round_number > 1:
+                    previous_id = _report_evidence_id(ROLE_GROUPS["risk"][-1], round_number - 1)
+                discussion_prefixes = (
+                    "AGENT:PORTFOLIO_MANAGER:PROPOSAL",
+                    *tuple(
+                        _report_evidence_id(previous_role, round_number)
+                        for previous_role in reports
+                    ),
                 )
-            allowed = _upstream_evidence(portfolio_evidence, discussion_prefixes)
-            report = _call_role(
-                role, stage=f"risk_debate_{round_number}", context=context,
-                evidence=portfolio_evidence, allowed_evidence=allowed, settings=settings,
-                memory_store=store, generated_at=generated_at,
-                required_upstream_prefixes=(previous_id,),
-                extra_instruction=(
-                    "评议整个组合草案，直接回应上一位发言者，提出仓位、退出和观望条件。"
-                    "不得忽略已有持仓风险。"
-                ),
-            )
-            reports[role] = report
+                if round_number > 1:
+                    discussion_prefixes += tuple(
+                        _report_evidence_id(previous_role, round_number - 1)
+                        for previous_role in ROLE_GROUPS["risk"]
+                    )
+                allowed = _upstream_evidence(portfolio_evidence, discussion_prefixes)
+                report = _call_role(
+                    role, stage=f"risk_debate_{round_number}", context=context,
+                    evidence=portfolio_evidence, allowed_evidence=allowed, settings=settings,
+                    memory_store=store, generated_at=generated_at,
+                    required_upstream_prefixes=(previous_id,),
+                    extra_instruction=(
+                        "评议整个组合草案，直接回应上一位发言者，提出仓位、退出和观望条件。"
+                        "不得忽略已有持仓风险。"
+                    ),
+                )
+                reports[role] = report
+                portfolio_evidence[_report_evidence_id(role, round_number)] = report
+            return {"reports": reports, "timing": round(time.monotonic() - started, 3)}
+
+        risk_result, _risk_resumed = _checkpointed(
+            checkpoint, f"risk_debate_{round_number}", _run_risk_round
+        )
+        reports = dict(risk_result.get("reports", {}) or {})
+        for role, report in reports.items():
             portfolio_evidence[_report_evidence_id(role, round_number)] = report
-        timings[f"risk_debate_{round_number}"] = round(time.monotonic() - started, 3)
+        timings[f"risk_debate_{round_number}"] = risk_result.get("timing", 0.0)
         risk_rounds.append({"round": round_number, "reports": reports})
 
-    started = time.monotonic()
-    latest_risk_prefixes = tuple(
-        _report_evidence_id(role, risk_round_count) for role in ROLE_GROUPS["risk"]
-    )
-    risk_allowed = _upstream_evidence(portfolio_evidence, latest_risk_prefixes)
-    risk_manager = _call_role(
-        "risk_manager", stage="risk_judgement", context=context,
-        evidence=portfolio_evidence, allowed_evidence=risk_allowed, settings=settings,
-        memory_store=store, generated_at=generated_at,
-        required_upstream_prefixes=latest_risk_prefixes, require_all_upstreams=True,
-        extra_instruction="必须分别裁决激进、保守和中立意见；代码硬风控仍拥有最终否决权。",
-    )
-    timings["risk_judgement"] = round(time.monotonic() - started, 3)
+    def _run_risk_manager():
+        started = time.monotonic()
+        latest_risk_prefixes = tuple(
+            _report_evidence_id(role, risk_round_count) for role in ROLE_GROUPS["risk"]
+        )
+        risk_allowed = _upstream_evidence(portfolio_evidence, latest_risk_prefixes)
+        result = _call_role(
+            "risk_manager", stage="risk_judgement", context=context,
+            evidence=portfolio_evidence, allowed_evidence=risk_allowed, settings=settings,
+            memory_store=store, generated_at=generated_at,
+            required_upstream_prefixes=latest_risk_prefixes, require_all_upstreams=True,
+            extra_instruction="必须分别裁决激进、保守和中立意见；代码硬风控仍拥有最终否决权。",
+        )
+        return {"report": result, "timing": round(time.monotonic() - started, 3)}
+
+    risk_manager_result, _rm_resumed = _checkpointed(checkpoint, "risk_judgement", _run_risk_manager)
+    risk_manager = dict(risk_manager_result.get("report", {}) or {})
+    timings["risk_judgement"] = risk_manager_result.get("timing", 0.0)
     portfolio_evidence[_report_evidence_id("risk_manager")] = risk_manager
 
-    started = time.monotonic()
-    final_allowed = _upstream_evidence(
-        portfolio_evidence,
-        ("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
-    )
-    portfolio = _call_role(
-        "portfolio_manager", stage="portfolio_decision", context=context,
-        evidence=portfolio_evidence, allowed_evidence=final_allowed,
-        settings=settings, memory_store=store, generated_at=generated_at,
-        required_upstream_prefixes=("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
-        require_all_upstreams=True,
-        extra_instruction=(
-            "根据风险裁决修订组合草案，逐一覆盖全部标的。候选股票决定 BUY/HOLD，"
-            "已有持仓决定 BUY/HOLD/SELL；每条决策必须引用风险经理或原组合草案。"
-        ),
-        portfolio=True,
-    )
-    timings["portfolio_decision"] = round(time.monotonic() - started, 3)
+    def _run_portfolio():
+        started = time.monotonic()
+        final_allowed = _upstream_evidence(
+            portfolio_evidence,
+            ("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
+        )
+        result = _call_role(
+            "portfolio_manager", stage="portfolio_decision", context=context,
+            evidence=portfolio_evidence, allowed_evidence=final_allowed,
+            settings=settings, memory_store=store, generated_at=generated_at,
+            required_upstream_prefixes=("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
+            require_all_upstreams=True,
+            extra_instruction=(
+                "根据风险裁决修订组合草案，逐一覆盖全部标的。候选股票决定 BUY/HOLD，"
+                "已有持仓决定 BUY/HOLD/SELL；每条决策必须引用风险经理或原组合草案。"
+            ),
+            portfolio=True,
+        )
+        return {"report": result, "timing": round(time.monotonic() - started, 3)}
+
+    portfolio_result, _pm_resumed = _checkpointed(checkpoint, "portfolio_decision", _run_portfolio)
+    portfolio = dict(portfolio_result.get("report", {}) or {})
+    timings["portfolio_decision"] = portfolio_result.get("timing", 0.0)
+
+    if checkpoint_cycle_id:
+        try:
+            from src.trading import checkpoints
+
+            checkpoints.mark_completed(checkpoint_cycle_id)
+        except Exception:
+            logger.debug("Could not mark checkpoint completed", exc_info=True)
 
     first_symbol = symbols[0]
     from src.trading import evidence_store
@@ -982,6 +1073,8 @@ def run_analysis_workflow(
         "workflow": "per_symbol_research_graph_v2",
         "evidence_ids": sorted(portfolio_evidence),
         "evidence_ref": archive_ref,
+        "checkpoint_cycle_id": checkpoint_cycle_id,
+        "resumed_stages": resumed_stages,
         "symbol_research": compact_symbol_research,
         "symbol_errors": symbol_errors,
         # Compatibility fields keep existing reports/tests readable while the
