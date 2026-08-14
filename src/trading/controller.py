@@ -588,6 +588,7 @@ def run_autonomous_cycle(
                 "committee": committee,
                 "committee_errors": committee_errors,
                 "agent_workflow": staged_workflow,
+                "evidence_ref": staged_workflow.get("evidence_ref", "") if isinstance(staged_workflow, Mapping) else "",
                 "chair": chair,
                 "risk": risk,
                 "execution": execution,
@@ -632,6 +633,7 @@ def run_autonomous_cycle(
                     "committee": committee,
                     "committee_errors": committee_errors,
                     "agent_workflow": staged_workflow,
+                "evidence_ref": staged_workflow.get("evidence_ref", "") if isinstance(staged_workflow, Mapping) else "",
                     "market_data_errors": market_errors,
                     "research_data_errors": research_data_errors,
                     "chair": {"decisions": []},
@@ -651,6 +653,7 @@ def run_autonomous_cycle(
                     "committee": committee,
                     "committee_errors": committee_errors,
                     "agent_workflow": staged_workflow,
+                "evidence_ref": staged_workflow.get("evidence_ref", "") if isinstance(staged_workflow, Mapping) else "",
                     "market_data_errors": market_errors,
                     "research_data_errors": research_data_errors,
                 }

@@ -445,7 +445,10 @@ def _call_role(
             "memory_note": "留给该角色未来轮次的简短教训",
         }
     scoped_evidence = dict(allowed_evidence) if allowed_evidence is not None else _role_evidence(role, evidence)
-    evidence_text = _evidence_text(scoped_evidence)
+    evidence_text = _evidence_text(
+        scoped_evidence,
+        max_chars=int(_architecture_settings().get('evidence_text_max_chars', 42000)),
+    )
     upstream_prefixes = (
         tuple(required_upstream_prefixes)
         if required_upstream_prefixes is not None
@@ -933,22 +936,74 @@ def run_analysis_workflow(
     timings["portfolio_decision"] = round(time.monotonic() - started, 3)
 
     first_symbol = symbols[0]
+    from src.trading import evidence_store
+
+    archive_ref = ""
+    try:
+        if bool(_architecture_settings().get("evidence_store", True)):
+            archive_ref = evidence_store.save_cycle_evidence(
+                generated_at,
+                str(context.get("market", "market")),
+                {
+                    "generated_at": generated_at,
+                    "market": context.get("market"),
+                    "catalog": evidence,
+                    "symbol_research": symbol_research,
+                    "portfolio_evidence": portfolio_evidence,
+                },
+            )
+    except Exception:
+        logger.debug("Could not persist cycle evidence archive", exc_info=True)
+
+    compact_symbol_research = {
+        symbol: {
+            **{key: report.get(key) for key in ("symbol", "status", "evidence_ids", "errors", "timings_seconds") if key in report},
+            "base_reports": {
+                role: evidence_store.compact_report(item)
+                for role, item in report.get("base_reports", {}).items()
+            } if isinstance(report.get("base_reports"), Mapping) else {},
+            "research_debate": [
+                {
+                    "round": item.get("round"),
+                    "reports": {
+                        role: evidence_store.compact_report(payload)
+                        for role, payload in item.get("reports", {}).items()
+                    },
+                }
+                for item in report.get("research_debate", []) if isinstance(item, Mapping)
+            ],
+            "research_manager": evidence_store.compact_report(report.get("research_manager", {})),
+            "trader": evidence_store.compact_report(report.get("trader", {})),
+        }
+        for symbol, report in symbol_research.items()
+    }
+
     return {
         "workflow": "per_symbol_research_graph_v2",
         "evidence_ids": sorted(portfolio_evidence),
-        "symbol_research": symbol_research,
+        "evidence_ref": archive_ref,
+        "symbol_research": compact_symbol_research,
         "symbol_errors": symbol_errors,
         # Compatibility fields keep existing reports/tests readable while the
         # source of truth moves to symbol_research.
-        "base_reports": symbol_research[first_symbol]["base_reports"],
-        "research_debate": symbol_research[first_symbol]["research_debate"],
-        "research_manager": symbol_research[first_symbol]["research_manager"],
-        "trader": {symbol: report["trader"] for symbol, report in symbol_research.items()},
+        "base_reports": compact_symbol_research[first_symbol]["base_reports"],
+        "research_debate": compact_symbol_research[first_symbol]["research_debate"],
+        "research_manager": compact_symbol_research[first_symbol]["research_manager"],
+        "trader": {symbol: report["trader"] for symbol, report in compact_symbol_research.items()},
         "investment_advice": {},
-        "portfolio_proposal": proposal,
-        "risk_debate": risk_rounds,
-        "risk_manager": risk_manager,
-        "portfolio_manager": portfolio,
+        "portfolio_proposal": evidence_store.compact_report(proposal, portfolio=True),
+        "risk_debate": [
+            {
+                "round": item.get("round"),
+                "reports": {
+                    role: evidence_store.compact_report(payload)
+                    for role, payload in item.get("reports", {}).items()
+                },
+            }
+            for item in risk_rounds if isinstance(item, Mapping)
+        ],
+        "risk_manager": evidence_store.compact_report(risk_manager),
+        "portfolio_manager": evidence_store.compact_report(portfolio, portfolio=True),
         "errors": errors,
         "timings_seconds": timings,
         "memory": {

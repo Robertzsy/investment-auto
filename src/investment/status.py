@@ -90,6 +90,17 @@ def cycle_evidence(market: str, date: str = "", label: str = "") -> Dict[str, An
             audit = json.loads(audits[0].read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             audit = {"status": "unreadable", "error": str(exc)}
+    evidence_ref = audit.get("evidence_ref") if isinstance(audit, Mapping) else None
+    evidence_ids = None
+    if evidence_ref:
+        try:
+            from src.trading.evidence_store import load_cycle_evidence
+
+            archived = load_cycle_evidence(evidence_ref)
+            if isinstance(archived, Mapping):
+                evidence_ids = sorted(archived)
+        except Exception:
+            evidence_ids = None
     return {
         "market": normalized,
         "date": requested_date,
@@ -101,6 +112,8 @@ def cycle_evidence(market: str, date: str = "", label: str = "") -> Dict[str, An
         "investment_status": audit.get("status") if isinstance(audit, Mapping) else None,
         "error": audit.get("error") if isinstance(audit, Mapping) else None,
         "fills": len((audit.get("execution") or {}).get("fills", [])) if isinstance(audit, Mapping) else 0,
+        "evidence_ref": evidence_ref,
+        "evidence_ids": evidence_ids,
     }
 
 
