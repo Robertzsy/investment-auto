@@ -163,3 +163,36 @@ def test_chat_regression_catalog_updated_for_new_tools():
     tools = set(agent_runtime.MANAGER_AGENT._function_toolset.tools)
     assert {"create_manager_tool", "uninstall_manager_tool"} <= tools
     assert not ({"run_shell", "write_file", "execute_orders"} & tools)
+
+
+
+def test_create_tool_fulfills_current_request_in_one_turn(monkeypatch, tmp_path):
+    registry = _isolate(monkeypatch, tmp_path)
+    result = tool_factory.create_manager_tool(
+        name="fulfill_tool",
+        description="单轮闭环",
+        code=SAMPLE_CODE,
+        parameters_schema=SAMPLE_SCHEMA,
+        fulfill_args={"symbol": "hk00700"},
+    )
+
+    assert result["status"] == "created"
+    # The user's current request is answered inside this same call:
+    # no second message is needed before the result is usable.
+    assert result["fulfill_result"]["result"]["symbol"] == "HK00700"
+    assert result["fulfill_result"]["result"]["count"] == 1
+    assert result["trial_call"]["skipped"] == "未提供 test_args"
+
+
+def test_create_tool_fulfill_error_is_captured_not_fatal(monkeypatch, tmp_path):
+    registry = _isolate(monkeypatch, tmp_path)
+    result = tool_factory.create_manager_tool(
+        name="fulfill_err_tool",
+        description="调用参数错误",
+        code=SAMPLE_CODE,
+        parameters_schema=SAMPLE_SCHEMA,
+        fulfill_args={"missing": "nope"},  # missing required arg raises
+    )
+
+    assert result["status"] == "created"  # creation stands
+    assert "error" in result["fulfill_result"]

@@ -580,6 +580,7 @@ def create_manager_tool(
     function_name: str = "run",
     parameters_schema_json: str = "",
     test_args_json: str = "",
+    fulfill_args_json: str = "",
     tests: str = "",
 ) -> Dict[str, Any]:
     """Create, test, register and trial-run a brand-new manager tool in ONE call.
@@ -599,16 +600,18 @@ def create_manager_tool(
         parameters_schema_json: JSON object schema with type=object and
             properties matching the function parameters.
         test_args_json: Optional JSON object with concrete trial arguments.
+        fulfill_args_json: Optional JSON object with the arguments that
+            fulfill the user's CURRENT request right after creation, so the
+            tool's result can be answered in this same turn.
         tests: Optional whitelisted test command, e.g. python -m pytest -q
             tests/test_your_tool.py.  Empty runs compileall only.
     """
     from src.manager.tool_factory import create_manager_tool as _create
 
-    test_args = None
-    if str(test_args_json or "").strip():
-        import json as _json
+    import json as _json
 
-        test_args = _json.loads(test_args_json)
+    test_args = _json.loads(test_args_json) if str(test_args_json or "").strip() else None
+    fulfill_args = _json.loads(fulfill_args_json) if str(fulfill_args_json or "").strip() else None
     test_commands = [item.strip() for item in str(tests or "").split(",") if item.strip()]
     return _create(
         name=name,
@@ -617,6 +620,7 @@ def create_manager_tool(
         function_name=function_name,
         parameters_schema=parameters_schema_json,
         test_args=test_args,
+        fulfill_args=fulfill_args,
         reason="conversation-manager",
         tests=test_commands,
         reserved_names=set(MANAGER_AGENT._function_toolset.tools),
@@ -657,7 +661,9 @@ MANAGER_AGENT = Agent(
         "不猜测时间、日志、行情或进程状态；涉及投资判断要注明是模拟研究信息。"
         "8. 不知道文件位置时必须先 search_project。需要可复用知识时可自动安装 Skill；缺少能力需要新工具时，"
         "直接调用 create_manager_tool 一次性完成代码生成、测试、注册与试调用，不要再手动走多步流程；"
-        "只有必须修改已有函数时才用文件工具加 install_manager_tool。安装的新工具从下一次对话起自动可用。"
+        "当用户当前的需求本身就是这个新能力时，把用户原始需求的调用参数写入 fulfill_args_json，"
+        "创建后直接使用返回的 fulfill_result 回答用户，不要要求用户再发一次消息；"
+        "只有必须修改已有函数时才用文件工具加 install_manager_tool。"
     ),
     tools=[
         Tool(consult_portfolio_agent, sequential=True, timeout=80),

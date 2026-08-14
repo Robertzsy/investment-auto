@@ -86,6 +86,7 @@ def create_manager_tool(
     function_name: str = "run",
     parameters_schema: Any = None,
     test_args: Optional[Mapping[str, Any]] = None,
+    fulfill_args: Optional[Mapping[str, Any]] = None,
     reason: str = "manager-requested-tool",
     tests: Sequence[str] = (),
     reserved_names: Optional[set[str]] = None,
@@ -206,6 +207,16 @@ def create_manager_tool(
         else:
             trial = {"skipped": "未提供 test_args"}
 
+        steps.append("fulfill")
+        fulfill: Optional[Dict[str, Any]] = None
+        if isinstance(fulfill_args, Mapping):
+            try:
+                fulfill = {"result": function(**dict(fulfill_args))}
+            except Exception as exc:
+                fulfill = {"error": str(exc)[:1000]}
+        else:
+            fulfill = None
+
         return {
             "status": "created",
             "name": capability,
@@ -215,6 +226,7 @@ def create_manager_tool(
             "registered": True,
             "available_from": "next_message",
             "trial_call": trial,
+            "fulfill_result": fulfill,
             "tests": test_results,
             "steps": steps,
             "created_at": _now(),
