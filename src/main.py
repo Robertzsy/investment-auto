@@ -69,7 +69,7 @@ def _parser() -> argparse.ArgumentParser:
         choices=[
             "run", "once", "catchup", "macro", "optimizer", "screen", "autonomous",
             "pause", "resume", "kill", "reset-kill", "status",
-            "init", "version", "chat",
+            "init", "version", "chat", "research",
         ],
     )
     parser.add_argument("--market", "-m", default="cn")
@@ -78,6 +78,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true", help="Run autonomous decision and risk checks without fills")
     parser.add_argument("--reason", default="", help="Reason recorded for pause/resume/kill controls")
     parser.add_argument("--config", default=None)
+    parser.add_argument("--task", default="backtest", choices=["backtest", "strategy_experiment", "bugfix"],
+                        help="Research task type (research command)")
+    parser.add_argument("--objective", default="", help="Immutable research objective")
+    parser.add_argument("--max-rounds", type=int, default=6, help="Fresh-agent round cap")
+    parser.add_argument("--extra-symbols", default="", help="Comma-separated symbols for research tools")
     return parser
 
 
@@ -94,7 +99,7 @@ def main() -> None:
         print(f"investment-auto {__version__}")
         return
 
-    if args.command in {"run", "once", "catchup", "macro", "optimizer", "screen", "autonomous", "chat"} and not shutil.which("node"):
+    if args.command in {"run", "once", "catchup", "macro", "optimizer", "screen", "autonomous", "chat", "research"} and not shutil.which("node"):
         raise SystemExit("未找到 Node.js。行情、优化器和宏观日报需要 Node.js 18+，请安装后重试。")
 
     from src.config import cfg
@@ -203,6 +208,23 @@ def main() -> None:
             scheduler.shutdown(wait=False)
             command_worker.stop()
             return
+
+    if args.command == "research":
+        from dataclasses import asdict
+
+        from src.research.loop import run_research_loop
+        from src.research.tasks import task_tools
+
+        outcome = run_research_loop(
+            args.objective,
+            args.task,
+            market=args.market,
+            max_rounds=args.max_rounds,
+            extra_tools=task_tools(args.task),
+            on_progress=lambda message: logger.info(message),
+        )
+        print(json.dumps(asdict(outcome), ensure_ascii=False, indent=2))
+        return
 
     if args.command == "chat":
         host = os.getenv("CHAT_HOST", "localhost")
