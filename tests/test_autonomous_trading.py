@@ -395,3 +395,127 @@ def test_catch_up_never_replays_trades_by_default(monkeypatch):
     })
     result = controller.run_autonomous_cycle("cn", label="0930", now=NOW, catch_up=True)
     assert result["status"] == "skipped"
+
+
+def test_resumed_cycle_skips_execution_fail_safe(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from src.trading import checkpoints
+
+    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+    autonomous = {
+        **AUTO_CONFIG,
+        "enabled": True,
+        "auto_execute": True,
+        "committee_roles": ["analyst", "risk_chairman"],
+        "minimum_agent_responses": 2,
+        "minimum_priced_symbols": 1,
+        "max_universe_size": 2,
+    }
+    monkeypatch.setitem(controller.cfg.raw, "autonomous", autonomous)
+    monkeypatch.setitem(
+        controller.cfg.raw, "architecture",
+        {"checkpoint_cycles": True, "resume_stale_minutes": 90},
+    )
+    monkeypatch.setenv("AUTONOMOUS_TRADING_ENABLED", "true")
+    monkeypatch.setattr(controller, "load_state", lambda: {"paused": False, "kill_switch": False})
+    monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
+    monkeypatch.setattr(controller, "CYCLE_LOCK_DIR", tmp_path / "locks")
+    monkeypatch.setattr("src.investment.mandate.MANDATE_FILE", tmp_path / "no-mandate.json")
+    monkeypatch.setattr(controller.account_store, "account", lambda market: {
+        "cash": 100_000, "holdings": [], "tradeHistory": [],
+    })
+
+    # A previous attempt reached execution but its fills were never confirmed.
+    monkeypatch.setattr(controller, "_cycle_input_hash", lambda *a, **kw: "fixed-hash")
+    checkpoints.init_checkpoint("old-cycle", "cn", ["600519"], input_hash="fixed-hash")
+    checkpoints.mark_execution_pending("old-cycle")
+
+    screening = SimpleNamespace(
+        symbols=["600519"],
+        snapshots={"600519": {"realtime": {"price": 100, "name": "测试"}, "history": [], "indicators": {}}},
+        market_data_errors={},
+        audit={"status": "ok", "selected": [{"symbol": "600519", "name": "测试"}]},
+    )
+    monkeypatch.setattr(controller, "_screening_outcome", lambda *a, **kw: screening)
+    monkeypatch.setattr(controller, "_run_committee_member", lambda role, context: {
+        "role": role, "response": '{"summary":"ok"}',
+    })
+    monkeypatch.setattr(controller, "_chair_decision", lambda market, context, committee, config: {
+        "thesis": "test",
+        "decisions": [{"decision_id": "c1", "symbol": "600519", "action": "BUY",
+                        "target_weight": 0.1, "confidence": 0.9, "reason": "x"}],
+    })
+    captured = {}
+
+    def fake_execute(market, orders, **kwargs):
+        captured["orders"] = orders
+        return {"fills": [], "rejected": []}
+
+    monkeypatch.setattr(controller, "execute_orders", fake_execute)
+    result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
+
+    assert "orders" not in captured  # fail-safe: the broker was never called
+    checkpoint_block = result.get("checkpoint", {})
+    assert checkpoint_block.get("resumed") is True
+    assert "execution_skipped_after_resume" in checkpoint_block.get("notes", [])
+    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"
+
+
+def test_normal_cycle_marks_execution_pending_and_completed(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from src.trading import checkpoints
+
+    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+    autonomous = {
+        **AUTO_CONFIG,
+        "enabled": True,
+        "auto_execute": True,
+        "committee_roles": ["analyst", "risk_chairman"],
+        "minimum_agent_responses": 2,
+        "minimum_priced_symbols": 1,
+        "max_universe_size": 2,
+    }
+    monkeypatch.setitem(controller.cfg.raw, "autonomous", autonomous)
+    monkeypatch.setitem(
+        controller.cfg.raw, "architecture",
+        {"checkpoint_cycles": True, "resume_stale_minutes": 90},
+    )
+    monkeypatch.setenv("AUTONOMOUS_TRADING_ENABLED", "true")
+    monkeypatch.setattr(controller, "load_state", lambda: {"paused": False, "kill_switch": False})
+    monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
+    monkeypatch.setattr(controller, "CYCLE_LOCK_DIR", tmp_path / "locks")
+    monkeypatch.setattr("src.investment.mandate.MANDATE_FILE", tmp_path / "no-mandate.json")
+    monkeypatch.setattr(controller.account_store, "account", lambda market: {
+        "cash": 100_000, "holdings": [], "tradeHistory": [],
+    })
+    screening = SimpleNamespace(
+        symbols=["600519"],
+        snapshots={"600519": {"realtime": {"price": 100, "name": "测试"}, "history": [], "indicators": {}}},
+        market_data_errors={},
+        audit={"status": "ok", "selected": [{"symbol": "600519", "name": "测试"}]},
+    )
+    monkeypatch.setattr(controller, "_screening_outcome", lambda *a, **kw: screening)
+    monkeypatch.setattr(controller, "_run_committee_member", lambda role, context: {
+        "role": role, "response": '{"summary":"ok"}',
+    })
+    monkeypatch.setattr(controller, "_chair_decision", lambda market, context, committee, config: {
+        "thesis": "test",
+        "decisions": [{"decision_id": "c1", "symbol": "600519", "action": "BUY",
+                        "target_weight": 0.1, "confidence": 0.9, "reason": "x"}],
+    })
+    marks = []
+    monkeypatch.setattr(checkpoints, "mark_execution_pending", lambda cycle_id: marks.append(("pending", cycle_id)))
+    monkeypatch.setattr(checkpoints, "mark_execution_completed", lambda cycle_id: marks.append(("completed", cycle_id)))
+
+    def fake_execute(market, orders, **kwargs):
+        return {"fills": [{"code": "600519", "action": "BUY", "shares": 100}], "rejected": []}
+
+    monkeypatch.setattr(controller, "execute_orders", fake_execute)
+    result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
+
+    assert result["status"] == "executed"
+    assert ("pending", result["checkpoint"]["cycle_id"]) in marks
+    assert ("completed", result["checkpoint"]["cycle_id"]) in marks
+    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"

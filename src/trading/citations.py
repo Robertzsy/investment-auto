@@ -96,6 +96,7 @@ def repair_citations(
     *,
     required_upstream_prefixes: Sequence[str] = (),
     require_all_upstream_prefixes: bool = False,
+    attach_missing_upstream: bool = True,
 ) -> tuple[Dict[str, Any], List[str]]:
     """Normalize citation IDs and attach missing mandatory upstream citations.
 
@@ -190,7 +191,7 @@ def repair_citations(
             if any(citation.startswith(prefix) for citation in cited)
         }
         missing = [prefix for prefix in available_prefixes if prefix not in cited_prefixes]
-        if missing and (require_all_upstream_prefixes or not cited_prefixes):
+        if attach_missing_upstream and missing and (require_all_upstream_prefixes or not cited_prefixes):
             targets = missing if require_all_upstream_prefixes else missing[:1]
             for prefix in targets:
                 exact = sorted(

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
@@ -23,6 +24,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[2]
 CHECKPOINT_DIR = ROOT / "runtime" / "trading" / "checkpoints"
 TIMEZONE = ZoneInfo("Asia/Shanghai")
+_index_lock = threading.RLock()  # guards the read-modify-write in update_index
 
 
 def sanitize_cycle_id(value: Any) -> str:
@@ -72,14 +74,20 @@ def init_checkpoint(
     *,
     label: str = "",
     generated_at: str = "",
+    input_hash: str = "",
 ) -> Dict[str, Any]:
-    """Create the cycle index; returns the stored state."""
+    """Create the cycle index; returns the stored state.
+
+    input_hash fingerprints the research inputs (symbols, mandate, risk
+    limits, prices) so a resume can detect that the world changed.
+    """
     payload = {
         "cycle_id": sanitize_cycle_id(cycle_id),
         "market": str(market or "").lower(),
         "symbols": [str(symbol).upper() for symbol in symbols],
         "label": str(label or "")[:60],
         "generated_at": str(generated_at or ""),
+        "input_hash": str(input_hash or ""),
         "created_at": _now_iso(),
         "updated_at": _now_iso(),
         "status": "running",
@@ -116,10 +124,13 @@ def list_stages(cycle_id: str) -> List[str]:
 
 
 def update_index(cycle_id: str, updates: Mapping[str, Any]) -> None:
-    current = load_checkpoint(cycle_id) or {}
-    current.update(dict(updates))
-    current["updated_at"] = _now_iso()
-    _atomic_write(_index_path(cycle_id), current)
+    # Parallel stage workers call this concurrently; the lock keeps the
+    # read-modify-write cycle atomic within the process.
+    with _index_lock:
+        current = load_checkpoint(cycle_id) or {}
+        current.update(dict(updates))
+        current["updated_at"] = _now_iso()
+        _atomic_write(_index_path(cycle_id), current)
 
 
 def mark_completed(cycle_id: str) -> None:

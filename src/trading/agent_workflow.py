@@ -461,13 +461,27 @@ def _call_role(
     mandatory_upstream_ids = {
         prefix: ids for prefix, ids in mandatory_upstream_ids.items() if ids
     }
-    system = (
-        f"你是{ROLE_NAMES[role]}。{ROLE_INSTRUCTIONS[role]}"
-        "只允许依据本轮证据目录和明确列出的上游 Agent 报告作判断。"
-        "不得引用训练知识、猜测来源或制造事实。输出纯 JSON，不要 Markdown，不调用工具。"
-        "必须返回一个语法完整的 JSON 对象并以右花括号结束；字符串内部的双引号必须转义。"
-        "每个事实判断都要填写 evidence_ids；引用 ID 必须与目录完全一致。"
+    use_tools = (
+        bool(_architecture_settings().get("tool_mediated", False))
+        and role in set(str(item) for item in _architecture_settings().get("tool_mediated_roles", []))
     )
+    if use_tools:
+        system = (
+            f"你是{ROLE_NAMES[role]}。{ROLE_INSTRUCTIONS[role]}"
+            "只允许依据本轮证据目录和明确列出的上游 Agent 报告作判断。"
+            "不得引用训练知识、猜测来源或制造事实。"
+            "必须使用提供的工具：先用 list_evidence_ids 核对合法证据 ID，"
+            "再调用 submit_analysis 提交结论；校验失败时按返回的错误修正后重新提交。"
+            "每个事实判断都要填写 evidence_ids；引用 ID 必须与目录完全一致。"
+        )
+    else:
+        system = (
+            f"你是{ROLE_NAMES[role]}。{ROLE_INSTRUCTIONS[role]}"
+            "只允许依据本轮证据目录和明确列出的上游 Agent 报告作判断。"
+            "不得引用训练知识、猜测来源或制造事实。输出纯 JSON，不要 Markdown，不调用工具。"
+            "必须返回一个语法完整的 JSON 对象并以右花括号结束；字符串内部的双引号必须转义。"
+            "每个事实判断都要填写 evidence_ids；引用 ID 必须与目录完全一致。"
+        )
     mandate = context.get("investment_mandate", {})
     if isinstance(mandate, Mapping):
         system += (
@@ -489,10 +503,6 @@ def _call_role(
         f"\n严格输出结构：{json.dumps(schema, ensure_ascii=False)}"
         "\n输出必须精简：summary/thesis 不超过180字，findings最多6条，每条claim/reason不超过120字，"
         "data_gaps最多5条，memory_note不超过160字；不要复制证据原文，不要添加结构外字段。"
-    )
-    use_tools = (
-        bool(_architecture_settings().get('tool_mediated', False))
-        and role in set(str(item) for item in _architecture_settings().get('tool_mediated_roles', []))
     )
     tool_rounds = max(1, min(4, int(_architecture_settings().get('tool_retries', 2)))) + 1
     llm = resolve_llm(role=role)
@@ -536,6 +546,9 @@ def _call_role(
                     minimum_citations=minimum_citations,
                     required_upstream_prefixes=upstream_prefixes,
                     require_all_upstreams=require_all_upstreams,
+                    attach_missing_upstream=bool(
+                        _architecture_settings().get("citation_attach_upstream", True)
+                    ),
                     tool_rounds=tool_rounds,
                     chat_kwargs=attempt_kwargs,
                 )
@@ -570,6 +583,9 @@ def _call_role(
                     scoped_evidence,
                     required_upstream_prefixes=upstream_prefixes,
                     require_all_upstream_prefixes=require_all_upstreams,
+                    attach_missing_upstream=bool(
+                        _architecture_settings().get("citation_attach_upstream", True)
+                    ),
                 )
                 if not repair_notes:
                     raise
@@ -1031,6 +1047,7 @@ def run_analysis_workflow(
     from src.trading import evidence_store
 
     archive_ref = ""
+    evidence_archive_error = ""
     try:
         if bool(_architecture_settings().get("evidence_store", False)):
             archive_ref = evidence_store.save_cycle_evidence(
@@ -1044,8 +1061,12 @@ def run_analysis_workflow(
                     "portfolio_evidence": portfolio_evidence,
                 },
             )
-    except Exception:
-        logger.debug("Could not persist cycle evidence archive", exc_info=True)
+    except Exception as archive_exc:
+        evidence_archive_error = str(archive_exc)[:300]
+        logger.warning(
+            "Could not persist cycle evidence archive: %s", evidence_archive_error,
+            exc_info=True,
+        )
 
     compact_symbol_research = {
         symbol: {
@@ -1074,6 +1095,7 @@ def run_analysis_workflow(
         "workflow": "per_symbol_research_graph_v2",
         "evidence_ids": sorted(portfolio_evidence),
         "evidence_ref": archive_ref,
+        "evidence_archive_error": evidence_archive_error or None,
         "checkpoint_cycle_id": checkpoint_cycle_id,
         "resumed_stages": resumed_stages,
         "symbol_research": compact_symbol_research,

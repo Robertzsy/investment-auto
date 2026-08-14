@@ -81,7 +81,7 @@ class _FakeAgent:
 
 
 def _factory(reports):
-    return lambda extra_tools=None: _FakeAgent(reports)
+    return lambda extra_tools=None, **kwargs: _FakeAgent(reports)
 
 
 def test_loop_completes_on_first_round(tmp_path):
@@ -120,7 +120,7 @@ def test_loop_exhausts_rounds(tmp_path):
 def test_loop_prompt_is_fresh_without_history(tmp_path):
     agent = _FakeAgent([RoundReport(status="completed")])
     captured = {}
-    factory = lambda extra_tools=None: captured.setdefault("agent", agent) or agent
+    factory = lambda extra_tools=None, **kwargs: captured.setdefault("agent", agent) or agent
     loop.run_research_loop(
         "验证动量规则", "backtest", max_rounds=2,
         workspace_root=tmp_path, agent_factory=factory,

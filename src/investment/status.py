@@ -98,7 +98,12 @@ def cycle_evidence(market: str, date: str = "", label: str = "") -> Dict[str, An
 
             archived = load_cycle_evidence(evidence_ref)
             if isinstance(archived, Mapping):
-                evidence_ids = sorted(archived)
+                ids = set()
+                for section in ("catalog", "portfolio_evidence"):
+                    values = archived.get(section)
+                    if isinstance(values, Mapping):
+                        ids.update(str(item) for item in values)
+                evidence_ids = sorted(ids)
         except Exception:
             evidence_ids = None
     return {

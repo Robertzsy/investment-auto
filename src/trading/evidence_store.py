@@ -47,7 +47,9 @@ def save_cycle_evidence(cycle_id: Any, market: str, payload: Mapping[str, Any]) 
 
 def load_cycle_evidence(reference: str) -> Optional[Dict[str, Any]]:
     """Load an archived evidence graph by its audit reference."""
-    normalized = str(reference or "").replace("/", chr(92))
+    # Forward slashes are valid on every platform, so normalize any
+    # backslashes (Windows-authored references) instead of the reverse.
+    normalized = str(reference or "").replace(chr(92), "/")
     candidates = [ROOT / normalized]
     relative = Path(normalized)
     if "evidence" in relative.parts:

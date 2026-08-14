@@ -1,6 +1,7 @@
 architecture:
   audit_summary_only: true
   checkpoint_cycles: true
+  citation_attach_upstream: true
   citation_auto_repair: true
   evidence_store: true
   evidence_text_max_chars: 16000

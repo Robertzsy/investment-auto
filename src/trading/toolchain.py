@@ -100,6 +100,7 @@ def _execute_tool_call(
     minimum_citations: int,
     required_upstream_prefixes: Sequence[str],
     require_all_upstreams: bool,
+    attach_missing_upstream: bool = True,
 ) -> Tuple[Dict[str, Any], bool, Optional[Dict[str, Any]]]:
     """Execute one tool call.  Returns (tool_result, is_submit, submitted_payload)."""
     function = call.get("function", {}) if isinstance(call, Mapping) else {}
@@ -141,6 +142,7 @@ def _execute_tool_call(
                 allowed_evidence,
                 required_upstream_prefixes=required_upstream_prefixes,
                 require_all_upstream_prefixes=require_all_upstreams,
+                attach_missing_upstream=attach_missing_upstream,
             )
             if not repair_notes:
                 return {
@@ -198,6 +200,7 @@ def run_tool_mediated_chat(
     minimum_citations: int,
     required_upstream_prefixes: Sequence[str],
     require_all_upstreams: bool,
+    attach_missing_upstream: bool = True,
     tool_rounds: int,
     chat_kwargs: Mapping[str, Any],
 ) -> Tuple[Dict[str, Any], List[str]]:
@@ -242,6 +245,7 @@ def run_tool_mediated_chat(
                     allowed_evidence,
                     required_upstream_prefixes=required_upstream_prefixes,
                     require_all_upstream_prefixes=require_all_upstreams,
+                    attach_missing_upstream=attach_missing_upstream,
                 )
                 if not repair_notes:
                     raise validation_error
@@ -286,6 +290,7 @@ def run_tool_mediated_chat(
                 minimum_citations=minimum_citations,
                 required_upstream_prefixes=required_upstream_prefixes,
                 require_all_upstreams=require_all_upstreams,
+                attach_missing_upstream=attach_missing_upstream,
             )
             messages.append({
                 "role": "tool",

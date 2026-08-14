@@ -57,8 +57,10 @@ python -m src.main research --task bugfix \
 
 - 每轮启动**全新 Agent（无对话记忆）**，工作区 `runtime/research/workspace/` 是唯一
   长期记忆，轮间只传递有界结构化报告；
-- **受限 shell**：可执行文件白名单 + argv 直执行（免疫 shell 元字符注入）+ 项目目录
-  路径边界 + 最小化环境（不含生产密钥）。交易执行路径与管理对话 Agent 永远没有 shell；
+- **受限 shell**：可执行文件白名单 + argv 直执行（免疫 shell 元字符注入）+ 路径参数
+  边界校验 + 最小化环境（不含生产密钥）。注意：这是启发式约束而非 OS 级沙箱，python -c
+  代码字符串中的路径不受约束，研究 Agent 理论上可读取项目外文件；请仅在可信环境手动运行。
+  交易执行路径与管理对话 Agent 永远没有 shell；
 - 研究结论要进入生产配置，必须经 `apply_experiment_to_config`（SHA-256 记录、版本
   备份、全量测试、失败自动回滚）。
 

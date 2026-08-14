@@ -81,7 +81,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--task", default="backtest", choices=["backtest", "strategy_experiment", "bugfix"],
                         help="Research task type (research command)")
     parser.add_argument("--objective", default="", help="Immutable research objective")
-    parser.add_argument("--max-rounds", type=int, default=6, help="Fresh-agent round cap")
+    parser.add_argument("--max-rounds", type=int, default=None, help="Fresh-agent round cap (config default when empty)")
     return parser
 
 
@@ -210,15 +210,30 @@ def main() -> None:
 
     if args.command == "research":
         from dataclasses import asdict
+        from pathlib import Path
 
         from src.research.loop import run_research_loop
         from src.research.tasks import task_tools
 
+        research_settings = cfg.raw.get("architecture", {}).get("research", {}) or {}
+        if not bool(research_settings.get("enabled", True)):
+            raise SystemExit("离线研究循环未启用（architecture.research.enabled=false）")
+        max_rounds = args.max_rounds or int(research_settings.get("max_rounds", 6))
+        shell_mode = str(research_settings.get("shell", "restricted")).strip().lower()
+        include_shell_tools = shell_mode != "none"
+        shell_timeout_seconds = int(research_settings.get("shell_timeout_seconds", 60))
+        workspace_value = str(research_settings.get("workspace", "")).strip()
+        workspace_root = Path(workspace_value) if workspace_value else None
+        if workspace_root is not None and not workspace_root.is_absolute():
+            workspace_root = ROOT / workspace_root
         outcome = run_research_loop(
             args.objective,
             args.task,
             market=args.market,
-            max_rounds=args.max_rounds,
+            max_rounds=max_rounds,
+            workspace_root=workspace_root,
+            include_shell_tools=include_shell_tools,
+            shell_timeout_seconds=shell_timeout_seconds,
             extra_tools=task_tools(args.task),
             on_progress=lambda message: logger.info(message),
         )

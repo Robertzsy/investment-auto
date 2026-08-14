@@ -33,6 +33,32 @@ _ROLE_INSTRUCTIONS = {
 }
 
 
+def _cycle_input_hash(
+    market: str,
+    symbols: Sequence[str],
+    prices: Mapping[str, float],
+    config: Mapping[str, Any],
+    mandate: Mapping[str, Any],
+) -> str:
+    """Fingerprint the research inputs so a resume can detect drift."""
+    import hashlib
+
+    payload = {
+        "market": market,
+        "symbols": sorted(str(symbol).upper() for symbol in symbols),
+        "prices": {str(symbol).upper(): round(float(prices.get(symbol, 0)), 4) for symbol in symbols},
+        "mandate": {key: mandate.get(key) for key in ("profile", "version", "risk_policy_version")},
+        "risk": {key: config.get(key) for key in (
+            "max_position_pct", "min_confidence", "max_order_value_pct",
+            "max_cycle_turnover_pct", "max_orders_per_cycle",
+        )},
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+    return digest[:32]
+
+
 def _now(value: Optional[datetime] = None) -> datetime:
     timezone = ZoneInfo(cfg.schedule.get("timezone", "Asia/Shanghai"))
     if value is None:
@@ -455,11 +481,13 @@ def run_autonomous_cycle(
                     item for item in checkpoints.list_incomplete(now=current, stale_minutes=stale_minutes)
                     if str(item.get("market", "")) == market
                 ]
+                input_hash = _cycle_input_hash(market, symbols, prices, config, mandate)
                 if incomplete:
                     latest = incomplete[0]
                     previous_symbols = {str(symbol).upper() for symbol in latest.get("symbols", [])}
                     current_symbols = {str(symbol).upper() for symbol in symbols}
-                    if previous_symbols and previous_symbols == current_symbols:
+                    same_inputs = str(latest.get("input_hash", "")) == input_hash
+                    if previous_symbols and previous_symbols == current_symbols and same_inputs:
                         checkpoint_payload = {
                             "cycle_id": latest["cycle_id"], "market": market,
                             "resumed": True, "symbols": list(current_symbols),
@@ -468,11 +496,13 @@ def run_autonomous_cycle(
                         progress("检测到未完成的轮次，正在从检查点恢复研究进度…")
                     else:
                         checkpoints.discard_checkpoint(latest["cycle_id"])
-                        checkpoint_notes.append(f"discarded stale checkpoint {latest['cycle_id']}")
+                        reason = "input changed" if not same_inputs else "symbols changed"
+                        checkpoint_notes.append(f"discarded stale checkpoint {latest['cycle_id']} ({reason})")
                 if checkpoint_payload is None:
                     checkpoints.init_checkpoint(
                         base["generated_at"], market, symbols,
                         label=label, generated_at=base["generated_at"],
+                        input_hash=input_hash,
                     )
                     checkpoint_payload = {
                         "cycle_id": base["generated_at"], "market": market,
@@ -582,6 +612,26 @@ def run_autonomous_cycle(
                 now=current,
             )
             should_execute = bool(config.get("auto_execute", True)) and not dry_run
+            if checkpoint_payload and checkpoint_payload.get("resumed"):
+                try:
+                    from src.trading import checkpoints
+
+                    previous_state = checkpoints.load_checkpoint(checkpoint_payload["cycle_id"]) or {}
+                    if previous_state.get("execution_pending") and not previous_state.get("execution_completed"):
+                        # Fail safe: the previous attempt reached the execution
+                        # stage but its fills were never confirmed.  Never
+                        # replay fills; the next scheduled round catches up.
+                        should_execute = False
+                        checkpoint_notes.append("execution_skipped_after_resume")
+                except Exception:
+                    logger.debug("Resume fail-safe check failed", exc_info=True)
+            if checkpoint_payload and should_execute:
+                try:
+                    from src.trading import checkpoints
+
+                    checkpoints.mark_execution_pending(checkpoint_payload["cycle_id"])
+                except Exception:
+                    logger.debug("Could not mark execution pending", exc_info=True)
             progress("硬风控完成，正在提交允许的模拟订单…" if should_execute else "硬风控完成，本轮仅生成决策…")
             execution = execute_orders(
                 market,
@@ -593,6 +643,13 @@ def run_autonomous_cycle(
                 mark_prices=prices,
                 security_names=security_names,
             ) if should_execute else {"fills": [], "rejected": [], "dry_run": True}
+            if checkpoint_payload and should_execute:
+                try:
+                    from src.trading import checkpoints
+
+                    checkpoints.mark_execution_completed(checkpoint_payload["cycle_id"])
+                except Exception:
+                    logger.debug("Could not mark execution completed", exc_info=True)
             required_liquidations = risk.get("circuit_liquidation_quantities", {})
             filled_quantities: Dict[str, int] = {}
             for fill in execution.get("fills", []):

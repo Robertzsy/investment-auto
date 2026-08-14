@@ -31,8 +31,9 @@ TASK_DESCRIPTIONS: Dict[str, str] = {
         "给出可复现的推荐参数；生产配置只能通过 apply_code_change 版本化修改。"
     ),
     "bugfix": (
-        "先复现缺陷：工作区 cwd 在 runtime/research/workspace 下，PYTHONPATH 已指向项目根，"
-        "跑测试用 python -m pytest <项目根相对路径>（例如 python -m pytest tests/test_core.py）。"
+        "先复现缺陷：工作区 cwd 在 runtime/research/workspace 下，PYTHONPATH 已指向项目根。"
+        "跑测试必须用项目根绝对路径：python -m pytest {PROJECT_ROOT}/tests/xxx（例如 "
+        "python -m pytest {PROJECT_ROOT}/tests/test_core.py）。"
         "定位后通过 apply_code_change 修改代码，该工具会执行全量测试并在失败时自动回滚；"
         "每个修改都要写清原因。"
     ),
@@ -53,6 +54,7 @@ class RoundReport:
 class ResearchDeps:
     workspace: ResearchWorkspace
     round_no: int
+    shell_timeout_seconds: int = 60
 
 
 @dataclass
@@ -86,7 +88,11 @@ def build_round_prompt(
     workspace_index: Mapping[str, Any],
     previous_reports: Sequence[Mapping[str, Any]],
 ) -> str:
-    task_hint = TASK_DESCRIPTIONS.get(task, TASK_DESCRIPTIONS["backtest"])
+    from src.research.workspace import ROOT as _PROJECT_ROOT
+
+    task_hint = TASK_DESCRIPTIONS.get(task, TASK_DESCRIPTIONS["backtest"]).replace(
+        "{PROJECT_ROOT}", str(_PROJECT_ROOT)
+    )
     summaries = "\n".join(
         f"--- 第 {report.get('round', idx + 1)} 轮报告摘要 ---\n{_report_summary(report)}"
         for idx, report in enumerate(previous_reports)
@@ -108,8 +114,12 @@ def build_round_prompt(
     )
 
 
-def _workspace_tools():
-    """Return the shared workspace + sandbox tools with a bound RunContext."""
+def _workspace_tools(include_shell_tools: bool = True):
+    """Return the shared workspace tools with a bound RunContext.
+
+    include_shell_tools=False produces a shell-less agent (architecture.
+    research.shell=none); the trading plane never has a shell either way.
+    """
     from pydantic_ai import RunContext, Tool
 
     async def list_workspace(ctx: RunContext[ResearchDeps]) -> Dict[str, Any]:
@@ -122,28 +132,31 @@ def _workspace_tools():
         saved = ctx.deps.workspace.write_file(ctx.deps.round_no, path, content)
         return {"saved": str(saved.relative_to(ctx.deps.workspace.run_dir)).replace(chr(92), "/")}
 
-    async def run_research_command(ctx: RunContext[ResearchDeps], command: str, timeout: int = 60) -> Dict[str, Any]:
-        from src.research.sandbox import run_command
-
-        return run_command(
-            command,
-            workdir=ctx.deps.workspace.run_dir,
-            timeout=max(1, min(300, int(timeout))),
-        )
-
-    return [
+    tools = [
         Tool(list_workspace, sequential=True, timeout=15),
         Tool(read_workspace_file, sequential=True, timeout=15),
         Tool(write_workspace_file, sequential=True, timeout=15),
-        Tool(run_research_command, sequential=True, timeout=310),
     ]
+    if include_shell_tools:
+        async def run_research_command(ctx: RunContext[ResearchDeps], command: str, timeout: Optional[int] = None) -> Dict[str, Any]:
+            from src.research.sandbox import run_command
+
+            limit = max(1, min(300, int(timeout or ctx.deps.shell_timeout_seconds)))
+            return run_command(
+                command,
+                workdir=ctx.deps.workspace.run_dir,
+                timeout=limit,
+            )
+
+        tools.append(Tool(run_research_command, sequential=True, timeout=310))
+    return tools
 
 
-def default_agent_factory(extra_tools: Sequence[Any] = ()):
+def default_agent_factory(extra_tools: Sequence[Any] = (), include_shell_tools: bool = True):
     from pydantic_ai import Agent
     from src.llm.agent_model import resolve_agent_model
 
-    tools = [*_workspace_tools(), *list(extra_tools)]
+    tools = [*_workspace_tools(include_shell_tools=include_shell_tools), *list(extra_tools)]
     return Agent(
         name="investment_research",
         deps_type=ResearchDeps,
@@ -163,6 +176,8 @@ def run_research_loop(
     max_rounds: int = 6,
     workspace_root: Optional[Path] = None,
     extra_tools: Sequence[Any] = (),
+    include_shell_tools: bool = True,
+    shell_timeout_seconds: int = 60,
     on_progress: Optional[Callable[[str], None]] = None,
     agent_factory: Optional[Callable[..., Any]] = None,
 ) -> ResearchOutcome:
@@ -191,11 +206,13 @@ def run_research_loop(
             meta_path = workspace.run_dir / "meta.json"
             meta = _json.loads(meta_path.read_text(encoding="utf-8"))
             meta["market"] = str(market).lower()
-            meta_path.write_text(_json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            temporary = meta_path.with_suffix(".json.tmp")
+            temporary.write_text(_json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            temporary.replace(meta_path)
         except Exception:
-            pass
+            logger.debug("Could not record market in workspace meta", exc_info=True)
     factory = agent_factory or default_agent_factory
-    agent = factory(extra_tools=extra_tools)
+    agent = factory(extra_tools=extra_tools, include_shell_tools=include_shell_tools)
     from pydantic_ai import UsageLimits
 
     last_report: Dict[str, Any] = {}
@@ -208,7 +225,10 @@ def run_research_loop(
             workspace_index=workspace.index(),
             previous_reports=workspace.read_round_reports(3),
         )
-        deps = ResearchDeps(workspace=workspace, round_no=round_no)
+        deps = ResearchDeps(
+            workspace=workspace, round_no=round_no,
+            shell_timeout_seconds=shell_timeout_seconds,
+        )
         try:
             result = agent.run_sync(
                 prompt,

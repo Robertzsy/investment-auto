@@ -156,7 +156,7 @@ python -m src.main research --task bugfix --objective 修复XX模块缺陷 --max
 
 - 每轮启动全新 Agent（无对话记忆），工作区 runtime/research/workspace/<run>/ 是唯一长期记忆，轮间只传递有界结构化报告。
 - 任务类型：backtest（确定性规则回测，不复用生产账户）、strategy_experiment（参数对比实验）、bugfix（复现→修改→全量测试→失败自动回滚）。
-- **受限 shell**：研究循环的命令执行限制在项目目录内，采用可执行文件白名单 + argv 直执行（无 shell 元字符）+ 路径边界校验 + 最小化环境（不含生产密钥）；交易执行路径与管理对话 Agent 永远没有 shell。
+- **受限 shell**：研究循环的命令执行采用可执行文件白名单 + argv 直执行（无 shell 元字符）+ 路径参数边界校验 + 最小化环境（不含生产密钥）。注意：这是启发式约束而非 OS 级沙箱——python -c 代码字符串中的路径不受边界校验约束，研究 Agent 理论上可读取项目外文件（包括 .env 密钥文件）；请仅在可信环境手动运行研究循环。交易执行路径与管理对话 Agent 永远没有 shell。
 - 研究结论要进入生产配置时，必须经 apply_experiment_to_config（版本化变更管理器：SHA-256 记录、版本备份、全量测试、失败自动回滚）。
 
 ## 多模型接入
