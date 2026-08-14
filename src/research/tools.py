@@ -40,15 +40,34 @@ def run_strategy_experiment(
     max_rounds: int = 4,
 ) -> Dict[str, Any]:
     """Run fresh-agent research rounds (backtest/experiment/bugfix) in the isolated workspace."""
+    from pathlib import Path
+
+    from src.config import cfg
     from src.research.loop import run_research_loop
     from src.research.tasks import task_tools
 
+    architecture = cfg.raw.get("architecture", {}) or {}
+    settings = architecture.get("research", {}) or {}
+    if not bool(settings.get("enabled", True)):
+        return {"status": "disabled", "reason": "architecture.research.enabled=false"}
+    shell_mode = str(settings.get("shell", "restricted")).strip().lower()
+    workspace_value = str(settings.get("workspace", "")).strip()
+    workspace_root = None
+    if workspace_value:
+        from src.research.workspace import ROOT as _ROOT
+
+        workspace_root = Path(workspace_value)
+        if not workspace_root.is_absolute():
+            workspace_root = _ROOT / workspace_root
     task = "strategy_experiment"
     outcome = run_research_loop(
         objective,
         task,
         market=market,
-        max_rounds=max_rounds,
+        max_rounds=int(max_rounds or settings.get("max_rounds", 6)),
+        workspace_root=workspace_root,
+        include_shell_tools=shell_mode != "none",
+        shell_timeout_seconds=int(settings.get("shell_timeout_seconds", 60)),
         extra_tools=task_tools(task),
     )
     return asdict(outcome)

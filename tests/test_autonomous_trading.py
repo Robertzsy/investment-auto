@@ -9,7 +9,7 @@ import pytest
 
 from src.trading.broker import execute_orders
 from src.trading.control import activate_kill_switch, load_state, reset_kill_switch, set_paused
-from src.trading import controller
+from src.trading import agent_workflow, controller
 from src.trading.controller import _account_for_agents, _normalize_decisions, _parse_json_object
 from src.trading.risk import build_orders
 
@@ -397,20 +397,21 @@ def test_catch_up_never_replays_trades_by_default(monkeypatch):
     assert result["status"] == "skipped"
 
 
-def test_resumed_cycle_skips_execution_fail_safe(monkeypatch, tmp_path):
+def _staged_autonomous_setup(monkeypatch, tmp_path):
+    """Common wiring: real staged-workflow path with a fake workflow that
+    still drives the checkpoint state machine exactly like the real one."""
     from types import SimpleNamespace
 
     from src.trading import checkpoints
 
-    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
     autonomous = {
         **AUTO_CONFIG,
         "enabled": True,
         "auto_execute": True,
-        "committee_roles": ["analyst", "risk_chairman"],
-        "minimum_agent_responses": 2,
         "minimum_priced_symbols": 1,
         "max_universe_size": 2,
+        "agent_workflow": {"enabled": True},
     }
     monkeypatch.setitem(controller.cfg.raw, "autonomous", autonomous)
     monkeypatch.setitem(
@@ -425,12 +426,6 @@ def test_resumed_cycle_skips_execution_fail_safe(monkeypatch, tmp_path):
     monkeypatch.setattr(controller.account_store, "account", lambda market: {
         "cash": 100_000, "holdings": [], "tradeHistory": [],
     })
-
-    # A previous attempt reached execution but its fills were never confirmed.
-    monkeypatch.setattr(controller, "_cycle_input_hash", lambda *a, **kw: "fixed-hash")
-    checkpoints.init_checkpoint("old-cycle", "cn", ["600519"], input_hash="fixed-hash")
-    checkpoints.mark_execution_pending("old-cycle")
-
     screening = SimpleNamespace(
         symbols=["600519"],
         snapshots={"600519": {"realtime": {"price": 100, "name": "测试"}, "history": [], "indicators": {}}},
@@ -438,28 +433,89 @@ def test_resumed_cycle_skips_execution_fail_safe(monkeypatch, tmp_path):
         audit={"status": "ok", "selected": [{"symbol": "600519", "name": "测试"}]},
     )
     monkeypatch.setattr(controller, "_screening_outcome", lambda *a, **kw: screening)
-    monkeypatch.setattr(controller, "_run_committee_member", lambda role, context: {
-        "role": role, "response": '{"summary":"ok"}',
-    })
-    monkeypatch.setattr(controller, "_chair_decision", lambda market, context, committee, config: {
-        "thesis": "test",
-        "decisions": [{"decision_id": "c1", "symbol": "600519", "action": "BUY",
-                        "target_weight": 0.1, "confidence": 0.9, "reason": "x"}],
-    })
+    monkeypatch.setattr(controller, "_cycle_input_hash", lambda *a, **kw: "fixed-hash")
+    return checkpoints
+
+
+def _fake_staged_workflow(context, config, checkpoint=None):
+    from src.trading import checkpoints
+
+    if checkpoint and checkpoint.get("cycle_id"):
+        checkpoints.mark_research_completed(checkpoint["cycle_id"])
+    return {
+        "workflow": "fake_staged",
+        "portfolio_manager": {"decisions": [{
+            "decision_id": "p1", "symbol": "600519", "action": "BUY",
+            "target_weight": 0.1, "confidence": 0.9, "reason": "x",
+        }]},
+        "evidence_ref": "",
+    }
+
+
+def test_normal_staged_cycle_walks_the_state_machine(monkeypatch, tmp_path):
+    checkpoints = _staged_autonomous_setup(monkeypatch, tmp_path)
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", _fake_staged_workflow)
     captured = {}
 
     def fake_execute(market, orders, **kwargs):
         captured["orders"] = orders
+        return {"fills": [{"code": "600519", "action": "BUY", "shares": 100}], "rejected": []}
+
+    monkeypatch.setattr(controller, "execute_orders", fake_execute)
+    result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
+
+    assert result["status"] == "executed"
+    assert captured["orders"], "broker must receive the order"
+    cycle_id = result["checkpoint"]["cycle_id"]
+    state = checkpoints.load_checkpoint(cycle_id)
+    assert state["status"] == "completed"
+    assert state["execution_completed"] is True
+
+
+def test_pending_checkpoint_freezes_whole_cycle(monkeypatch, tmp_path):
+    # Crash window B/C: research done, execution pending, fills unconfirmed.
+    checkpoints = _staged_autonomous_setup(monkeypatch, tmp_path)
+    checkpoints.init_checkpoint("pending-cycle", "cn", ["600519"], input_hash="fixed-hash")
+    checkpoints.mark_execution_pending("pending-cycle")
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", _fake_staged_workflow)
+    broker_called = []
+
+    def fake_execute(market, orders, **kwargs):
+        broker_called.append(orders)
         return {"fills": [], "rejected": []}
 
     monkeypatch.setattr(controller, "execute_orders", fake_execute)
     result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
 
-    assert "orders" not in captured  # fail-safe: the broker was never called
-    checkpoint_block = result.get("checkpoint", {})
-    assert checkpoint_block.get("resumed") is True
-    assert "execution_skipped_after_resume" in checkpoint_block.get("notes", [])
-    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"
+    assert result["status"] == "blocked"
+    assert broker_called == [], "broker must never run against unconfirmed fills"
+    notes = result.get("checkpoint", {}).get("notes", [])
+    assert any("frozen" in note for note in notes)
+    # The unconfirmable checkpoint is gone; next round starts fresh.
+    assert checkpoints.load_checkpoint("pending-cycle") is None
+
+
+def test_research_completed_checkpoint_resumes_and_executes(monkeypatch, tmp_path):
+    # Crash window A: research finished, execution never started.  A resume
+    # with matching inputs may safely continue into a fresh execution.
+    checkpoints = _staged_autonomous_setup(monkeypatch, tmp_path)
+    checkpoints.init_checkpoint("research-cycle", "cn", ["600519"], input_hash="fixed-hash")
+    checkpoints.mark_research_completed("research-cycle")
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", _fake_staged_workflow)
+    captured = {}
+
+    def fake_execute(market, orders, **kwargs):
+        captured["orders"] = orders
+        return {"fills": [{"code": "600519", "action": "BUY", "shares": 100}], "rejected": []}
+
+    monkeypatch.setattr(controller, "execute_orders", fake_execute)
+    result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
+
+    assert result["status"] == "executed"
+    assert result["checkpoint"]["resumed"] is True
+    assert captured["orders"], "resumed research may still execute fresh orders"
+    state = checkpoints.load_checkpoint("research-cycle")
+    assert state["status"] == "completed"
 
 
 def test_normal_cycle_marks_execution_pending_and_completed(monkeypatch, tmp_path):
@@ -467,7 +523,7 @@ def test_normal_cycle_marks_execution_pending_and_completed(monkeypatch, tmp_pat
 
     from src.trading import checkpoints
 
-    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
     autonomous = {
         **AUTO_CONFIG,
         "enabled": True,

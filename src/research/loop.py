@@ -32,8 +32,8 @@ TASK_DESCRIPTIONS: Dict[str, str] = {
     ),
     "bugfix": (
         "先复现缺陷：工作区 cwd 在 runtime/research/workspace 下，PYTHONPATH 已指向项目根。"
-        "跑测试必须用项目根绝对路径：python -m pytest {PROJECT_ROOT}/tests/xxx（例如 "
-        "python -m pytest {PROJECT_ROOT}/tests/test_core.py）。"
+        "跑测试必须用项目根绝对路径，并且要用正斜杠加双引号："
+        "python -m pytest \"{PROJECT_ROOT}/tests/test_core.py\"（反斜杠会被命令解析吞掉）。"
         "定位后通过 apply_code_change 修改代码，该工具会执行全量测试并在失败时自动回滚；"
         "每个修改都要写清原因。"
     ),
@@ -91,7 +91,7 @@ def build_round_prompt(
     from src.research.workspace import ROOT as _PROJECT_ROOT
 
     task_hint = TASK_DESCRIPTIONS.get(task, TASK_DESCRIPTIONS["backtest"]).replace(
-        "{PROJECT_ROOT}", str(_PROJECT_ROOT)
+        "{PROJECT_ROOT}", str(_PROJECT_ROOT).replace(chr(92), "/")
     )
     summaries = "\n".join(
         f"--- 第 {report.get('round', idx + 1)} 轮报告摘要 ---\n{_report_summary(report)}"
@@ -141,7 +141,8 @@ def _workspace_tools(include_shell_tools: bool = True):
         async def run_research_command(ctx: RunContext[ResearchDeps], command: str, timeout: Optional[int] = None) -> Dict[str, Any]:
             from src.research.sandbox import run_command
 
-            limit = max(1, min(300, int(timeout or ctx.deps.shell_timeout_seconds)))
+            configured = max(1, ctx.deps.shell_timeout_seconds)
+            limit = max(1, min(configured, int(timeout or configured)))
             return run_command(
                 command,
                 workdir=ctx.deps.workspace.run_dir,

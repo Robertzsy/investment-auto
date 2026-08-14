@@ -450,3 +450,56 @@ def test_call_role_skips_repair_when_disabled(monkeypatch, tmp_path):
 
     assert len(calls) == 2  # repair disabled: full retry as before
     assert "citation_repairs" not in result
+
+
+
+def test_workflow_marks_research_completed_not_completed(monkeypatch, tmp_path):
+    from src.trading import checkpoints
+
+    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+    checkpoints.init_checkpoint("cycle-w", "cn", ["600519"])
+
+    def fake_call(role, **kwargs):
+        evidence = kwargs["evidence"]
+        citation = next(iter(evidence))
+        if kwargs.get("portfolio"):
+            return {
+                "role": role, "thesis": "t",
+                "decisions": [{"decision_id": "d", "symbol": "600519", "action": "BUY",
+                                 "target_weight": 0.1, "confidence": 0.8, "reason": "r",
+                                 "evidence_ids": [citation]}],
+                "citations": [citation],
+            }
+        return {
+            "role": role, "summary": "s",
+            "findings": [{"claim": "c", "evidence_ids": [citation]}],
+            "citations": [citation],
+        }
+
+    monkeypatch.setattr(agent_workflow, "_call_role", fake_call)
+    monkeypatch.setattr(
+        agent_workflow, "_parallel_roles",
+        lambda roles, **kwargs: ({role: fake_call(role, **kwargs) for role in roles}, {}),
+    )
+    monkeypatch.setattr(agent_workflow, "_architecture_settings", lambda: {"evidence_store": False})
+    context = _context()
+    context["snapshots"] = {
+        "600519": {
+            "realtime": {"price": 100, "pe": 20},
+            "indicators": {"rsi": {"rsi14": 55}},
+            "history": [{"date": "2026-08-11", "close": 99}],
+        }
+    }
+    result = agent_workflow.run_analysis_workflow(
+        context, _config(),
+        memory_store=agent_workflow.AgentMemoryStore(tmp_path / "memory"),
+        checkpoint={"cycle_id": "cycle-w"},
+    )
+
+    state = checkpoints.load_checkpoint("cycle-w")
+    # The workflow owns research only; execution state belongs to the
+    # controller.  Marking completed here would hide unconfirmed pending
+    # executions from the resume scan.
+    assert state["status"] == "research_completed"
+    assert result["checkpoint_cycle_id"] == "cycle-w"
+    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"

@@ -138,22 +138,38 @@ def mark_completed(cycle_id: str) -> None:
 
 
 def mark_execution_completed(cycle_id: str) -> None:
+    """Terminal state: the broker confirmed fills and the account is persisted."""
     update_index(cycle_id, {"execution_completed": True, "status": "completed"})
 
 
 def mark_execution_pending(cycle_id: str) -> None:
-    update_index(cycle_id, {"execution_pending": True, "execution_completed": False})
+    """The cycle is about to send orders; a crash after this point must
+    freeze execution on resume instead of replaying unconfirmed fills."""
+    update_index(cycle_id, {
+        "execution_pending": True,
+        "execution_completed": False,
+        "status": "execution_pending",
+    })
+
+
+def mark_research_completed(cycle_id: str) -> None:
+    """Research finished but no orders were prepared yet."""
+    update_index(cycle_id, {"status": "research_completed"})
 
 
 def list_incomplete(now: Optional[datetime] = None, stale_minutes: int = 90) -> List[Dict[str, Any]]:
-    """Return runnable, non-stale checkpoint indexes ordered by age."""
+    """Return recoverable, non-stale checkpoint indexes, newest first.
+
+    execution_pending entries are included: their fills were never
+    confirmed and the caller must freeze trading for them.
+    """
     current = now or datetime.now(TIMEZONE)
     if current.tzinfo is None:
         current = current.replace(tzinfo=TIMEZONE)
     results: List[Dict[str, Any]] = []
     if not CHECKPOINT_DIR.exists():
         return results
-    for path in sorted(CHECKPOINT_DIR.glob("*/index.json"), key=lambda item: item.stat().st_mtime):
+    for path in sorted(CHECKPOINT_DIR.glob("*/index.json"), key=lambda item: item.stat().st_mtime, reverse=True):
         payload = _read_json(path)
         if not payload:
             continue

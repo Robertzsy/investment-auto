@@ -33,25 +33,56 @@ _ROLE_INSTRUCTIONS = {
 }
 
 
+def _market_rules_fingerprint(market: str, symbols: Sequence[str]) -> Dict[str, Any]:
+    rules = cfg.market_config(market)
+    if not isinstance(rules, Mapping):
+        return {}
+    return {key: rules.get(key) for key in ("trading", "risk", "settlement") if key in rules}
+
+
 def _cycle_input_hash(
     market: str,
     symbols: Sequence[str],
     prices: Mapping[str, float],
     config: Mapping[str, Any],
     mandate: Mapping[str, Any],
+    account: Optional[Mapping[str, Any]] = None,
 ) -> str:
-    """Fingerprint the research inputs so a resume can detect drift."""
+    """Fingerprint the research inputs so a resume can detect drift.
+
+    Includes the account state: a cash or holdings change invalidates
+    cached portfolio decisions even when symbols and prices match.
+    """
     import hashlib
+
+    account_summary = {}
+    if isinstance(account, Mapping):
+        account_summary = {
+            "cash": round(float(account.get("cash", 0) or 0), 4),
+            "holdings": sorted(
+                [
+                    {
+                        "code": str(holding.get("code", "") or "").upper(),
+                        "shares": int(float(holding.get("shares", holding.get("quantity", 0)) or 0)),
+                    }
+                    for holding in account.get("holdings", [])
+                    if isinstance(holding, Mapping)
+                ],
+                key=lambda item: item["code"],
+            ),
+        }
 
     payload = {
         "market": market,
         "symbols": sorted(str(symbol).upper() for symbol in symbols),
         "prices": {str(symbol).upper(): round(float(prices.get(symbol, 0)), 4) for symbol in symbols},
-        "mandate": {key: mandate.get(key) for key in ("profile", "version", "risk_policy_version")},
-        "risk": {key: config.get(key) for key in (
-            "max_position_pct", "min_confidence", "max_order_value_pct",
-            "max_cycle_turnover_pct", "max_orders_per_cycle",
-        )},
+        # The full mandate, not a few fields: any profile/prompt/limit
+        # change invalidates cached research decisions.
+        "mandate": dict(mandate),
+        "risk": {key: config.get(key) for key in sorted(config) if key.startswith(("max_", "min_", "drawdown", "stop", "take_profit", "reserve", "turnover", "confidence", "orders", "position"))},
+        "trading": dict(cfg.trading),
+        "market_rules": _market_rules_fingerprint(market, symbols),
+        "account": account_summary,
     }
     digest = hashlib.sha256(
         json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
@@ -426,6 +457,49 @@ def run_autonomous_cycle(
         checkpoint_enabled = bool(architecture.get("checkpoint_cycles", False))
         checkpoint_payload: Optional[Dict[str, Any]] = None
         checkpoint_notes: List[str] = []
+
+        # Fail-safe gate, before any screening or research: a previous
+        # cycle that reached execution_pending has unconfirmed fills.
+        # Whatever the current prices, symbols or inputs, freeze this
+        # round so the broker is never asked to replay them.  The next
+        # scheduled round starts a fresh cycle.
+        if checkpoint_enabled:
+            try:
+                from src.trading import checkpoints
+
+                stale_minutes = int(architecture.get("resume_stale_minutes", 90))
+                pending_cycles = [
+                    item for item in checkpoints.list_incomplete(now=current, stale_minutes=stale_minutes)
+                    if str(item.get("market", "")) == market
+                    and item.get("status") == "execution_pending"
+                ]
+                if pending_cycles:
+                    for item in pending_cycles:
+                        checkpoints.discard_checkpoint(item["cycle_id"])
+                        checkpoint_notes.append(
+                            f"execution_frozen_after_unconfirmed_pending {item['cycle_id']}"
+                        )
+                    audit = {
+                        **base,
+                        "status": "blocked",
+                        "reason": "上一轮成交状态未确认，本轮冻结下单（fail-safe）；下一轮将重新开始",
+                        "checkpoint": {"notes": checkpoint_notes, "resumed": False},
+                    }
+                    path = _write_audit(audit, current, market, label)
+                    progress("检测到未确认的成交状态，本轮冻结下单…")
+                    return {**audit, "audit_file": str(path)}
+            except Exception as exc:
+                # Fail closed: an unreadable checkpoint store must never
+                # lead to order replay.  Block the whole cycle.
+                logger.exception("Checkpoint fail-safe gate failed; blocking cycle")
+                audit = {
+                    **base,
+                    "status": "blocked",
+                    "reason": f"成交状态检查异常，本轮冻结下单: {str(exc)[:200]}",
+                }
+                path = _write_audit(audit, current, market, label)
+                return {**audit, "audit_file": str(path)}
+
         progress("正在从全市场筛选优质候选，并合并已有持仓…")
         try:
             screening_outcome = _screening_outcome(market, account, config, current)
@@ -481,7 +555,7 @@ def run_autonomous_cycle(
                     item for item in checkpoints.list_incomplete(now=current, stale_minutes=stale_minutes)
                     if str(item.get("market", "")) == market
                 ]
-                input_hash = _cycle_input_hash(market, symbols, prices, config, mandate)
+                input_hash = _cycle_input_hash(market, symbols, prices, config, mandate, account)
                 if incomplete:
                     latest = incomplete[0]
                     previous_symbols = {str(symbol).upper() for symbol in latest.get("symbols", [])}
@@ -624,14 +698,23 @@ def run_autonomous_cycle(
                         should_execute = False
                         checkpoint_notes.append("execution_skipped_after_resume")
                 except Exception:
-                    logger.debug("Resume fail-safe check failed", exc_info=True)
+                    # Fail closed: an unreadable previous state cannot prove
+                    # the fills were confirmed, so freeze this round.
+                    should_execute = False
+                    checkpoint_notes.append("execution_frozen_check_failed")
+                    logger.exception("Resume fail-safe check failed; freezing execution")
             if checkpoint_payload and should_execute:
                 try:
                     from src.trading import checkpoints
 
                     checkpoints.mark_execution_pending(checkpoint_payload["cycle_id"])
                 except Exception:
-                    logger.debug("Could not mark execution pending", exc_info=True)
+                    # Fail closed: without a persisted pending marker, a
+                    # crash during the broker call could not be detected on
+                    # resume.  Never send orders without that marker.
+                    should_execute = False
+                    checkpoint_notes.append("execution_frozen_pending_write_failed")
+                    logger.exception("Could not mark execution pending; freezing execution")
             progress("硬风控完成，正在提交允许的模拟订单…" if should_execute else "硬风控完成，本轮仅生成决策…")
             execution = execute_orders(
                 market,
@@ -649,7 +732,10 @@ def run_autonomous_cycle(
 
                     checkpoints.mark_execution_completed(checkpoint_payload["cycle_id"])
                 except Exception:
-                    logger.debug("Could not mark execution completed", exc_info=True)
+                    # Fills are already persisted, but the next round will
+                    # see execution_pending and freeze - the safe direction.
+                    checkpoint_notes.append("execution_completed_write_failed")
+                    logger.warning("Could not mark execution completed; next round will freeze", exc_info=True)
             required_liquidations = risk.get("circuit_liquidation_quantities", {})
             filled_quantities: Dict[str, int] = {}
             for fill in execution.get("fills", []):

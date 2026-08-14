@@ -148,6 +148,9 @@ def test_execution_fail_safe_state_machine(monkeypatch, tmp_path):
     checkpoints.mark_execution_pending("cycle-x")
     state = checkpoints.load_checkpoint("cycle-x")
     assert state["execution_pending"] and not state["execution_completed"]
+    assert state["status"] == "execution_pending"
+    # execution_pending must stay discoverable by the resume scan
+    assert any(item["cycle_id"] == "cycle-x" for item in checkpoints.list_incomplete(now=NOW, stale_minutes=90))
 
     checkpoints.mark_execution_completed("cycle-x")
     state = checkpoints.load_checkpoint("cycle-x")

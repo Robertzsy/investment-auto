@@ -1039,9 +1039,13 @@ def run_analysis_workflow(
         try:
             from src.trading import checkpoints
 
-            checkpoints.mark_completed(checkpoint_cycle_id)
+            # The workflow only finishes research.  Execution state is
+            # owned by the controller: marking the whole cycle completed
+            # here would make an unconfirmed pending execution invisible
+            # to the resume scan and defeat the replay fail-safe.
+            checkpoints.mark_research_completed(checkpoint_cycle_id)
         except Exception:
-            logger.debug("Could not mark checkpoint completed", exc_info=True)
+            logger.warning("Could not mark checkpoint research completed", exc_info=True)
 
     first_symbol = symbols[0]
     from src.trading import evidence_store
