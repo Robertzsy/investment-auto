@@ -29,10 +29,11 @@ import re
 import sys
 import threading
 import time
+import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, Iterator, List, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
 from pydantic_core import to_jsonable_python
@@ -57,7 +58,9 @@ _FORBIDDEN_IMPORTS = (
 
 _name_locks: Dict[str, threading.Lock] = {}
 _name_locks_guard = threading.Lock()
-_FILE_LOCK_STALE_SECONDS = 60
+# Stale detection must outlive the longest allowed test command (180s) and
+# the manager tool timeout (420s); 600s leaves a wide margin.
+_FILE_LOCK_STALE_SECONDS = 600
 
 
 def _now() -> str:
@@ -82,11 +85,12 @@ def _file_lock(name: str) -> Iterator[None]:
     directory = ROOT / "runtime" / "manager" / "locks"
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{name}.lock"
+    token = f"{os.getpid()}:{uuid.uuid4().hex}"
     acquired = False
     for _attempt in range(50):  # up to ~5s
         try:
             descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(descriptor, b"1")
+            os.write(descriptor, token.encode("ascii"))
             os.close(descriptor)
             acquired = True
             break
@@ -102,8 +106,12 @@ def _file_lock(name: str) -> Iterator[None]:
     try:
         yield
     finally:
+        # Only the owner releases; a stale reaper must never delete a
+        # live holder's lock between the check and the unlink.
         try:
-            path.unlink(missing_ok=True)
+            current = path.read_text(encoding="ascii", errors="ignore").strip()
+            if current == token:
+                path.unlink(missing_ok=True)
         except OSError:
             pass
 
@@ -148,11 +156,27 @@ def _verify_function(schema: Mapping[str, Any], function: Callable[..., Any], fu
     if inspect.iscoroutinefunction(function):
         raise ValueError(f"工具函数 {function_name} 不能是 async 函数")
     signature = inspect.signature(function)
+    parameters = signature.parameters
+    var_params = [
+        name for name, parameter in parameters.items()
+        if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+    ]
+    if var_params:
+        raise ValueError(f"工具函数 {function_name} 不支持 *args/**kwargs: {', '.join(var_params)}")
+    pos_only = [
+        name for name, parameter in parameters.items()
+        if parameter.kind is inspect.Parameter.POSITIONAL_ONLY
+    ]
+    if pos_only:
+        raise ValueError(f"工具函数 {function_name} 不支持仅位置参数（工具按名称传参）: {', '.join(pos_only)}")
     properties = schema.get("properties", {})
-    if not isinstance(properties, Mapping):
-        return
     required = set(schema.get("required", []) or [])
-    parameters = set(signature.parameters)
+    if isinstance(properties, Mapping):
+        # Every schema property must be a real function parameter, or the
+        # pydantic tool schema would send arguments the function rejects.
+        unknown = sorted(str(key) for key in properties if str(key) not in parameters)
+        if unknown:
+            raise ValueError(f"schema 属性不在函数参数中: {', '.join(unknown)}")
     missing = sorted(
         name for name in required
         if isinstance(name, str) and name not in parameters
@@ -161,6 +185,31 @@ def _verify_function(schema: Mapping[str, Any], function: Callable[..., Any], fu
         raise ValueError(
             f"函数 {function_name} 缺少 schema 中 required 的参数: {', '.join(missing)}"
         )
+    # Every parameter without a default must be callable through the tool
+    # schema, so it has to be declared required.
+    no_default = [
+        name for name, parameter in parameters.items()
+        if parameter.default is inspect.Parameter.empty
+    ]
+    undeclared = [name for name in no_default if name not in required]
+    if undeclared:
+        raise ValueError(
+            f"函数 {function_name} 的无默认值参数未列入 schema.required: {', '.join(undeclared)}"
+        )
+
+
+def _static_required_params(code: str, function_name: str) -> List[str]:
+    """Parse the entry function's required parameters without importing."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
+            positional = list(node.args.posonlyargs) + list(node.args.args)
+            default_count = len(node.args.defaults)
+            return [argument.arg for argument in positional[:len(positional) - default_count]]
+    return []
 
 
 def _trial_invoke(function: Callable[..., Any], arguments: Mapping[str, Any]) -> Any:
@@ -172,11 +221,19 @@ def _trial_invoke(function: Callable[..., Any], arguments: Mapping[str, Any]) ->
 def uninstall_manager_tool_complete(name: str) -> Dict[str, Any]:
     """Remove manifest, source module and the import cache entry together.
 
-    This lets a tool with the same name be recreated afterwards.
+    This lets a tool with the same name be recreated afterwards.  The
+    same per-name thread lock and cross-process file lock as creation
+    guard the removal, so a concurrent create cannot interleave with it.
     """
+    capability = _clean_name(name)
+    with _per_name_lock(capability):
+        with _file_lock(capability):
+            return _uninstall_manager_tool_locked(capability)
+
+
+def _uninstall_manager_tool_locked(capability: str) -> Dict[str, Any]:
     from src.manager.capabilities import CapabilityRegistry
 
-    capability = _clean_name(name)
     registry = CapabilityRegistry()
     manifest = registry.uninstall_tool(capability)
     file_path = TOOL_MODULE_DIR / f"{capability}.py"
@@ -266,8 +323,15 @@ def _create_manager_tool_locked(
     if not code.strip():
         raise ValueError("code 不能为空")
     _reject_forbidden_imports(code)
-    if not re.search(rf"\n(?:async\s+)?def\s+{re.escape(function_name)}\s*\(", code):
+    if not re.search(rf"(?m)^(?:async\s+)?def\s+{re.escape(function_name)}\s*\(", code):
         raise ValueError(f"code 中必须定义函数 def {function_name}(...)")
+    if not isinstance(test_args, Mapping) and not isinstance(fulfill_args, Mapping):
+        required_params = _static_required_params(code, function_name)
+        if required_params:
+            raise ValueError(
+                f"函数 {function_name} 有必填参数 {', '.join(required_params)}，"
+                "请提供 test_args_json 或 fulfill_args_json 作为试调用参数"
+            )
 
     module_path = f"src.manager.tools.{capability}"
     file_path = TOOL_MODULE_DIR / f"{capability}.py"
@@ -373,7 +437,16 @@ def _create_manager_tool_locked(
 
         steps.append("trial_call")
         # A trial call is mandatory: no verification means no registration.
-        trial_arguments = dict(test_args) if isinstance(test_args, Mapping) else {}
+        # When only fulfill_args are given they serve as the trial too, so
+        # side-effectful tools execute exactly once per creation.
+        has_test = isinstance(test_args, Mapping)
+        has_fulfill = isinstance(fulfill_args, Mapping)
+        if has_test:
+            trial_arguments = dict(test_args)
+        elif has_fulfill:
+            trial_arguments = dict(fulfill_args)
+        else:
+            trial_arguments = {}
         try:
             trial = {"result": _trial_invoke(function, trial_arguments)}
         except Exception as exc:
@@ -381,11 +454,17 @@ def _create_manager_tool_locked(
 
         steps.append("fulfill")
         fulfill: Optional[Dict[str, Any]] = None
-        if isinstance(fulfill_args, Mapping):
-            try:
-                fulfill = {"result": _trial_invoke(function, dict(fulfill_args))}
-            except Exception as exc:
-                fulfill = {"error": str(exc)[:1000]}
+        if has_fulfill:
+            if not has_test or dict(fulfill_args) == trial_arguments:
+                # No separate test case, or identical arguments: reuse the
+                # trial result instead of running the tool twice.
+                fulfill = dict(trial)
+                fulfill["shared_with_trial"] = True
+            else:
+                try:
+                    fulfill = {"result": _trial_invoke(function, dict(fulfill_args))}
+                except Exception as exc:
+                    fulfill = {"error": str(exc)[:1000]}
 
         status = "created"
         if fulfill is not None and "error" in fulfill:

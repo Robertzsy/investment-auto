@@ -203,11 +203,23 @@ def test_create_tool_fulfill_error_is_captured_not_fatal(monkeypatch, tmp_path):
         description="调用参数错误",
         code=SAMPLE_CODE,
         parameters_schema=SAMPLE_SCHEMA,
-        fulfill_args={"missing": "nope"},  # missing required arg raises
+        test_args={"symbol": "ok"},  # a passing trial
+        fulfill_args={"missing": "nope"},  # bad fulfill keeps the tool, flagged
     )
 
     assert result["status"] == "created_fulfill_failed"  # creation stands, clearly flagged
     assert "error" in result["fulfill_result"]
+    # Without a separate valid trial, bad fulfill args would have been
+    # the trial itself and rolled the creation back (see the contract tests).
+    bad_only = tool_factory.create_manager_tool(
+        name="fulfill_bad_only",
+        description="只有坏 fulfill",
+        code=SAMPLE_CODE,
+        parameters_schema=SAMPLE_SCHEMA,
+        fulfill_args={"missing": "nope"},
+    )
+    assert bad_only["status"] == "rolled_back"
+    assert bad_only["stage"] == "trial_call"
 
 
 
@@ -346,27 +358,32 @@ async def run() -> dict:
 
 
 def test_mandatory_trial_call_without_args(monkeypatch, tmp_path):
-    # No test_args means an empty trial: parameterless tools pass, tools
-    # with required parameters fail their trial and roll back.
+    # Neither test nor fulfill args, but the function has a required
+    # parameter: a clear preflight error is raised BEFORE anything is
+    # written to disk.
     registry = _isolate(monkeypatch, tmp_path)
     needs_arg = """
 def run(symbol: str) -> dict:
     return {}
 """
-    result = tool_factory.create_manager_tool(
-        name="needs_arg", description="缺参数", code=needs_arg,
-        parameters_schema={"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]},
-    )
-    assert result["status"] == "rolled_back"  # empty trial cannot supply the required arg
+    with pytest.raises(ValueError, match="请提供 test_args_json"):
+        tool_factory.create_manager_tool(
+            name="needs_arg", description="缺参数", code=needs_arg,
+            parameters_schema={"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]},
+        )
+    assert not (tmp_path / "tools" / "needs_arg.py").exists()
     assert registry.catalog()["tools"] == []
 
 
 
 def test_agent_level_creates_tool_and_answers_in_one_turn(monkeypatch, tmp_path):
-    """End-to-end: the real MANAGER_AGENT run loop receives a natural-language
-    request it lacks a tool for, calls create_manager_tool once with
-    fulfill_args, and receives the fulfill result back in the same turn.
-    A scripted fake model drives the loop (no network)."""
+    """Execution-chain proof, not autonomy proof: the scripted fake model
+    unconditionally returns a create_manager_tool call, so this verifies the
+    real MANAGER_AGENT run loop executes the tool, registers it, and
+    round-trips the fulfill result in the same turn.  Whether the model
+    DECIDES to create a tool for a missing capability is governed by the
+    instructions and remains covered by the optional live-API eval script.
+    """
     import asyncio
     import queue as _queue
     from datetime import datetime
@@ -460,3 +477,139 @@ def run(market: str) -> dict:
         if getattr(part, "part_kind", "") == "tool-return"
     ]
     assert any("600519" in str(content) for content in tool_return_contents)
+
+
+
+def test_fulfill_only_executes_once(monkeypatch, tmp_path):
+    registry = _isolate(monkeypatch, tmp_path)
+    counting = """
+calls = []
+
+
+def run(symbol: str) -> dict:
+    calls.append(symbol)
+    return {"calls": len(calls), "symbol": symbol}
+"""
+    result = tool_factory.create_manager_tool(
+        name="once_tool", description="只执行一次", code=counting,
+        parameters_schema={"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]},
+        fulfill_args={"symbol": "cn"},
+    )
+    assert result["status"] == "created"
+    assert result["fulfill_result"]["result"]["calls"] == 1
+    assert result["fulfill_result"]["shared_with_trial"] is True
+    assert result["trial_call"]["result"]["calls"] == 1
+
+
+def test_identical_test_and_fulfill_execute_once(monkeypatch, tmp_path):
+    registry = _isolate(monkeypatch, tmp_path)
+    counting = """
+calls = []
+
+
+def run(symbol: str) -> dict:
+    calls.append(symbol)
+    return {"calls": len(calls)}
+"""
+    result = tool_factory.create_manager_tool(
+        name="same_args", description="相同参数", code=counting,
+        parameters_schema={"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]},
+        test_args={"symbol": "cn"}, fulfill_args={"symbol": "cn"},
+    )
+    assert result["fulfill_result"]["shared_with_trial"] is True
+    assert result["fulfill_result"]["result"]["calls"] == 1
+
+
+def test_distinct_test_and_fulfill_execute_twice(monkeypatch, tmp_path):
+    registry = _isolate(monkeypatch, tmp_path)
+    counting = """
+calls = []
+
+
+def run(symbol: str) -> dict:
+    calls.append(symbol)
+    return {"calls": len(calls), "symbol": symbol}
+"""
+    result = tool_factory.create_manager_tool(
+        name="two_calls", description="不同参数", code=counting,
+        parameters_schema={"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]},
+        test_args={"symbol": "verify"}, fulfill_args={"symbol": "cn"},
+    )
+    assert result["status"] == "created"
+    assert "shared_with_trial" not in result["fulfill_result"]
+    assert result["trial_call"]["result"]["symbol"] == "verify"
+    assert result["fulfill_result"]["result"]["symbol"] == "cn"
+    assert result["fulfill_result"]["result"]["calls"] == 2
+
+
+def test_top_level_def_is_accepted(monkeypatch, tmp_path):
+    # A module whose FIRST line is the def must not be misjudged.
+    registry = _isolate(monkeypatch, tmp_path)
+    code = """def run() -> dict:
+    return {"ok": True}
+"""
+    result = tool_factory.create_manager_tool(
+        name="top_def", description="顶格 def", code=code,
+        parameters_schema={"type": "object", "properties": {}},
+    )
+    assert result["status"] == "created"
+    assert result["trial_call"]["result"]["ok"] is True
+
+
+def test_stale_file_lock_is_reaped(monkeypatch, tmp_path):
+    import time as _time
+
+    monkeypatch.setattr(tool_factory, "ROOT", tmp_path)
+    lock_dir = tmp_path / "runtime" / "manager" / "locks"
+    lock_dir.mkdir(parents=True)
+    lock_path = lock_dir / "old.lock"
+    lock_path.write_text("99999:deadbeef", encoding="ascii")
+    stale = _time.time() - 3600
+    import os as _os
+    _os.utime(lock_path, (stale, stale))
+
+    with tool_factory._file_lock("old"):
+        assert lock_path.exists()  # reaped and re-acquired
+    assert not lock_path.exists()  # owner released it
+
+
+def test_create_uninstall_race_keeps_invariant(monkeypatch, tmp_path):
+    import threading
+
+    registry = _isolate(monkeypatch, tmp_path)
+    stop = threading.Event()
+    errors = []
+
+    def creator():
+        while not stop.is_set():
+            try:
+                tool_factory.create_manager_tool(
+                    name="race_io", description="竞争", code=SAMPLE_CODE,
+                    parameters_schema=SAMPLE_SCHEMA, test_args={"symbol": "x"},
+                )
+            except Exception as exc:
+                errors.append(str(exc)[:120])
+
+    def remover():
+        while not stop.is_set():
+            try:
+                tool_factory.uninstall_manager_tool_complete("race_io")
+            except Exception as exc:
+                errors.append(str(exc)[:120])
+
+    threads = [threading.Thread(target=creator), threading.Thread(target=remover)]
+    for thread in threads:
+        thread.start()
+    import time as _time
+    _time.sleep(1.5)
+    stop.set()
+    for thread in threads:
+        thread.join()
+
+    # Invariant: the manifest exists if and only if the source exists.
+    manifests = [item["name"] for item in registry.catalog()["tools"]]
+    source = (tmp_path / "tools" / "race_io.py").exists()
+    assert source == ("race_io" in manifests)
+    if source:
+        content = (tmp_path / "tools" / "race_io.py").read_text(encoding="utf-8")
+        assert "def run" in content
