@@ -12,9 +12,11 @@
 
 ## 二、本机自动化验证
 
-- 桌面外壳单元测试：`dotnet test windows\desktop\InvestmentAuto.Desktop.Tests`（单实例、ready 解析、pythonw 定位、开机自启、进程管理，16 项）
+- 一键发行候选门禁：`powershell scripts\release-check.ps1`（自动依次执行下列全部检查，
+  任一失败退出码非 0，最后输出安装包 SHA-256 与大小；`-SkipUpgrade` 等开关可跳过单项）
+- 桌面外壳单元测试：`dotnet test windows\desktop\InvestmentAuto.Desktop.Tests`（单实例、ready 解析、pythonw 定位、开机自启、进程管理，17 项）
 - 升级保数据：`scripts\verify-upgrade.ps1`（快照 → 静默覆盖安装 → SHA-256 逐文件比对，要求 0 缺失 0 变更）
-- Python 全量：`.venv\Scripts\python -m pytest tests`（252 项，开发模式回归）
+- Python 全量：`.venv\Scripts\python -m pytest tests`（252 项，开发模式回归）+ 捆绑运行时同套件复跑（验证离线依赖完整）
 
 ## 三、用户安装与使用
 
@@ -57,9 +59,11 @@ powershell scripts\bundle-runtime.ps1
 powershell scripts\build-desktop.ps1
 # 4. 编译安装器（需要 Inno Setup 6）
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer\InvestmentAuto.iss
-# 5. 校验
-Get-FileHash release\InvestmentAuto-Setup-x64.exe -Algorithm SHA256
+# 5. 发行候选门禁（自动跑全部本机自动化检查 + 输出哈希）
+powershell scripts\release-check.ps1
 ```
+
+安装器界面语言：中英双语（installer\ChineseSimplified.isl，取自 Inno Setup 官方翻译）。
 
 ## 五、干净 Windows 虚拟机验收清单
 
@@ -75,5 +79,6 @@ Get-FileHash release\InvestmentAuto-Setup-x64.exe -Algorithm SHA256
 8. [ ] 重启虚拟机重新登录 → 托盘自动出现（若开了自启）→ 双击恢复窗口
 9. [ ] 卸载：数据保留询问 → 重装：配置/账户仍在
 10. [ ] 任务管理器无孤儿 python/pythonw/node 进程
+11. [ ] 安装器向导界面为中文（系统语言为中文时）
 
 以上全部通过后，可发布正式版并更新 GitHub Release。

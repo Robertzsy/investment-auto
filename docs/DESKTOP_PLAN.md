@@ -147,3 +147,27 @@ def data_root() -> Path:                            # 用户数据根
 ## 5. 验收门槛
 
 全部 14 项测试通过 + 干净 VM 全流程通过，才生成正式 `InvestmentAuto-Setup-x64.exe`。旧 `InvestmentAuto.exe` 与 build-windows-release.ps1 保留到新版验收，GitHub 现有 EXE Release 不动。
+
+## 6. 验收状态矩阵（2026-08-15，随开发持续更新）
+
+| # | 测试项 | 验证方式 | 状态 |
+|---|---|---|---|
+| ① | 路径分离（env 后 runtime/config 落数据目录，scripts 留代码根） | `tests/test_paths.py`（4 项） | ✅ 自动化 |
+| ② | 开发模式无 env 行为不变 | `.venv` 全量 252 项 pytest | ✅ 自动化 |
+| ③ | config/market 从数据目录读、首启种子模板 | `tests/test_paths.py` + `_ensure_data_layout` 本机 E2E | ✅ 自动化 |
+| ④ | 子进程启动/健康/停止 | C# `ProcessManagerTests` + 本机 E2E（启动→ready→清理） | ✅ 自动化+实测 |
+| ⑤ | 窗口关闭后托盘后台续跑 | 交互行为 | ⏳ VM 清单 #7 |
+| ⑥ | 退出无孤儿进程（Job Object） | 本机 E2E：杀壳后无 pythonw/node 残留 | ✅ 实测 |
+| ⑦ | 单实例重复双击激活 | C# `SingleInstanceTests`（3 项） | ✅ 自动化 |
+| ⑧ | WebView2 内部导航不跳外部浏览器 | 设计（Navigate ready.Url）+ 窗口内加载 | ⏳ VM 清单 #3 |
+| ⑨ | 离线 wheel 依赖可 import | 捆绑运行时跑通 252 项 pytest | ✅ 自动化 |
+| ⑩ | 干净环境无 Python/Node 可启动 | 全新 VM（无 Python/Node/.NET/Inno） | ⏳ VM 清单 #1-2 |
+| ⑪ | 桌面快捷方式启动 | 本机 E2E：安装→快捷方式→带参启动→ready 文件 | ✅ 实测 |
+| ⑫ | 升级保留配置/账户 | `scripts/verify-upgrade.ps1` 两次实测 16/16 字节一致 | ✅ 自动化 |
+| ⑬ | 旧 D 盘数据迁移 | `tests/test_migration.py`（4 项）+ 向导步骤 0 | ✅ 自动化 |
+| ⑭ | API Key 不进日志/安装目录（DPAPI） | `tests/test_secret_store.py`（4 项） | ✅ 自动化 |
+| ⑮ | 现有 Python 全量测试通过 | 252 项 × .venv + 捆绑运行时 | ✅ 自动化 |
+
+- 一键门禁：`scripts\release-check.ps1`（C# 17 项 + .venv 252 + 捆绑 252 + 升级保数据 + 哈希清单）
+- 剩余：⑤⑧⑩ 交互/干净环境项在 Win10/11 VM 验收（清单见 docs/DESKTOP_USAGE.md 第五节）；
+  VM 通过前不更新 GitHub Release。

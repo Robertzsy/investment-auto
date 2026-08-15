@@ -29,6 +29,9 @@
   （`dotnet test windows\desktop\InvestmentAuto.Desktop.Tests`）；
 - 升级保数据自动化校验：`scripts\verify-upgrade.ps1` 快照数据目录 → 静默覆盖安装 →
   逐文件 SHA-256 比对（实测 16/16 文件字节一致、程序文件已替换）；
+- 一键发行候选门禁：`scripts\release-check.ps1` 自动执行 C# 测试 + .venv/捆绑运行时
+  252 项 pytest + 升级保数据 + 输出安装包 SHA-256，任一失败退出码非 0；
+- 安装器界面中英双语（ChineseSimplified.isl，Inno 官方翻译）；
 - 本机实测：静默安装、快捷方式、安装目录启动、动态端口、ready 文件、令牌 401/200；
 - 待办：干净 Windows 10/11 虚拟机全流程验收（清单见 docs/DESKTOP_USAGE.md）。
 
