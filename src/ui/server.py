@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import sys
+from datetime import datetime
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -69,13 +70,36 @@ def _optimizer_files(directory: Path, market: str = "all") -> list[Path]:
     return sorted(directory.glob(pattern), key=lambda path: path.stat().st_mtime, reverse=True)
 
 
+ACCESS_TOKEN = os.getenv("IA_ACCESS_TOKEN", "").strip()
+
+
 class ChatHandler(SimpleHTTPRequestHandler):
     """Serves static files from src/ui/ and handles API routes."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, directory=str(UI_DIR), **kwargs)
 
+    def _authorized(self) -> bool:
+        if not ACCESS_TOKEN:
+            return True
+        query_token = parse_qs(urlparse(self.path).query).get("token", [""])[0]
+        if query_token == ACCESS_TOKEN:
+            return True
+        header = self.headers.get("X-IA-Token", "")
+        authorization = self.headers.get("Authorization", "")
+        if header == ACCESS_TOKEN or authorization in (ACCESS_TOKEN, "Bearer " + ACCESS_TOKEN):
+            return True
+        return False
+
+    def _unauthorized(self) -> None:
+        self.send_response(401)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b'{"error":"unauthorized"}')
+
     def do_GET(self):
+        if not self._authorized():
+            return self._unauthorized()
         path = urlparse(self.path).path
         query = parse_qs(urlparse(self.path).query)
 
@@ -117,6 +141,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
+        if not self._authorized():
+            return self._unauthorized()
         path = urlparse(self.path).path
 
         if path == "/api/chat":
@@ -825,14 +851,39 @@ class ChatHandler(SimpleHTTPRequestHandler):
         pass
 
 
-def start_server(host: str = "localhost", port: int = 8080, open_browser: bool = True):
+def _write_ready_file(host: str, port: int, token: str) -> None:
+    """Publish the actual bound port and token for the desktop shell."""
+    try:
+        ready_host = "localhost" if host in {"localhost", "127.0.0.1", "::1"} else host
+        payload = {
+            "host": host,
+            "port": int(port),
+            "token": token,
+            "url": f"http://{ready_host}:{port}",
+            "pid": os.getpid(),
+            "started_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        }
+        ready_path = runtime_dir() / "chat.ready.json"
+        ready_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = ready_path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary.replace(ready_path)
+    except Exception:
+        logger.debug("Could not write chat ready file", exc_info=True)
+
+
+def start_server(host: str = "localhost", port: int = 8080, open_browser: bool = True, token: str = ""):
+    global ACCESS_TOKEN
+    ACCESS_TOKEN = (token or os.getenv("IA_ACCESS_TOKEN", "")).strip()
     try:
         server = ThreadingHTTPServer((host, port), ChatHandler)
     except OSError as exc:
         raise RuntimeError(f"Cannot bind to {host}:{port}: {exc}") from exc
 
+    actual_host, actual_port = server.server_address[:2]
+    _write_ready_file(actual_host, actual_port, ACCESS_TOKEN)
     url_host = "localhost" if host in {"localhost", "127.0.0.1", "::1"} else host
-    url = f"http://{url_host}:{port}"
+    url = f"http://{url_host}:{actual_port}"
     logger.info(f"AI Chat Panel running at {url}")
 
     # Auto-open browser for interactive local use only.

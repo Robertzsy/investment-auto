@@ -247,8 +247,8 @@ def main() -> None:
             port = int(os.getenv("CHAT_PORT", "8080"))
         except ValueError as exc:
             raise SystemExit("CHAT_PORT must be an integer") from exc
-        if not 1 <= port <= 65535:
-            raise SystemExit("CHAT_PORT must be between 1 and 65535")
+        if not 0 <= port <= 65535:
+            raise SystemExit("CHAT_PORT must be between 0 and 65535 (0 = dynamic)")
         try:
             open_browser = _env_bool("CHAT_OPEN_BROWSER", True)
             scheduler_default = False
@@ -261,9 +261,15 @@ def main() -> None:
         logger.info("Scheduler and investment worker are isolated from the chat process")
 
         logger.info("Starting AI Chat Panel on %s:%s ...", host, port)
+        import secrets
+
         from src.ui.server import start_server
 
-        start_server(host=host, port=port, open_browser=open_browser)
+        # A fresh per-launch token guards the loopback service; the desktop
+        # shell injects it as X-IA-Token on every WebView2 request.  Empty
+        # token (plain dev browser) keeps open localhost access.
+        token = os.getenv("IA_ACCESS_TOKEN", "") or secrets.token_urlsafe(24)
+        start_server(host=host, port=port, open_browser=open_browser, token=token)
         return
 
 
