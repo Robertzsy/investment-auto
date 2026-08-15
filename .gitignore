@@ -35,6 +35,10 @@ InvestmentAuto.exe
 portfolio.json
 watchlist.json
 
+# desktop build outputs
+windows/desktop/bin/
+windows/desktop/obj/
+
 # runtime-installed manager tools (created via create_manager_tool)
 src/manager/tools/*
 !src/manager/tools/__init__.py
