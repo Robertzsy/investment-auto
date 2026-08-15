@@ -40,6 +40,8 @@ windows/desktop/bin/
 windows/desktop/obj/
 windows/desktop/**/bin/
 windows/desktop/**/obj/
+tools/webview2-diag/bin/
+tools/webview2-diag/obj/
 
 # bundled runtimes and downloads (build artifacts, large binaries)
 build/
