@@ -16,7 +16,8 @@ from typing import Any, Dict, List, Mapping, Optional
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_WORKSPACE = ROOT / "runtime" / "research" / "workspace"
+from src.paths import runtime_dir
+DEFAULT_WORKSPACE = runtime_dir() / "research" / "workspace"
 TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 

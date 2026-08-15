@@ -8,7 +8,8 @@ from typing import Any, Dict, Mapping, Optional
 
 
 ROOT = Path(__file__).resolve().parents[2]
-INBOX_DIR = ROOT / "runtime" / "manager" / "report_inbox"
+from src.paths import runtime_dir
+INBOX_DIR = runtime_dir() / "manager" / "report_inbox"
 
 
 def publish_cycle_report(

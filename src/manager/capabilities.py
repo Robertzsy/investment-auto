@@ -10,7 +10,8 @@ from pydantic_ai import FunctionToolset, Tool
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CAPABILITY_DIR = ROOT / "runtime" / "manager" / "capabilities"
+from src.paths import runtime_dir
+CAPABILITY_DIR = runtime_dir() / "manager" / "capabilities"
 SKILL_DIR = CAPABILITY_DIR / "skills"
 TOOL_DIR = CAPABILITY_DIR / "tools"
 _NAME_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")

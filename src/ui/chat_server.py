@@ -25,7 +25,8 @@ from typing import Any, Dict, Generator, List, Mapping, Optional
 from src.config import cfg
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-RUNTIME_DIR = PROJECT_ROOT / "runtime"
+from src.paths import runtime_dir
+RUNTIME_DIR = runtime_dir()
 HISTORY_FILE = RUNTIME_DIR / "chat_history.json"
 MEMORY_FILE = RUNTIME_DIR / "chat_memory.md"
 

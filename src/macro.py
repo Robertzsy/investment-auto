@@ -15,7 +15,8 @@ from src.runtime_lock import atomic_claim
 from src.subprocess_utils import decode_subprocess_output
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA_ROOT = ROOT / "runtime" / "macro"
+from src.paths import runtime_dir
+DATA_ROOT = runtime_dir() / "macro"
 SCRIPT = ROOT / "scripts" / "macro-environment" / "run.js"
 logger = logging.getLogger("investment-auto.macro")
 

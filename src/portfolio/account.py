@@ -9,7 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from src.runtime_lock import atomic_claim
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-RUNTIME = ROOT / "runtime" / "data"
+from src.paths import runtime_dir
+RUNTIME = runtime_dir() / "data"
 
 DEFAULTS = {
     "cn": {"totalCapital": 500000, "cash": 500000, "holdings": [], "tradeHistory": []},
@@ -65,7 +66,7 @@ def reset_market(market: str, *, backup_dir: Optional[Path] = None) -> Dict[str,
         data = load()
         accounts = data.setdefault("accounts", {})
         previous = copy.deepcopy(accounts.get(normalized, DEFAULTS[normalized]))
-        destination = backup_dir or (ROOT / "runtime" / "backups" / "portfolio")
+        destination = backup_dir or (runtime_dir() / "backups" / "portfolio")
         destination.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         backup_path = destination / f"{stamp}-before-reset-{normalized}.json"

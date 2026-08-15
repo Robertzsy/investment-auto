@@ -11,7 +11,8 @@ from src.portfolio import account as account_store
 from src.runtime_lock import atomic_claim
 
 ROOT = Path(__file__).resolve().parents[2]
-PORTFOLIO_LOCK = ROOT / "runtime" / "data" / ".portfolio.lock"
+from src.paths import runtime_dir
+PORTFOLIO_LOCK = runtime_dir() / "data" / ".portfolio.lock"
 _thread_lock = threading.RLock()
 
 

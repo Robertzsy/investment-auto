@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+from src.paths import runtime_dir
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -46,7 +47,7 @@ def _configure_stdio() -> None:
 
 
 def _configure_logging() -> logging.Logger:
-    log_dir = ROOT / "runtime" / "logs"
+    log_dir = runtime_dir() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
     file_handler = logging.FileHandler(log_dir / "investment-auto.log", encoding="utf-8")
@@ -193,7 +194,7 @@ def main() -> None:
         try:
             import time
 
-            restart_request = ROOT / "runtime" / "investment" / "restart_requested.json"
+            restart_request = runtime_dir() / "investment" / "restart_requested.json"
             while True:
                 time.sleep(1)
                 if restart_request.exists():

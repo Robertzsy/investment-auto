@@ -8,15 +8,17 @@ from typing import Any, Dict, List, Optional
 import yaml
 from dotenv import load_dotenv
 
-# ── project root ──────────────────────────────────────
+from src.paths import config_dir, data_root, market_config_dir
+
+# ── project root (code root) ──────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
 
 def _default_config_path() -> Path:
     p = os.getenv("CONFIG_PATH")
-    return Path(p) if p else ROOT / "config" / "config.yaml"
+    return Path(p) if p else config_dir() / "config.yaml"
 
 # ── load env ────────────────────────────────────────
-loaded = load_dotenv(ROOT / ".env") or load_dotenv(ROOT / ".env.example") or None
+loaded = load_dotenv(data_root() / ".env") or load_dotenv(ROOT / ".env.example") or None
 
 # ── config singleton ─────────────────────────────
 class AppConfig:
@@ -38,7 +40,7 @@ class AppConfig:
         return self._data.get("markets", {}).get("enable", ["cn"])
 
     def market_config(self, market: str) -> Dict[str, Any]:
-        p = ROOT / "config" / "market" / f"{market}.yaml"
+        p = market_config_dir() / f"{market}.yaml"
         if p.exists():
             return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
         return {}

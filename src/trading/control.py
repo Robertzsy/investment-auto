@@ -9,7 +9,8 @@ from zoneinfo import ZoneInfo
 from src.config import cfg
 
 ROOT = Path(__file__).resolve().parents[2]
-CONTROL_FILE = ROOT / "runtime" / "trading" / "control.json"
+from src.paths import runtime_dir
+CONTROL_FILE = runtime_dir() / "trading" / "control.json"
 
 DEFAULT_STATE: Dict[str, Any] = {
     "paused": False,

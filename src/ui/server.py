@@ -15,6 +15,7 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+from src.paths import config_dir, data_root, runtime_dir
 UI_DIR = Path(__file__).resolve().parent
 
 logger = logging.getLogger("investment-auto.http")
@@ -304,7 +305,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
             import yaml
 
             payload = {}
-            base = PROJECT_ROOT / "config" / "market"
+            base = config_dir() / "market"
             for market, filename in _MARKET_CONFIG_FILES.items():
                 data = yaml.safe_load((base / filename).read_text(encoding="utf-8")) or {}
                 risk = data.get("risk", {})
@@ -374,7 +375,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
         try:
             import yaml
 
-            base = PROJECT_ROOT / "config" / "market"
+            base = config_dir() / "market"
             prepared = []
             for market, risk_updates in normalized.items():
                 path = base / _MARKET_CONFIG_FILES[market]
@@ -493,7 +494,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
         try:
             import yaml
-            config_path = PROJECT_ROOT / "config" / "config.yaml"
+            config_path = config_dir() / "config.yaml"
             config_path.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False), encoding="utf-8")
             # Reload config
             from src.config import cfg
@@ -513,7 +514,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
     def _handle_get_env(self):
         """Read .env file and return as dict (mask sensitive values for display)."""
         try:
-            env_path = PROJECT_ROOT / ".env"
+            env_path = data_root() / ".env"
             env_vars = {}
             if env_path.exists():
                 for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -551,7 +552,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 updates[key] = value
 
         try:
-            env_path = PROJECT_ROOT / ".env"
+            env_path = data_root() / ".env"
             # Read existing
             existing = {}
             if env_path.exists():
@@ -640,7 +641,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
     def _handle_optimizer(self, market: str = "all"):
         try:
-            opt_dir = PROJECT_ROOT / "runtime" / "optimizer"
+            opt_dir = runtime_dir() / "optimizer"
             files = _optimizer_files(opt_dir, market)
             if not files:
                 return self._json_response(200, {"available": False})
@@ -737,7 +738,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
         # Optimizer comparison
         opt_comparison = []
         optimizer_schemes = {}
-        opt_dir = PROJECT_ROOT / "runtime" / "optimizer"
+        opt_dir = runtime_dir() / "optimizer"
         if opt_dir.exists():
             files = _optimizer_files(opt_dir, market)
             if files:

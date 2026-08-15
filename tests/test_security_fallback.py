@@ -39,7 +39,9 @@ def test_env_endpoint_masks_sensitive_values(monkeypatch: pytest.MonkeyPatch, tm
         f"OPENAI_API_KEY={secret}\nPUBLIC_REGION=cn-east\nEMPTY_TOKEN=\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.setattr(server, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
     handler = _FakeHandler()
 
     server.ChatHandler._handle_get_env(handler)  # type: ignore[arg-type]
@@ -56,7 +58,9 @@ def test_env_save_validates_and_updates_running_environment(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     (tmp_path / ".env").write_text("EXISTING_API_KEY=keep-me\n", encoding="utf-8")
-    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.setattr(server, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
     monkeypatch.delenv("NEW_API_KEY", raising=False)
     handler = _FakeHandler(b'{"EXISTING_API_KEY":"","NEW_API_KEY":"fresh"}')
 
@@ -84,7 +88,9 @@ def test_operation_mode_api_enables_complete_cycle_execution(monkeypatch: pytest
     config_dir.mkdir()
     config_path = config_dir / "config.yaml"
     config_path.write_text("autonomous:\n  enabled: false\n  auto_execute: false\n", encoding="utf-8")
-    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.setattr(server, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
     monkeypatch.setattr("src.config.cfg._path", config_path)
     monkeypatch.setattr("src.config.cfg.reload", lambda: None)
 
@@ -153,7 +159,9 @@ def test_market_config_api_exposes_rules_and_updates_only_risk_controls(
             yaml.safe_dump(base, allow_unicode=True, sort_keys=False),
             encoding="utf-8",
         )
-    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.setattr(server, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
 
     get_handler = _FakeHandler()
     server.ChatHandler._handle_get_market_configs(get_handler)  # type: ignore[arg-type]
@@ -190,7 +198,9 @@ def test_market_config_api_exposes_rules_and_updates_only_risk_controls(
 def test_market_config_api_rejects_unexposed_or_invalid_controls(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.setattr(server, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
     unknown = _FakeHandler(b'{"cn":{"risk":{"commission_rate":0}}}')
     server.ChatHandler._handle_save_market_configs(unknown)  # type: ignore[arg-type]
     assert unknown.responses[-1][0] == 400

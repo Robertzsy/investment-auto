@@ -15,7 +15,8 @@ from src.investment.reflection import InvestmentReflectionService
 
 
 ROOT = Path(__file__).resolve().parents[2]
-COMMAND_DIR = ROOT / "runtime" / "investment" / "commands"
+from src.paths import runtime_dir
+COMMAND_DIR = runtime_dir() / "investment" / "commands"
 _mode_lock = threading.RLock()
 
 
@@ -165,7 +166,7 @@ class InvestmentAgentService:
 
             reset = account_store.reset_market(
                 market,
-                backup_dir=ROOT / "runtime" / "backups" / "portfolio",
+                backup_dir=runtime_dir() / "backups" / "portfolio",
             )
             return {
                 "ok": True,

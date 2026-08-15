@@ -16,7 +16,8 @@ from src.investment.contracts import CommandEnvelope, InvestmentCommand
 
 
 ROOT = Path(__file__).resolve().parents[2]
-BUS_DIR = ROOT / "runtime" / "investment" / "bus"
+from src.paths import runtime_dir
+BUS_DIR = runtime_dir() / "investment" / "bus"
 INBOX = BUS_DIR / "inbox"
 OUTBOX = BUS_DIR / "outbox"
 PROGRESS = BUS_DIR / "progress"

@@ -26,6 +26,8 @@ SAMPLE_SCHEMA = {
 def _isolate(monkeypatch, tmp_path):
     monkeypatch.setattr(tool_factory, "TOOL_MODULE_DIR", tmp_path / "tools")
     monkeypatch.setattr("src.manager.capabilities.CAPABILITY_DIR", tmp_path / "capabilities")
+    # the OS file lock dir also lives under the data runtime dir
+    monkeypatch.setattr(tool_factory, "runtime_dir", lambda: tmp_path / "runtime")
     (tmp_path / "tools").mkdir(parents=True, exist_ok=True)
     (tmp_path / "tools" / "__init__.py").write_text("", encoding="utf-8")
     return CapabilityRegistry(tmp_path / "capabilities")
@@ -589,6 +591,11 @@ def test_create_uninstall_race_keeps_invariant(monkeypatch, tmp_path):
                 )
                 if outcome.get("status") == "created":
                     created_count[0] += 1
+            except ValueError as exc:
+                # "already registered" is the expected outcome of a create
+                # racing an uninstall, not a corruption.
+                if "已注册" not in str(exc):
+                    errors.append(str(exc)[:120])
             except Exception as exc:
                 errors.append(str(exc)[:120])
 

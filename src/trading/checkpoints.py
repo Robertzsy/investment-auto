@@ -23,7 +23,8 @@ from typing import Any, Dict, List, Mapping, Optional
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
-CHECKPOINT_DIR = ROOT / "runtime" / "trading" / "checkpoints"
+from src.paths import runtime_dir
+CHECKPOINT_DIR = runtime_dir() / "trading" / "checkpoints"
 TIMEZONE = ZoneInfo("Asia/Shanghai")
 _index_lock = threading.RLock()  # guards the read-modify-write in update_index
 

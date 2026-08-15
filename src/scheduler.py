@@ -18,8 +18,9 @@ from src.runtime_lock import ProcessLease, atomic_claim
 
 logger = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parent.parent
-REPORT_DIR = ROOT / "runtime" / "reports"
-SCHEDULER_LOCK = ROOT / "runtime" / "scheduler.lock"
+from src.paths import runtime_dir
+REPORT_DIR = runtime_dir() / "reports"
+SCHEDULER_LOCK = runtime_dir() / "scheduler.lock"
 
 
 class _LockedScheduler(_BgScheduler):

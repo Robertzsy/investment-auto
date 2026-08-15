@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
 ROOT = Path(__file__).resolve().parents[2]
-EVIDENCE_DIR = ROOT / "runtime" / "trading" / "evidence"
+from src.paths import runtime_dir
+EVIDENCE_DIR = runtime_dir() / "trading" / "evidence"
 
 
 def sanitize_cycle_id(value: Any) -> str:

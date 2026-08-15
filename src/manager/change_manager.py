@@ -17,7 +17,8 @@ from src.platform.memory_store import StructuredMemoryStore
 
 
 ROOT = Path(__file__).resolve().parents[2]
-BACKUP_DIR = ROOT / "runtime" / "manager" / "change_backups"
+from src.paths import runtime_dir
+BACKUP_DIR = runtime_dir() / "manager" / "change_backups"
 ALLOWED_ROOTS = (
     ROOT,
 )
@@ -100,7 +101,7 @@ class ChangeManager:
                 elif path.exists():
                     path.unlink()
             else:
-                restart_path = ROOT / "runtime" / "investment" / "restart_requested.json"
+                restart_path = runtime_dir() / "investment" / "restart_requested.json"
                 restart_path.parent.mkdir(parents=True, exist_ok=True)
                 restart_path.write_text(json.dumps({
                     "change_id": change_id,

@@ -22,8 +22,9 @@ from src.trading.citations import (
 
 logger = logging.getLogger("investment-auto.agent-workflow")
 ROOT = Path(__file__).resolve().parents[2]
-MEMORY_DIR = ROOT / "runtime" / "trading" / "agent_memory"
-AGENT_FAILURE_DIR = ROOT / "runtime" / "trading" / "agent_failures"
+from src.paths import runtime_dir
+MEMORY_DIR = runtime_dir() / "trading" / "agent_memory"
+AGENT_FAILURE_DIR = runtime_dir() / "trading" / "agent_failures"
 _failure_lock = threading.RLock()
 
 ROLE_GROUPS: Dict[str, Sequence[str]] = {

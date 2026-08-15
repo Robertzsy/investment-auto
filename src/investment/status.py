@@ -11,8 +11,9 @@ from src.config import cfg
 
 
 ROOT = Path(__file__).resolve().parents[2]
-REPORT_DIR = ROOT / "runtime" / "reports"
-AUDIT_DIR = ROOT / "runtime" / "trading" / "audit"
+from src.paths import runtime_dir
+REPORT_DIR = runtime_dir() / "reports"
+AUDIT_DIR = runtime_dir() / "trading" / "audit"
 
 
 def _now(value: Optional[datetime] = None) -> datetime:

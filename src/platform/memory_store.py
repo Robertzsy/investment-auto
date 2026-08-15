@@ -12,7 +12,8 @@ from zoneinfo import ZoneInfo
 
 
 ROOT = Path(__file__).resolve().parents[2]
-MEMORY_ROOT = ROOT / "runtime" / "memory"
+from src.paths import runtime_dir
+MEMORY_ROOT = runtime_dir() / "memory"
 _write_lock = threading.RLock()
 
 

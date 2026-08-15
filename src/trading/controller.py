@@ -22,8 +22,9 @@ from src.trading.risk import build_orders
 
 logger = logging.getLogger("investment-auto.autonomous")
 ROOT = Path(__file__).resolve().parents[2]
-AUDIT_DIR = ROOT / "runtime" / "trading" / "audit"
-CYCLE_LOCK_DIR = ROOT / "runtime" / "trading" / "locks"
+from src.paths import runtime_dir
+AUDIT_DIR = runtime_dir() / "trading" / "audit"
+CYCLE_LOCK_DIR = runtime_dir() / "trading" / "locks"
 
 _ROLE_INSTRUCTIONS = {
     "analyst": "你是技术面分析员。只依据给定行情、K线与指标评估趋势、波动和关键价位，不得虚构数据。",

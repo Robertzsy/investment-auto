@@ -43,6 +43,7 @@ else:
 from pydantic_core import to_jsonable_python
 
 ROOT = Path(__file__).resolve().parents[2]
+from src.paths import runtime_dir
 TOOL_MODULE_DIR = ROOT / "src" / "manager" / "tools"
 TIMEZONE = ZoneInfo("Asia/Shanghai")
 
@@ -91,7 +92,7 @@ def _file_lock(name: str) -> Iterator[None]:
     release automatically when the holder process exits, so a crashed
     holder can never leave a lock another process must guess about.
     """
-    directory = ROOT / "runtime" / "manager" / "locks"
+    directory = runtime_dir() / "manager" / "locks"
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{name}.lock"
     descriptor = os.open(path, os.O_CREAT | os.O_RDWR)

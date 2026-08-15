@@ -39,7 +39,7 @@ def test_reset_command_resets_only_selected_paper_market_and_creates_backup(monk
     from src.investment import service
 
     monkeypatch.setattr(account_store, "RUNTIME", tmp_path / "runtime" / "data")
-    monkeypatch.setattr(service, "ROOT", tmp_path)
+    monkeypatch.setattr(service, "runtime_dir", lambda: tmp_path / "runtime")
     monkeypatch.setattr(service.cfg, "_data", {
         "schedule": {"timezone": "Asia/Shanghai"},
         "trading": {"mode": "paper"},
@@ -65,7 +65,7 @@ def test_reset_command_refuses_non_paper_mode_without_mutation(monkeypatch, tmp_
     from src.investment import service
 
     monkeypatch.setattr(account_store, "RUNTIME", tmp_path / "runtime" / "data")
-    monkeypatch.setattr(service, "ROOT", tmp_path)
+    monkeypatch.setattr(service, "runtime_dir", lambda: tmp_path / "runtime")
     monkeypatch.setattr(service.cfg, "_data", {
         "schedule": {"timezone": "Asia/Shanghai"},
         "trading": {"mode": "live"},
