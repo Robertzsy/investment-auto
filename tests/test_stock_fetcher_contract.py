@@ -39,3 +39,13 @@ def test_watchlist_is_stored_under_project_runtime():
     source = SCRIPT.read_text(encoding="utf-8")
     assert 'path.join(__dirname, "..", "runtime", "data", "watchlist.json")' in source
     assert "fs.mkdirSync(path.dirname(WATCHLIST_FILE), { recursive: true })" in source
+
+
+def test_market_list_defaults_to_full_market_and_sina_is_paginated():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "async function getSinaMarketPage" in source
+    assert "for (let page = 1; page <= 100; page += 1)" in source
+    assert "batch.length === 0 || added === 0" in source
+    assert 'scope: boundedLimit > 0 ? "bounded" : "full-market"' in source
+    assert "option === undefined ? 0 : Number(option)" in source
+    assert '"--retry", "2"' in source

@@ -164,9 +164,34 @@ def test_optimizer_uses_recent_screening_shortlist(monkeypatch):
 def test_node_fetcher_exposes_bounded_market_list_contract():
     source = (engine.ROOT / "scripts" / "stock-fetcher.js").read_text(encoding="utf-8")
     assert 'command === "market-list"' in source
-    assert "Math.min(500" in source
+    assert "Math.min(50000" in source
     assert "nasdaq-screener" in source
     assert "sina-market-center" in source
+
+
+def test_full_market_discovery_uses_zero_limit_and_keeps_total(monkeypatch, tmp_path):
+    monkeypatch.setattr(engine, "SCREENING_DIR", tmp_path)
+    observed = {}
+
+    def market_list(market, **kwargs):
+        observed.update(kwargs)
+        return {
+            "source": "test-full-market",
+            "scope": "full-market",
+            "total_count": 2,
+            "data": [
+                {"symbol": "AAPL", "price": 100},
+                {"symbol": "MSFT", "price": 200},
+            ],
+        }
+
+    monkeypatch.setattr(engine.fetcher, "market_list", market_list)
+    result = engine._discover("us", {"discovery_limit": 0, "refresh_minutes": 30}, NOW)
+
+    assert observed["limit"] == 0
+    assert result["scope"] == "full-market"
+    assert result["total_count"] == 2
+    assert len(result["data"]) == 2
 
 
 def test_discovery_uses_mongodb_cache_before_json_or_provider(monkeypatch, tmp_path):
@@ -220,6 +245,28 @@ def test_discovery_falls_back_to_json_when_mongodb_read_fails(monkeypatch, tmp_p
 
     assert result["source"] == "test-json"
     assert result["cache_backend"] == "json"
+
+
+def test_provider_failure_uses_stale_json_universe(monkeypatch, tmp_path):
+    monkeypatch.setattr(engine, "SCREENING_DIR", tmp_path)
+    old = NOW.replace(hour=7)
+    engine._write_json(tmp_path / "discovery-cn.json", {
+        "generated_at": old.isoformat(timespec="seconds"),
+        "market": "cn",
+        "source": "old-full-market",
+        "scope": "full-market",
+        "data": [{"symbol": "600519", "price": 100}],
+    })
+    monkeypatch.setattr(
+        engine.fetcher, "market_list",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("TLS timeout")),
+    )
+
+    result = engine._discover("cn", {"discovery_limit": 0, "refresh_minutes": 30}, NOW)
+    assert result["stale"] is True
+    assert result["cache_backend"] == "json-stale"
+    assert result["data"][0]["symbol"] == "600519"
+    assert "TLS timeout" in result["provider_error"]
 
 
 def test_screening_store_auto_mode_without_uri_uses_json(monkeypatch):
