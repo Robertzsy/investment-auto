@@ -23,7 +23,10 @@ public partial class MainWindow : Window
         _processManager = processManager;
         _tray = new TrayIcon(
             onOpen: () => RestoreFromTray(),
-            onExit: () => Dispatcher.Invoke(Close));
+            onStart: () => _ = Task.Run(() => _processManager.StartPublicServices()),
+            onPause: () => _ = Task.Run(PauseInvestmentAsync),
+            onViewLogs: () => OpenLogs(),
+            onExit: () => Dispatcher.Invoke(ExitFully));
     }
 
     public async Task StartAsync()
@@ -93,6 +96,37 @@ public partial class MainWindow : Window
         e.Cancel = true;
         Hide();
         _tray?.ShowMinimizedBalloon();
+    }
+
+    private async Task PauseInvestmentAsync()
+    {
+        if (_ready == null) return;
+        try
+        {
+            using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            using var request = new System.Net.Http.HttpRequestMessage(
+                System.Net.Http.HttpMethod.Post, _ready.Url + "/api/autonomy/pause");
+            request.Headers.Add("X-IA-Token", _ready.Token);
+            request.Content = new System.Net.Http.StringContent(
+                "{}", System.Text.Encoding.UTF8, "application/json");
+            await client.SendAsync(request);
+        }
+        catch { }
+    }
+
+    private void OpenLogs()
+    {
+        var log = System.IO.Path.Combine(_processManager.DataRoot, "runtime", "logs", "investment-auto.log");
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "notepad.exe",
+                Arguments = "\"" + log + "\"",
+                UseShellExecute = true,
+            });
+        }
+        catch { }
     }
 
     public void ExitFully()

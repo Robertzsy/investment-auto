@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.IO.Pipes;
 using System.Text;
 using System.Threading;
@@ -20,6 +21,14 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+        try
+        {
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(Path.GetTempPath(), "ia-desktop-boot.log"),
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " OnStartup args=" + string.Join("|", e.Args) + Environment.NewLine);
+        }
+        catch { }
 
         if (!SingleInstance.TryAcquire(out _mutex))
         {
@@ -32,6 +41,7 @@ public partial class App : Application
 
         var appRoot = ReadArg(e.Args, "--app-root");
         var dataRoot = ReadArg(e.Args, "--data-root");
+        var autoStart = e.Args.Contains("--autostart");
         _processManager = new ProcessManager(appRoot, dataRoot);
         _window = new MainWindow(_processManager);
 
@@ -49,11 +59,17 @@ public partial class App : Application
             return;
         }
 
-        _window.Show();
+        // Autostart runs silent in the tray; a normal launch shows the window.
+        if (!autoStart) _window.Show();
     }
 
     private static string? ReadArg(string[] args, string name)
     {
+        foreach (var arg in args)
+        {
+            if (arg.StartsWith(name + "=", StringComparison.Ordinal))
+                return arg.Substring(name.Length + 1).Trim('"');
+        }
         for (int i = 0; i + 1 < args.Length; i++)
             if (args[i] == name) return args[i + 1];
         return null;
@@ -92,10 +108,28 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        try
+        {
+            File.AppendAllText(
+                Path.Combine(Path.GetTempPath(), "ia-desktop-boot.log"),
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " OnExit code=" + e.ApplicationExitCode + Environment.NewLine);
+        }
+        catch { }
         _pipeCts?.Cancel();
         _window?.DisposeTray();
         _processManager?.Dispose();
         _mutex?.ReleaseMutex();
         base.OnExit(e);
+    }
+
+    private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    {
+        try
+        {
+            File.AppendAllText(
+                Path.Combine(Path.GetTempPath(), "ia-desktop-boot.log"),
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " DISPATCHER-EX: " + e.Exception + Environment.NewLine);
+        }
+        catch { }
     }
 }

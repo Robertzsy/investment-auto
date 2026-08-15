@@ -32,6 +32,7 @@ internal sealed class ProcessManager : IDisposable
         _token = Environment.GetEnvironmentVariable("IA_ACCESS_TOKEN")
             ?? Convert.ToBase64String(Guid.NewGuid().ToByteArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
         Environment.SetEnvironmentVariable("IA_ACCESS_TOKEN", _token);
+        Log($"init: appRoot={_appRoot} dataRoot={_dataRoot} python={_pythonW}");
     }
 
     public string AppRoot => _appRoot;
@@ -64,7 +65,7 @@ internal sealed class ProcessManager : IDisposable
         var ready = ReadReadyFile();
         if (ready != null && await IsHealthyAsync(ready, cancellationToken)) return ready;
 
-        StartServices();
+        StartPublicServices();
         for (int attempt = 0; attempt < 120 && !cancellationToken.IsCancellationRequested; attempt++)
         {
             await Task.Delay(500, cancellationToken);
@@ -74,11 +75,26 @@ internal sealed class ProcessManager : IDisposable
         throw new TimeoutException("对话服务在 60 秒内未就绪。请查看日志。");
     }
 
-    private void StartServices()
+    public void StartPublicServices()
     {
+        // The agent side is idempotent (scheduler lock + worker heartbeat);
+        // the chat side binds a fresh dynamic port and rewrites the ready file.
         CreateJobObject();
         StartPython("run");
         StartPython("chat");
+    }
+
+    private void Log(string message)
+    {
+        try
+        {
+            var dir = Path.Combine(_dataRoot, "runtime", "logs");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(
+                Path.Combine(dir, "desktop.log"),
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " " + message + Environment.NewLine);
+        }
+        catch { }
     }
 
     private void StartPython(string command)
@@ -97,8 +113,21 @@ internal sealed class ProcessManager : IDisposable
         info.Environment["IA_ACCESS_TOKEN"] = _token;
         info.Environment["CHAT_OPEN_BROWSER"] = "false";
         info.Environment["CHAT_PORT"] = "0";
-        var process = Process.Start(info);
-        if (process != null) AssignToJob(process.Handle);
+        // The bundled Node.js must be on PATH for stock-fetcher/macro jobs.
+        var nodeDir = Path.Combine(_appRoot, "node");
+        if (Directory.Exists(nodeDir))
+            info.Environment["PATH"] = nodeDir + ";" + (info.Environment["PATH"] ?? "");
+        try
+        {
+            var process = Process.Start(info);
+            Log($"started {command}: {_pythonW} (pid={process?.Id})");
+            if (process != null) AssignToJob(process.Handle);
+        }
+        catch (Exception ex)
+        {
+            Log($"FAILED to start {command}: {ex.Message}");
+            throw;
+        }
     }
 
     private ChatReady? ReadReadyFile()

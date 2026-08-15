@@ -46,6 +46,36 @@ def _configure_stdio() -> None:
                 pass
 
 
+def _ensure_data_layout(logger: logging.Logger) -> None:
+    """Copy missing config templates from the app root on first launch.
+
+    The installer never touches user data; the first run seeds the data
+    directory (config.yaml, market rules) from the installed templates.
+    In development data root == app root, so this is a no-op.
+    """
+    try:
+        import shutil
+
+        from src.paths import APP_ROOT, config_dir, market_config_dir
+
+        target = config_dir() / "config.yaml"
+        if not target.exists():
+            source = APP_ROOT / "config" / "config.yaml"
+            if source.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+                logger.info("Seeded data config.yaml from template")
+        market_source = APP_ROOT / "config" / "market"
+        market_target = market_config_dir()
+        if market_source.exists():
+            market_target.mkdir(parents=True, exist_ok=True)
+            for template in market_source.glob("*.yaml"):
+                if not (market_target / template.name).exists():
+                    shutil.copy2(template, market_target / template.name)
+    except Exception:
+        logger.debug("Config template seeding skipped", exc_info=True)
+
+
 def _configure_logging() -> logging.Logger:
     log_dir = runtime_dir() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -102,6 +132,7 @@ def main() -> None:
     if args.command in {"run", "once", "catchup", "macro", "optimizer", "screen", "autonomous", "chat", "research"} and not shutil.which("node"):
         raise SystemExit("未找到 Node.js。行情、优化器和宏观日报需要 Node.js 18+，请安装后重试。")
 
+    _ensure_data_layout(logger)
     from src.config import cfg
 
     if args.command == "init":
