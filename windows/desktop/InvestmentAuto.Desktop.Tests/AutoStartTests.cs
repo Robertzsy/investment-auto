@@ -53,4 +53,15 @@ public class AutoStartTests : IDisposable
         Assert.False(AutoStart.IsEnabled());
         AutoStart.Disable(); // still no throw
     }
+
+    [Fact]
+    public void IsEnabled_IgnoresForeignEntries()
+    {
+        // The legacy project reused the same Run-key value name with a
+        // different command line; that must not read as our autostart.
+        using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
+        key.SetValue(ValueName, "\"D:\\old\\InvestmentAuto.exe\" --start --minimized");
+
+        Assert.False(AutoStart.IsEnabled());
+    }
 }
