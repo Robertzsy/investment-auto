@@ -82,5 +82,5 @@ def test_ready_file_written_with_port_and_token(monkeypatch, tmp_path):
     assert payload["host"] == "127.0.0.1"
     assert payload["port"] == 8123
     assert payload["token"] == "abc-token"
-    assert payload["url"] == "http://localhost:8123"
+    assert payload["url"] == "http://127.0.0.1:8123"  # never "localhost" (IPv6 SYN_SENT hang)
     assert payload["pid"] > 0

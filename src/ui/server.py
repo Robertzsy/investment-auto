@@ -952,15 +952,25 @@ class ChatHandler(SimpleHTTPRequestHandler):
         pass
 
 
+def _format_url(host: str, port: int) -> str:
+    """Render a URL from the actual bound host/port (IPv6 gets brackets).
+
+    Never rewrites the host to "localhost": the desktop WebView2 may resolve
+    localhost to IPv6 ::1 first and hang in SYN_SENT when the server only
+    bound IPv4 loopback.
+    """
+    rendered = f"[{host}]" if ":" in host and not host.startswith("[") else host
+    return f"http://{rendered}:{port}"
+
+
 def _write_ready_file(host: str, port: int, token: str) -> None:
     """Publish the actual bound port and token for the desktop shell."""
     try:
-        ready_host = "localhost" if host in {"localhost", "127.0.0.1", "::1"} else host
         payload = {
             "host": host,
             "port": int(port),
             "token": token,
-            "url": f"http://{ready_host}:{port}",
+            "url": _format_url(host, port),
             "pid": os.getpid(),
             "started_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         }
@@ -983,8 +993,7 @@ def start_server(host: str = "localhost", port: int = 8080, open_browser: bool =
 
     actual_host, actual_port = server.server_address[:2]
     _write_ready_file(actual_host, actual_port, ACCESS_TOKEN)
-    url_host = "localhost" if host in {"localhost", "127.0.0.1", "::1"} else host
-    url = f"http://{url_host}:{actual_port}"
+    url = _format_url(actual_host, actual_port)
     logger.info(f"AI Chat Panel running at {url}")
 
     # Auto-open browser for interactive local use only.

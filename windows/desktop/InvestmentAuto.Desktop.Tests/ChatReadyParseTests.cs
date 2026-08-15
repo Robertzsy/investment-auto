@@ -20,7 +20,7 @@ public class ChatReadyParseTests
         Assert.Equal("127.0.0.1", ready!.Host);
         Assert.Equal(2234, ready.Port);
         Assert.Equal("tok123", ready.Token);
-        Assert.Equal("http://localhost:2234", ready.Url);
+        Assert.Equal("http://127.0.0.1:2234", ready.Url); // localhost is normalized to IPv4
         Assert.Equal(12345, ready.Pid);
         Assert.Equal("2026-08-15T21:19:43+08:00", ready.StartedAt);
     }
@@ -51,5 +51,20 @@ public class ChatReadyParseTests
 
         Assert.NotNull(ready);
         Assert.Equal(8080, ready!.Port);
+    }
+
+    [Fact]
+    public void TryParse_LocalhostUrl_IsNormalizedToIpv4()
+    {
+        // WebView2 resolving localhost to IPv6 ::1 can hang a pure-IPv4
+        // listener in SYN_SENT forever; the shell must never navigate there.
+        const string json =
+            "{\"host\":\"127.0.0.1\",\"port\":4017,\"token\":\"t\"," +
+            "\"url\":\"http://localhost:4017\",\"pid\":1,\"started_at\":\"s\"}";
+
+        var ready = ChatReady.TryParse(json);
+
+        Assert.NotNull(ready);
+        Assert.Equal("http://127.0.0.1:4017", ready!.Url);
     }
 }

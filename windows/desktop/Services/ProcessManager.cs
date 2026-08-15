@@ -325,6 +325,10 @@ internal sealed class ChatReady
             var payload = JsonSerializer.Deserialize<ChatReady>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             if (payload == null || payload.Port <= 0) return null;
+            // Older ready files (and any future writer) may emit "localhost";
+            // WebView2 can resolve that to IPv6 ::1 and hang in SYN_SENT when
+            // the Python server only bound IPv4 loopback. Always use IPv4.
+            payload.Url = payload.Url.Replace("://localhost:", "://127.0.0.1:");
             return payload;
         }
         catch { return null; }

@@ -291,7 +291,10 @@ def main() -> None:
         return
 
     if args.command == "chat":
-        host = os.getenv("CHAT_HOST", "localhost")
+        # Bind 127.0.0.1 explicitly: "localhost" may resolve to IPv6 ::1 first
+        # in WebView2/browsers on some machines, and a pure-IPv4 listener
+        # leaves those connections stuck in SYN_SENT forever.
+        host = os.getenv("CHAT_HOST", "127.0.0.1")
         try:
             port = int(os.getenv("CHAT_PORT", "8080"))
         except ValueError as exc:
