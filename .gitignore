@@ -26,6 +26,7 @@ runtime/research/
 
 # release artifacts
 release/
+dist/
 InvestmentAuto.exe
 /data/*
 !/data/macro/
