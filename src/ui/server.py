@@ -142,6 +142,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             self.path = "/dashboard.html"
         elif path == "/macro":
             self.path = "/macro.html"
+        elif path == "/setup":
+            self.path = "/setup.html"
         return super().do_GET()
 
     def do_POST(self):
