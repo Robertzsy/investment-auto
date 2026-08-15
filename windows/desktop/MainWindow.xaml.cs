@@ -6,6 +6,7 @@ using System.Windows.Threading;
 using InvestmentAuto.Desktop.Services;
 using Microsoft.Web.WebView2.Core;
 using Application = System.Windows.Application;
+using MessageBox = System.Windows.MessageBox;
 
 namespace InvestmentAuto.Desktop;
 
@@ -26,6 +27,8 @@ public partial class MainWindow : Window
             onStart: () => _ = Task.Run(() => _processManager.StartPublicServices()),
             onPause: () => _ = Task.Run(PauseInvestmentAsync),
             onViewLogs: () => OpenLogs(),
+            isAutoStartEnabled: () => AutoStart.IsEnabled(),
+            setAutoStart: ToggleAutoStart,
             onExit: () => Dispatcher.Invoke(ExitFully));
     }
 
@@ -94,9 +97,31 @@ public partial class MainWindow : Window
             return;
         }
 
+        var choice = MessageBox.Show(
+            this,
+            "关闭窗口后，Investment Auto 要继续做什么？\n\n" +
+            "是 - 最小化到托盘：窗口隐藏，后台自动投资继续运行（推荐）\n" +
+            "否 - 停止全部后台服务并退出\n" +
+            "取消 - 保持窗口打开",
+            "Investment Auto",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question,
+            MessageBoxResult.Yes);
+
+        // The current close never proceeds directly; the user's choice decides.
         e.Cancel = true;
-        Hide();
-        _tray?.ShowMinimizedBalloon();
+
+        if (choice == MessageBoxResult.Yes)
+        {
+            Hide();
+            _tray?.ShowMinimizedBalloon();
+        }
+        else if (choice == MessageBoxResult.No)
+        {
+            // Full exit re-enters OnClosing through the _closingViaTray path.
+            Dispatcher.BeginInvoke(ExitFully);
+        }
+        // Cancel: keep the window open, nothing else to do.
     }
 
     private async Task PauseInvestmentAsync()
@@ -134,5 +159,28 @@ public partial class MainWindow : Window
     {
         _closingViaTray = true;
         Close();
+    }
+
+    private void ToggleAutoStart(bool enable)
+    {
+        try
+        {
+            if (enable)
+            {
+                var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                if (string.IsNullOrEmpty(exePath))
+                    exePath = System.IO.Path.Combine(AppContext.BaseDirectory, "InvestmentAuto.Desktop.exe");
+                AutoStart.Enable(exePath, _processManager.AppRoot, _processManager.DataRoot);
+            }
+            else
+            {
+                AutoStart.Disable();
+            }
+            _tray?.ShowAutoStartBalloon(AutoStart.IsEnabled());
+        }
+        catch (Exception ex)
+        {
+            _tray?.ShowErrorBalloon("开机自启设置失败：" + ex.Message);
+        }
     }
 }
