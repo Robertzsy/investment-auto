@@ -86,8 +86,10 @@ autonomous:
   minimum_agent_responses: 2
   minimum_priced_symbols: 2
   operation_mode: automatic
-  trade_on_catch_up: true
+  trade_on_catch_up: false
 llm:
+  quick_model: deepseek-v4-flash
+  deep_model: deepseek-v4-pro
   models:
     deepseek:
       api_base: https://api.deepseek.com
@@ -143,6 +145,11 @@ llm:
     sentiment_analyst: deepseek-v4-flash
     technical_analyst: deepseek-v4-flash
     trader: deepseek-v4-flash
+manager_agent:
+  usage_limits:
+    request_limit: 32
+    tool_call_limit: 64
+    total_token_limit: 240000
 markets:
   enable:
   - cn

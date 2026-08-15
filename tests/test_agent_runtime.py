@@ -11,6 +11,13 @@ from pydantic_ai.models.test import TestModel
 from src.ui import agent_runtime, chat_server
 
 
+@pytest.fixture(autouse=True)
+def isolated_investment_command_audit(monkeypatch, tmp_path):
+    from src.investment import service
+
+    monkeypatch.setattr(service, "COMMAND_DIR", tmp_path / "commands")
+
+
 def test_native_function_call_emits_tool_event_and_final_result(monkeypatch):
     monkeypatch.setattr(
         agent_runtime,

@@ -190,6 +190,14 @@ def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, 
 
     monkeypatch.setattr(scheduler, "resolve_llm", lambda **kwargs: FakeLLM())
     monkeypatch.setattr(scheduler, "_deliver_completed_report", lambda *args: {"status": "delivered"})
+    monkeypatch.setattr(
+        "src.investment.reflection.InvestmentReflectionService.evaluate_pending",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        "src.investment.reflection.InvestmentReflectionService.reflect_cycle",
+        lambda *args, **kwargs: {"status": "recorded"},
+    )
     monkeypatch.setattr("src.trading.controller.run_autonomous_cycle", lambda *args, **kwargs: {
         "status": "executed",
         "screening": {"selected_symbols": ["NVDA", "MSFT"]},
@@ -225,6 +233,22 @@ def test_us_evening_misfire_keeps_original_schedule_date(monkeypatch, tmp_path):
             return "report"
 
     monkeypatch.setattr(scheduler, "resolve_llm", lambda **kwargs: FakeLLM())
+    monkeypatch.setattr(
+        "src.manager.report_inbox.publish_cycle_report",
+        lambda *args, **kwargs: {"status": "test_isolated"},
+    )
+    monkeypatch.setattr(
+        "src.trading.controller.run_autonomous_cycle",
+        lambda *args, **kwargs: {"status": "no_trade", "execution": {"fills": []}},
+    )
+    monkeypatch.setattr(
+        "src.investment.reflection.InvestmentReflectionService.evaluate_pending",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        "src.investment.reflection.InvestmentReflectionService.reflect_cycle",
+        lambda *args, **kwargs: {"status": "recorded"},
+    )
     actual = datetime(2026, 8, 11, 1, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
     scheduled = scheduler._scheduled_reference(actual, "21:35")
     assert scheduled == datetime(2026, 8, 10, 21, 35, tzinfo=ZoneInfo("Asia/Shanghai"))

@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import re
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
@@ -56,7 +57,17 @@ def _atomic_write(path: Path, payload: Mapping[str, Any]) -> None:
         json.dumps(dict(payload), ensure_ascii=False, indent=2, default=str),
         encoding="utf-8",
     )
-    temporary.replace(path)
+    # Windows antivirus/indexing can briefly retain a handle after the temp
+    # file is closed. Retry only the atomic replace; every failure remains
+    # fail-closed and the caller still receives the final exception.
+    for attempt in range(4):
+        try:
+            temporary.replace(path)
+            return
+        except PermissionError:
+            if attempt == 3:
+                raise
+            time.sleep(0.02 * (attempt + 1))
 
 
 def _read_json(path: Path) -> Optional[Dict[str, Any]]:

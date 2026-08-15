@@ -19,6 +19,7 @@ class InvestmentCommand(str, Enum):
     SET_MODE = "set_mode"
     SET_STRATEGY = "set_strategy"
     REFLECT = "reflect"
+    RESET_PAPER_ACCOUNT = "reset_paper_account"
     STATUS = "status"
 
 

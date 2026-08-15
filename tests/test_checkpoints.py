@@ -10,6 +10,26 @@ from src.trading import agent_workflow, checkpoints
 NOW = datetime(2026, 8, 14, 12, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
 
 
+def test_atomic_write_retries_transient_windows_sharing_violation(monkeypatch, tmp_path):
+    target = tmp_path / "checkpoint" / "index.json"
+    original_replace = Path.replace
+    calls = 0
+
+    def flaky_replace(self, destination):
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            raise PermissionError(5, "transient sharing violation")
+        return original_replace(self, destination)
+
+    monkeypatch.setattr(Path, "replace", flaky_replace)
+
+    checkpoints._atomic_write(target, {"status": "running"})
+
+    assert calls == 3
+    assert json.loads(target.read_text(encoding="utf-8")) == {"status": "running"}
+
+
 def test_stage_roundtrip_and_list_stages(monkeypatch, tmp_path):
     monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
     checkpoints.init_checkpoint("cycle-1", "cn", ["600519"])

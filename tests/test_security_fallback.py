@@ -15,6 +15,14 @@ from src.llm.adapter import GenericOpenAILLM
 from src.ui import server
 
 
+@pytest.fixture(autouse=True)
+def isolated_investment_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from src.investment import service
+
+    monkeypatch.setenv("INVESTMENT_AGENT_TRANSPORT", "local")
+    monkeypatch.setattr(service, "COMMAND_DIR", tmp_path / "investment_commands")
+
+
 class _FakeHandler:
     def __init__(self, body: bytes = b"") -> None:
         self.headers = {"Content-Length": str(len(body))}

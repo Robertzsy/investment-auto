@@ -157,6 +157,22 @@ class InvestmentAgentService:
         if command.command == InvestmentCommand.REFLECT:
             market = str(command.payload.get("market", "")).lower()
             return {"ok": True, "reflections": self.reflection.recent(market, int(command.payload.get("limit", 5)))}
+        if command.command == InvestmentCommand.RESET_PAPER_ACCOUNT:
+            if str(cfg.trading.get("mode", "paper")).strip().lower() != "paper":
+                raise RuntimeError("账户重置只允许 trading.mode=paper；实盘账户不会被修改")
+            market = normalize_market(command.payload.get("market"))
+            from src.portfolio import account as account_store
+
+            reset = account_store.reset_market(
+                market,
+                backup_dir=ROOT / "runtime" / "backups" / "portfolio",
+            )
+            return {
+                "ok": True,
+                "status": "reset",
+                "reason": str(command.payload.get("reason", "用户要求重置模拟账户"))[:500],
+                **reset,
+            }
         if command.command == InvestmentCommand.STATUS:
             from src.investment.status import runtime_status
 
