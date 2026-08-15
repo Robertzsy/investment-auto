@@ -43,7 +43,8 @@ public partial class MainWindow : Window
         };
         WebView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
 
-        WebView.CoreWebView2.Navigate(ready.Url);
+        var startPage = _processManager.IsFirstRun ? "/setup" : "/";
+        WebView.CoreWebView2.Navigate(ready.Url + startPage + "?token=" + Uri.EscapeDataString(ready.Token));
 
         StartStatusTimer();
     }

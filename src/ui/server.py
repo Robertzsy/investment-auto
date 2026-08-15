@@ -128,6 +128,10 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_autonomy_status()
         if path == "/api/investment/mandate":
             return self._handle_investment_mandate()
+        if path == "/api/secrets":
+            return self._handle_get_secrets()
+        if path == "/api/migrate":
+            return self._handle_migrate_detect()
 
         # Static files
         if path == "/" or path == "":
@@ -161,6 +165,14 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_save_market_configs()
         if path == "/api/env":
             return self._handle_save_env()
+        if path == "/api/secrets":
+            return self._handle_save_secrets()
+        if path == "/api/migrate":
+            return self._handle_migrate_run()
+        if path == "/api/setup/init":
+            return self._handle_setup_init()
+        if path == "/api/setup/complete":
+            return self._handle_setup_complete()
         if path.startswith("/api/autonomy/"):
             return self._handle_autonomy_control(path.rsplit("/", 1)[-1])
 
@@ -528,6 +540,93 @@ class ChatHandler(SimpleHTTPRequestHandler):
             self._json_response(200, {"ok": True})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
+
+    def _handle_get_secrets(self):
+        from src.secret_store import list_keys
+
+        try:
+            keys = list_keys()
+        except Exception:
+            keys = []
+        # Never return secret values - only which keys are configured.
+        self._json_response(200, {"keys": keys})
+
+    def _handle_save_secrets(self):
+        from src.secret_store import save_secret
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            self._json_response(400, {"ok": False, "error": "JSON 无效"})
+            return
+        if not isinstance(data, dict):
+            self._json_response(400, {"ok": False, "error": "payload 必须是对象"})
+            return
+        try:
+            for key, value in data.items():
+                save_secret(str(key), str(value or ""))
+        except Exception as exc:
+            logger.warning("Secret save failed: %s", exc)
+            self._json_response(500, {"ok": False, "error": str(exc)[:300]})
+            return
+        self._json_response(200, {"ok": True})
+
+    def _handle_migrate_detect(self):
+        from src.migration import detect_sources, plan_migration
+
+        sources = detect_sources()
+        self._json_response(200, {
+            "sources": sources,
+            "plan": plan_migration(sources[0]["path"]) if sources else None,
+        })
+
+    def _handle_migrate_run(self):
+        from src.migration import run_migration
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            self._json_response(400, {"ok": False, "error": "JSON 无效"})
+            return
+        source = str((data or {}).get("source", ""))
+        items = (data or {}).get("items") or None
+        if not source:
+            self._json_response(400, {"ok": False, "error": "source 不能为空"})
+            return
+        try:
+            result = run_migration(source, items)
+        except Exception as exc:
+            self._json_response(500, {"ok": False, "error": str(exc)[:400]})
+            return
+        self._json_response(200, {"ok": True, **result})
+
+    def _handle_setup_init(self):
+        from src.portfolio import account
+
+        try:
+            existing = account.load()
+            initialized = bool(isinstance(existing, dict) and existing.get("accounts"))
+            if not initialized:
+                account.save({"version": 2, "multiMarket": True, "accounts": {
+                    market: {"totalCapital": 500000, "cash": 500000, "holdings": [], "tradeHistory": []}
+                    for market in ["cn", "hk", "us", "etf"]
+                }, "fxRates": {"USD_CNY": 7.2, "HKD_CNY": 0.92}})
+        except Exception as exc:
+            self._json_response(500, {"ok": False, "error": str(exc)[:300]})
+            return
+        self._json_response(200, {"ok": True, "initialized": not initialized})
+
+    def _handle_setup_complete(self):
+        from src.paths import runtime_dir
+
+        marker = runtime_dir() / "setup.complete"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(datetime.now().astimezone().isoformat(timespec="seconds"), encoding="utf-8")
+        self._json_response(200, {"ok": True})
 
     def _handle_dashboard(self, market: str):
         try:

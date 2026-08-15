@@ -73,7 +73,16 @@ class AppConfig:
 
     def llm_api_key(self, provider: str) -> str:
         env_key = self.llm_model_config(provider).get("api_key_env", "")
-        return os.getenv(env_key, "")
+        value = os.getenv(env_key, "")
+        if not value:
+            # Desktop app: secrets live in the DPAPI store, not .env or logs.
+            try:
+                from src.secret_store import load_secret
+
+                value = load_secret(env_key) or ""
+            except Exception:
+                value = ""
+        return value
 
     def llm_role_model(self, role: str) -> str:
         mapping = self._data.get("llm", {}).get("role_model_override", {})

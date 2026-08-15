@@ -39,6 +39,10 @@ internal sealed class ProcessManager : IDisposable
     public string DataRoot => _dataRoot;
     public string AccessToken => _token;
 
+    /// <summary>True when the desktop wizard has never completed.</summary>
+    public bool IsFirstRun =>
+        !File.Exists(Path.Combine(_dataRoot, "runtime", "setup.complete"));
+
     private static string LocatePythonW(string appRoot)
     {
         var candidates = new[]

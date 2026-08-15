@@ -100,7 +100,7 @@ def _parser() -> argparse.ArgumentParser:
         choices=[
             "run", "once", "catchup", "macro", "optimizer", "screen", "autonomous",
             "pause", "resume", "kill", "reset-kill", "status",
-            "init", "version", "chat", "research",
+            "init", "version", "chat", "research", "migrate",
         ],
     )
     parser.add_argument("--market", "-m", default="cn")
@@ -112,6 +112,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--task", default="backtest", choices=["backtest", "strategy_experiment", "bugfix"],
                         help="Research task type (research command)")
     parser.add_argument("--objective", default="", help="Immutable research objective")
+    parser.add_argument("--from", dest="from_path", default=None, help="Legacy project root to migrate from")
+    parser.add_argument("--items", default="", help="Comma-separated migration items; empty = all")
     parser.add_argument("--max-rounds", type=int, default=None, help="Fresh-agent round cap (config default when empty)")
     return parser
 
@@ -270,6 +272,22 @@ def main() -> None:
             on_progress=lambda message: logger.info(message),
         )
         print(json.dumps(asdict(outcome), ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "migrate":
+        from src.migration import detect_sources, plan_migration, run_migration
+
+        source = args.from_path or os.getenv("INVESTMENT_AUTO_HOME", "")
+        if not source:
+            sources = detect_sources()
+            if not sources:
+                print(json.dumps({"status": "no_source", "reason": "未检测到 D:\investment-auto 或 INVESTMENT_AUTO_HOME"}, ensure_ascii=False, indent=2))
+                return
+            source = sources[0]["path"]
+        items = [item.strip() for item in args.items.split(",") if item.strip()] or None
+        plan = plan_migration(source)
+        result = run_migration(source, items)
+        print(json.dumps({**plan, **result}, ensure_ascii=False, indent=2, default=str))
         return
 
     if args.command == "chat":

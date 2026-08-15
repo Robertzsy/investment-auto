@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Investment Auto - 首次配置</title>
+<style>
+  :root { --primary:#2762e8; --bg:#f6f8fc; --card:#fff; --text:#1c2237; --muted:#5d6985; --ok:#157440; --bad:#ab2d36; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Microsoft YaHei UI","Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+  .wrap { max-width:760px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:24px; margin:8px 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:20px; }
+  .steps { display:flex; gap:4px; margin-bottom:24px; flex-wrap:wrap; }
+  .steps span { flex:1; min-width:40px; text-align:center; font-size:11px; padding:6px 2px; border-radius:6px; background:#e4e9f4; color:var(--muted); }
+  .steps span.on { background:var(--primary); color:#fff; }
+  .steps span.done { background:#d7f0e2; color:var(--ok); }
+  .card { background:var(--card); border-radius:12px; padding:22px; box-shadow:0 2px 10px rgba(20,35,70,.06); }
+  .card h2 { font-size:17px; margin:0 0 14px; }
+  label { display:block; margin:10px 0 4px; font-size:13px; color:var(--muted); }
+  input[type=text], input[type=password], select { width:100%; padding:10px 12px; border:1px solid #ccd4e4; border-radius:8px; font-size:14px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:180px; }
+  button { background:var(--primary); color:#fff; border:0; border-radius:8px; padding:11px 22px; font-size:14px; cursor:pointer; margin-top:18px; }
+  button.ghost { background:#eef2fa; color:var(--text); }
+  button:disabled { opacity:.5; cursor:default; }
+  .hint { color:var(--muted); font-size:12px; margin-top:8px; }
+  .err { color:var(--bad); font-size:13px; margin-top:8px; }
+  .okline { color:var(--ok); font-size:13px; margin-top:8px; }
+  .check { display:flex; align-items:center; gap:8px; margin:8px 0; }
+  .check input { width:auto; }
+  .check label { margin:0; color:var(--text); }
+  .chip { display:inline-block; border:1px solid #ccd4e4; border-radius:8px; padding:8px 14px; margin:4px; cursor:pointer; font-size:13px; }
+  .chip.sel { border-color:var(--primary); background:#eaf0fd; color:var(--primary); font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td, th { padding:7px 8px; border-bottom:1px solid #e6ebf4; text-align:left; }
+  th { color:var(--muted); font-weight:500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Investment Auto 首次配置</h1>
+  <div class="sub">完成以下步骤后，投资 Agent 将在后台自动运行。所有密钥经 Windows DPAPI 加密保存。</div>
+  <div class="steps" id="stepsbar"></div>
+  <div class="card" id="stage"></div>
+  <div id="nav" style="display:flex; gap:12px; justify-content:space-between;">
+    <button class="ghost" id="back" onclick="go(-1)">上一步</button>
+    <button id="next" onclick="go(1)">下一步</button>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const TOKEN = params.get('token') || '';
+const state = { step:0, provider:'deepseek', apiKey:'', quickModel:'deepseek-v4-flash', deepModel:'deepseek-v4-pro', strategy:'neutral', mode:'automatic', markets:['cn'], webhook:'', migrationDone:false, risk:{}, initDone:false };
+const STEP_NAMES = ['旧数据','密钥','模型','策略','模式','市场','风控','通知','初始化','完成'];
+async function api(method, path, body) {
+  const res = await fetch(path, {
+    method, headers: { 'Content-Type':'application/json', 'X-IA-Token': TOKEN }, body: body ? JSON.stringify(body) : undefined
+  });
+  return res.json();
+}
+function renderSteps() {
+  document.getElementById('stepsbar').innerHTML = STEP_NAMES.map((n,i)=>
+    '<span class="'+(i===state.step?'on':(i<state.step?'done':''))+'">'+(i+1)+' '+n+'</span>').join('');
+  document.getElementById('back').style.visibility = state.step===0 ? 'hidden':'visible';
+}
+function go(d) { state.step = Math.max(0, Math.min(STEP_NAMES.length-1, state.step+d)); render(); }
+function chipRow(name, options) {
+  return options.map(o=>'<span class="chip'+(state[name]===o.value?' sel':'')+'" onclick="state.'+name+'='+JSON.stringify(o.value)+';render()">'+o.label+'</span>').join('');
+}
+async function render() {
+  renderSteps();
+  const s = document.getElementById('stage');
+  const n = document.getElementById('next');
+  n.disabled = false; n.textContent = state.step===STEP_NAMES.length-1 ? '进入应用' : '下一步';
+  if (state.step===0) {
+    s.innerHTML = '<h2>导入旧项目数据（可选）</h2><div id="migrateBox">正在检测 D:\\investment-auto ...</div>';
+    const detect = await api('GET','/api/migrate');
+    if (detect.sources && detect.sources.length) {
+      const items = (detect.plan?.items||[]).map(i=>'<div class="check"><input type="checkbox" id="mi_'+i.replace(/[^a-z]/g,'')+'" value="'+i+'" checked><label>'+i+'</label></div>').join('');
+      s.innerHTML = '<h2>检测到旧项目：'+detect.sources[0].path+'</h2><p class="hint">只复制、不删除原目录；目标已有文件会先备份；日志/锁/临时检查点不导入；密钥将转入 DPAPI 加密存储。</p>'+items+'<button onclick="runMigrate()">开始导入</button><div id="migrateResult"></div>';
+      n.style.visibility='hidden';
+    } else {
+      s.innerHTML = '<h2>未检测到旧项目</h2><p class="hint">这是全新安装，可以直接继续。</p>';
+      n.style.visibility='visible';
+    }
+  } else if (state.step===1) {
+    s.innerHTML = '<h2>模型服务商与 API Key</h2>'+chipRow('provider',[{value:'deepseek',label:'DeepSeek'},{value:'openai',label:'OpenAI'},{value:'glm',label:'智谱 GLM'},{value:'kimi',label:'Kimi'}])+
+      '<label>API Key（加密保存，不会写入明文文件）</label><input type="password" id="apikey" value="'+state.apiKey+'">'+
+      '<button onclick="saveKey()">保存并测试</button><div id="keyResult"></div>';
+    n.style.visibility='visible';
+  } else if (state.step===2) {
+    const models = await api('GET','/api/models');
+    const opts = (models.variants||models).map ? [] : [];
+    s.innerHTML = '<h2>快速 / 深度模型</h2><label>快速模型（日常对话）</label><select id="qm"></select><label>深度模型（投资决策）</label><select id="dm"></select><p class="hint">按模型服务商能力选择；决策类角色将使用深度模型。</p>';
+  } else if (state.step===3) {
+    s.innerHTML = '<h2>投资策略档位</h2>'+chipRow('strategy',[{value:'conservative',label:'保守 - 优先保护本金'},{value:'neutral',label:'中立 - 风险收益平衡'},{value:'aggressive',label:'激进 - 主动捕捉机会'}])+'<p class="hint">每档同时包含最低置信度、仓位上限、回撤红线等硬边界。</p>';
+  } else if (state.step===4) {
+    s.innerHTML = '<h2>运行模式</h2>'+chipRow('mode',[{value:'automatic',label:'全自动 - 按计划自动运行完整轮次'},{value:'manual',label:'手动 - 仅在你触发时运行'}])+'<p class="hint">两种模式都不要求逐步确认。</p>';
+  } else if (state.step===5) {
+    const markets = [{v:'cn',l:'A 股'},{v:'hk',l:'港股'},{v:'us',l:'美股'},{v:'etf',l:'场内 ETF'}];
+    s.innerHTML = '<h2>启用市场</h2>'+markets.map(m=>'<div class="check"><input type="checkbox" '+(state.markets.includes(m.v)?'checked':'')+' onchange="toggleMarket('+JSON.stringify(m.v)+')"><label>'+m.l+'</label></div>').join('');
+  } else if (state.step===6) {
+    const rules = await api('GET','/api/market-configs');
+    const rows = (rules.markets||rules||{}) && Object.entries(rules.markets||rules||{}).map(([k,v])=>{
+      const r = v.risk||{};
+      return '<tr><td>'+k+'</td><td>'+ (r.single_stock_max_pct??'-') +'%</td><td>'+(r.hard_stop_pct??'-')+'%</td><td>'+(r.max_drawdown_pct??'-')+'%</td></tr>';
+    }).join('');
+    s.innerHTML = '<h2>硬风控确认（只读）</h2><table><tr><th>市场</th><th>单股上限</th><th>止损</th><th>最大回撤</th></tr>'+rows+'</table><p class="hint">这些是代码级硬边界，AI 无法绕开。</p>';
+  } else if (state.step===7) {
+    s.innerHTML = '<h2>通知 Webhook（可选）</h2><label>Webhook URL</label><input type="text" id="webhook" value="'+state.webhook+'"><p class="hint">留空则不推送。URL 同样加密保存。</p>';
+  } else if (state.step===8) {
+    s.innerHTML = '<h2>初始化模拟账户</h2><p class="hint">为每个市场创建 50 万模拟资金账户（纸面交易）。</p><button onclick="initAccount()">初始化账户</button><div id="initResult"></div>';
+    n.style.visibility='hidden';
+  } else {
+    s.innerHTML = '<h2>准备就绪</h2><p>投资 Agent 正在后台运行。点击「进入应用」打开主界面。</p>';
+  }
+}
+async function runMigrate() {
+  const items = [...document.querySelectorAll('#stage input:checked')].map(i=>i.value);
+  const r = await api('POST','/api/migrate',{source:state.migSource||null,items});
+  document.getElementById('migrateResult').innerHTML = r.ok===false
+    ? '<div class="err">'+r.error+'</div>'
+    : '<div class="okline">已导入 '+ (r.copied||[]).join(', ') + (r.secrets_migrated?.length?('；密钥已加密迁移：'+r.secrets_migrated.join(', ')):'') +'</div>';
+  document.getElementById('next').style.visibility='visible';
+}
+function saveKey() {
+  state.apiKey = document.getElementById('apikey').value;
+  const envName = {deepseek:'DEEPSEEK_API_KEY',openai:'OPENAI_API_KEY',glm:'GLM_API_KEY',kimi:'KIMI_API_KEY'}[state.provider];
+  api('POST','/api/secrets',{[envName]:state.apiKey}).then(r=>{
+    document.getElementById('keyResult').innerHTML = r.ok ? '<div class="okline">密钥已加密保存</div>' : '<div class="err">'+r.error+'</div>';
+  });
+}
+function toggleMarket(v){ if(state.markets.includes(v)) state.markets=state.markets.filter(x=>x!==v); else state.markets.push(v); }
+async function initAccount() {
+  const r = await api('POST','/api/setup/init',{});
+  document.getElementById('initResult').innerHTML = r.ok ? '<div class="okline">账户已初始化（50 万/市场，模拟盘）</div>' : '<div class="err">'+r.error+'</div>';
+  document.getElementById('next').style.visibility='visible';
+}
+document.getElementById('next').onclick = async () => {
+  if (state.step===3) await api('POST','/api/investment/mandate',{profile:state.strategy});
+  if (state.step===4) await api('POST','/api/autonomy/mode',{mode:state.mode});
+  if (state.step===5) await api('POST','/api/config',{markets:{enable:state.markets}});
+  if (state.step===7) await api('POST','/api/secrets',{NOTIFY_WEBHOOK_URL:document.getElementById('webhook').value});
+  if (state.step===STEP_NAMES.length-1) {
+    await api('POST','/api/setup/complete',{});
+    location.href = '/?token='+encodeURIComponent(TOKEN);
+    return;
+  }
+  go(1);
+};
+render();
+</script>
+</body>
+</html>
