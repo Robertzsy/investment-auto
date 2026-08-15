@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "NszDt77YRQU=",
+  "success": true,
+  "projectFilePath": "D:\\investment-auto\\tools\\webview2-diag\\webview2-diag.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\zheng siyuan\\.nuget\\packages\\microsoft.web.webview2\\1.0.2592.51\\microsoft.web.webview2.1.0.2592.51.nupkg.sha512"
+  ],
+  "logs": []
+}

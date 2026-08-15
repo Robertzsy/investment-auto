@@ -47,20 +47,30 @@ public partial class App : Application
 
         ListenForShowSignal();
 
+        // The window must be realized BEFORE StartAsync: WebView2's host
+        // HWND is created from the window handle, and initializing it while
+        // the window is still hidden can leave EnsureCoreWebView2Async
+        // hanging forever. Autostart stays tray-only, so it skips showing.
+        if (!autoStart) _window.Show();
+
         try
         {
             await _window.StartAsync();
         }
         catch (Exception ex)
         {
-            MessageBox.Show("启动失败：" + ex.Message, "Investment Auto",
+            try
+            {
+                File.AppendAllText(
+                    Path.Combine(Path.GetTempPath(), "ia-desktop-boot.log"),
+                    DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " STARTUP-FAILED: " + ex + Environment.NewLine);
+            }
+            catch { }
+            MessageBox.Show("启动失败：" + ex.Message + "\n\n诊断日志：%TEMP%\\ia-desktop-boot.log", "Investment Auto",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
             return;
         }
-
-        // Autostart runs silent in the tray; a normal launch shows the window.
-        if (!autoStart) _window.Show();
     }
 
     private static string? ReadArg(string[] args, string name)
@@ -116,6 +126,7 @@ public partial class App : Application
         }
         catch { }
         _pipeCts?.Cancel();
+        _window?.ShutdownWebView();
         _window?.DisposeTray();
         _processManager?.Dispose();
         _mutex?.ReleaseMutex();

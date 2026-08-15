@@ -32,8 +32,11 @@ $before = Get-Snapshot $DataDir
 
 "== Snapshot program dir ($AppDir)"
 $exePath = Join-Path $AppDir "InvestmentAuto.Desktop.exe"
+$dllPath = Join-Path $AppDir "InvestmentAuto.Desktop.dll"
 $exeBefore = if (Test-Path $exePath) { (Get-FileHash $exePath -Algorithm SHA256).Hash } else { $null }
+$dllBefore = if (Test-Path $dllPath) { (Get-FileHash $dllPath -Algorithm SHA256).Hash } else { $null }
 "   exe hash: $exeBefore"
+"   dll hash: $dllBefore"
 
 "== Silent upgrade install"
 $p = Start-Process -FilePath $installer -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -PassThru -Wait
@@ -43,6 +46,7 @@ if ($p.ExitCode -ne 0) { throw "Installer exited with code $($p.ExitCode)" }
 "== Compare"
 $after = Get-Snapshot $DataDir
 $exeAfter = if (Test-Path $exePath) { (Get-FileHash $exePath -Algorithm SHA256).Hash } else { $null }
+$dllAfter = if (Test-Path $dllPath) { (Get-FileHash $dllPath -Algorithm SHA256).Hash } else { $null }
 
 $missing = @($before.Keys | Where-Object { -not $after.ContainsKey($_) })
 $changed = @($before.Keys | Where-Object { $after.ContainsKey($_) -and $before[$_] -ne $after[$_] })
@@ -52,12 +56,16 @@ $added   = @($after.Keys  | Where-Object { -not $before.ContainsKey($_) })
 "   missing:  $($missing.Count) $($missing -join ', ')"
 "   changed:  $($changed.Count) $($changed -join ', ')"
 "   added:    $($added.Count) $($added -join ', ')"
-"   program exe hash before: $exeBefore"
-"   program exe hash after:  $exeAfter"
+"   program exe hash before/after: $exeBefore / $exeAfter"
+"   program dll hash before/after: $dllBefore / $dllAfter"
 
 if ($missing.Count -gt 0) { throw "DATA LOSS: files missing after upgrade: $($missing -join ', ')" }
 if ($changed.Count -gt 0) { throw "DATA LOSS: files changed after upgrade: $($changed -join ', ')" }
-if ($exeBefore -and $exeAfter -eq $exeBefore) { Write-Warning "Program exe was not replaced (same hash) - installer may not have updated files" }
-if (-not $exeAfter) { throw "Program exe missing after upgrade" }
+# The apphost exe barely changes between builds; the managed code lives in the
+# DLL. Require at least one of them to differ so upgrades are actually applied.
+if ($exeBefore -and $dllBefore -and $exeAfter -eq $exeBefore -and $dllAfter -eq $dllBefore) {
+    throw "Program files were not replaced (exe and dll hashes unchanged) - installer may not have updated files"
+}
+if (-not $exeAfter -or -not $dllAfter) { throw "Program files missing after upgrade" }
 
 "PASS: upgrade preserved all user data and replaced the program files."

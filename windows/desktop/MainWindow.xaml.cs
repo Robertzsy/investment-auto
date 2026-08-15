@@ -34,9 +34,53 @@ public partial class MainWindow : Window
 
     public async Task StartAsync()
     {
+        LogLine("start: ensuring services...");
         var ready = await _processManager.EnsureRunningAsync(new System.Threading.CancellationToken());
         _ready = ready;
-        await WebView.EnsureCoreWebView2Async(null);
+        LogLine("start: services ready at " + ready.Url);
+
+        StartStatusTimer();
+
+        // The window must already be realized (App shows it before this call)
+        // for WebView2 to initialize; autostart/tray-only runs defer to
+        // RestoreFromTray.
+        if (IsVisible) await EnsureWebViewAsync(ready);
+    }
+
+    private bool _webViewStarted;
+
+    private async Task EnsureWebViewAsync(ChatReady ready)
+    {
+        if (_webViewStarted) return;
+
+        // A hard-killed previous run leaves orphaned msedgewebview2.exe groups
+        // that hold the WebView2 user-data-folder lock; without cleanup the
+        // next EnsureCoreWebView2Async hangs forever ("stuck at 启动中").
+        var cleaned = WebView2Guard.KillOrphanedBrowsers();
+        if (cleaned > 0) LogLine("webview2: cleaned " + cleaned + " orphaned browser process(es)");
+
+        var userDataFolder = System.IO.Path.Combine(_processManager.DataRoot, "runtime", "webview2");
+        System.IO.Directory.CreateDirectory(userDataFolder);
+
+        // Some machines register the WebView2 runtime only in the 32-bit
+        // registry view while this app is x64; default discovery then fails
+        // or hangs. Resolve the runtime folder explicitly when possible.
+        var browserFolder = WebView2Locator.FindRuntimeFolder();
+        LogLine("start: webview2 runtime folder: " + (browserFolder ?? "(default discovery)"));
+
+        var createTask = CoreWebView2Environment.CreateAsync(
+            browserExecutableFolder: browserFolder, userDataFolder: userDataFolder, options: null);
+        var createDone = await Task.WhenAny(createTask, Task.Delay(TimeSpan.FromSeconds(45)));
+        if (createDone != createTask)
+            throw new TimeoutException("WebView2 环境创建超时（45 秒）。请重启应用；若反复出现请安装 WebView2 Runtime。");
+        var environment = await createTask;
+        LogLine("start: webview2 environment ready");
+
+        var initTask = WebView.EnsureCoreWebView2Async(environment);
+        var finished = await Task.WhenAny(initTask, Task.Delay(TimeSpan.FromSeconds(45)));
+        if (finished != initTask)
+            throw new TimeoutException("WebView2 组件初始化超时（45 秒）。请重启应用；若反复出现请安装 WebView2 Runtime。");
+        LogLine("start: core webview2 ready");
 
         // Inject the per-launch token on every request, so the front-end
         // never has to know about authentication.
@@ -47,9 +91,12 @@ public partial class MainWindow : Window
         WebView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
 
         var startPage = _processManager.IsFirstRun ? "/setup" : "/";
-        WebView.CoreWebView2.Navigate(ready.Url + startPage + "?token=" + Uri.EscapeDataString(ready.Token));
+        var startUrl = ready.Url + startPage + "?token=" + Uri.EscapeDataString(ready.Token);
+        LogLine("start: navigating to " + startUrl);
+        WebView.CoreWebView2.Navigate(startUrl);
+        LogLine("start: navigation issued");
 
-        StartStatusTimer();
+        _webViewStarted = true;
     }
 
     private void StartStatusTimer()
@@ -83,9 +130,31 @@ public partial class MainWindow : Window
         Show();
         WindowState = WindowState.Normal;
         Activate();
+
+        // Tray-only (autostart) runs defer WebView2 init until the window
+        // is actually shown; initialize lazily on first restore.
+        if (!_webViewStarted && _ready != null)
+            _ = EnsureWebViewAsync(_ready);
     }
 
     public void DisposeTray() => _tray?.Dispose();
+
+    /// <summary>Explicit WebView teardown so the browser process group exits with us.</summary>
+    public void ShutdownWebView()
+    {
+        try { WebView.Dispose(); } catch { }
+    }
+
+    private void LogLine(string message)
+    {
+        try
+        {
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(_processManager.DataRoot, "runtime", "logs", "desktop.log"),
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " " + message + Environment.NewLine);
+        }
+        catch { }
+    }
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
