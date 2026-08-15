@@ -38,6 +38,8 @@ watchlist.json
 # desktop build outputs
 windows/desktop/bin/
 windows/desktop/obj/
+windows/desktop/**/bin/
+windows/desktop/**/obj/
 
 # bundled runtimes and downloads (build artifacts, large binaries)
 build/

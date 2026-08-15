@@ -43,7 +43,7 @@ internal sealed class ProcessManager : IDisposable
     public bool IsFirstRun =>
         !File.Exists(Path.Combine(_dataRoot, "runtime", "setup.complete"));
 
-    private static string LocatePythonW(string appRoot)
+    internal static string LocatePythonW(string appRoot)
     {
         var candidates = new[]
         {
@@ -140,11 +140,9 @@ internal sealed class ProcessManager : IDisposable
         if (!File.Exists(path)) return null;
         try
         {
-            var payload = JsonSerializer.Deserialize<ChatReady>(File.ReadAllText(path));
-            if (payload != null && payload.Port > 0) return payload;
+            return ChatReady.TryParse(File.ReadAllText(path));
         }
-        catch { }
-        return null;
+        catch { return null; }
     }
 
     private static async Task<bool> IsHealthyAsync(ChatReady ready, CancellationToken cancellationToken)
@@ -314,7 +312,23 @@ internal sealed class ChatReady
     public string Token { get; set; } = "";
     public string Url { get; set; } = "";
     public int Pid { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("started_at")]
     public string StartedAt { get; set; } = "";
+
+    /// <summary>Parses a chat.ready.json payload; null when missing/invalid/portless.
+    /// The ready file is written by Python with lowercase keys (host/port/token/url/
+    /// pid/started_at), so binding must be case-insensitive.</summary>
+    internal static ChatReady? TryParse(string json)
+    {
+        try
+        {
+            var payload = JsonSerializer.Deserialize<ChatReady>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (payload == null || payload.Port <= 0) return null;
+            return payload;
+        }
+        catch { return null; }
+    }
 }
 
 internal sealed class RuntimeStatus

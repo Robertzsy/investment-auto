@@ -10,7 +10,13 @@
 - 项目源码与静态页面
 - WebView2 Evergreen 安装器（系统缺少运行时才会触发）
 
-## 二、用户安装与使用
+## 二、本机自动化验证
+
+- 桌面外壳单元测试：`dotnet test windows\desktop\InvestmentAuto.Desktop.Tests`（单实例、ready 解析、pythonw 定位、开机自启、进程管理，16 项）
+- 升级保数据：`scripts\verify-upgrade.ps1`（快照 → 静默覆盖安装 → SHA-256 逐文件比对，要求 0 缺失 0 变更）
+- Python 全量：`.venv\Scripts\python -m pytest tests`（252 项，开发模式回归）
+
+## 三、用户安装与使用
 
 1. 双击 `InvestmentAuto-Setup-x64.exe`，全程图形向导（无需管理员、无需 PowerShell、无需预装 Python/Node）
 2. 安装完成自动创建桌面与开始菜单「Investment Auto」快捷方式

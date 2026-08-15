@@ -23,7 +23,12 @@
 
 ### 验证
 
-- 捆绑运行时跑通全量 252 项 Python 测试；
+- 捆绑运行时跑通全量 252 项 Python 测试（本次改动后 .venv 复跑同样 252 通过）；
+- 桌面外壳新增 xUnit 自动化测试 16 项：单实例互斥、ready 文件解析（含小写键/畸形
+  JSON/零端口）、pythonw 定位优先级、开机自启注册表往返、进程管理构造与首次运行标记
+  （`dotnet test windows\desktop\InvestmentAuto.Desktop.Tests`）；
+- 升级保数据自动化校验：`scripts\verify-upgrade.ps1` 快照数据目录 → 静默覆盖安装 →
+  逐文件 SHA-256 比对（实测 16/16 文件字节一致、程序文件已替换）；
 - 本机实测：静默安装、快捷方式、安装目录启动、动态端口、ready 文件、令牌 401/200；
 - 待办：干净 Windows 10/11 虚拟机全流程验收（清单见 docs/DESKTOP_USAGE.md）。
 
