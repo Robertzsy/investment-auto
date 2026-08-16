@@ -23,6 +23,13 @@
 
 ### 验证
 
+- 修复捆绑 Python 非自包含的 P0 问题（2026-08-17）：构建时 `PYTHONNOUSERSITE=1` +
+  `-s` + `--ignore-installed` 隔离 user-site，依赖真正装入捆绑目录（site-packages
+  106 个包、`pip check` 无缺失、关键模块 `-s` 导入全过）；桌面后台进程统一
+  `pythonw -s -m src.main`，运行时永不借用用户包；发行门禁新增捆绑自包含检查
+  （pip check + import smoke + `python -s -m pytest`，此前失败项现已全绿）；
+  另修：令牌注入收窄为本次启动的服务源（ready.Url + "/*"）、静默卸载不弹窗默认保留
+  数据、verify-upgrade 排除易变 WebView2 缓存并接受幂等重装；
 - 修复验收阻断项（2026-08-17）：①向导局部保存改为深合并，不再清空 llm/调度/风控/
   自主交易配置；②模型设置完整接线（服务商下拉数据、快速/深度模型写入、角色映射、
   "保存并测试"真实调用服务商）；③旧 D 盘迁移路径修复（D:\investment-auto）+ 向导
