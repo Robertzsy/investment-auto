@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Installer = "release\InvestmentAuto-Setup-x64.exe",
     [string]$AppDir = "$env:LOCALAPPDATA\Programs\InvestmentAuto",
     [string]$DataDir = "$env:LOCALAPPDATA\InvestmentAuto"

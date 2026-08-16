@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$SkipUpgrade,
     [switch]$SkipPythonVenv,
     [switch]$SkipPythonBundled,
@@ -52,12 +52,20 @@ if (-not $SkipPythonVenv -and (Test-Path ".venv\Scripts\python.exe")) {
     }
 }
 
-# 3. Bundled runtime must be able to run the same suite (offline deps ok).
+# 3. Bundled runtime must be fully self-contained (-s disables user-site,
+#    so a clean machine is simulated even on the build box) and able to run
+#    the same suite (offline deps ok).
 if (-not $SkipPythonBundled) {
     $bundled = "build\runtime\python\python.exe"
     if (-not (Test-Path $bundled)) { throw "bundled runtime missing: $bundled (run scripts\bundle-runtime.ps1 first)" }
+    Run-Step "Bundled runtime self-containment (pip check + imports)" {
+        & $bundled -s -m pip check | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "bundled pip check failed" }
+        & $bundled -s -c "import pydantic, typing_extensions, pandas, numpy, pymongo, openai, httpx, requests, yaml, apscheduler, dotenv, tzlocal, h11, httpcore; print('ok')" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "bundled smoke imports failed" }
+    }
     Run-Step "Python suite on bundled runtime" {
-        & $bundled -m pytest tests -q --no-header | Out-Null
+        & $bundled -s -m pytest tests -q --no-header | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "bundled pytest exit code $LASTEXITCODE" }
     }
 }

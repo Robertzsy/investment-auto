@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$PythonVersion = "3.11.9",
     [string]$NodeVersion = "v20.18.1",
     [string]$OutputDirectory = ""

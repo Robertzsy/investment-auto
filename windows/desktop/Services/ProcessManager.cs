@@ -119,13 +119,16 @@ internal sealed class ProcessManager : IDisposable
         var info = new ProcessStartInfo
         {
             FileName = _pythonW,
-            Arguments = "-m src.main " + command,
+            // -s: never load the user's Python user-site packages; the
+            // bundled runtime must be able to run entirely on its own.
+            Arguments = "-s -m src.main " + command,
             WorkingDirectory = _appRoot,
             UseShellExecute = false,
             CreateNoWindow = true,
             WindowStyle = ProcessWindowStyle.Hidden,
         };
         info.Environment["PYTHONUTF8"] = "1";
+        info.Environment["PYTHONNOUSERSITE"] = "1";
         info.Environment["INVESTMENT_AUTO_DATA_DIR"] = _dataRoot;
         info.Environment["IA_ACCESS_TOKEN"] = _token;
         info.Environment["CHAT_OPEN_BROWSER"] = "false";

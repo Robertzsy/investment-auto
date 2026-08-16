@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Downloads = "",
     [string]$Output = ""
 )
@@ -54,17 +54,29 @@ $nodeRoot = Join-Path $nodeDir (Get-ChildItem $nodeDir -Directory | Select-Objec
 # 3) WebView2 bootstrapper stays in downloads; installer copies it.
 
 # 4) Offline dependencies into the bundled python
+#
+#    The bundle must be fully self-contained. User-site must be invisible to
+#    pip (PYTHONNOUSERSITE + -s), otherwise the build machine's own packages
+#    are mistaken for the bundle's and the installer ships a runtime that
+#    only works on machines that already have Python.
 $wheels = Join-Path $projectRoot "build\wheels"
 $python = Join-Path $pythonDir "python.exe"
+$env:PYTHONNOUSERSITE = "1"
 if (-not (Get-ChildItem $wheels -Filter "*.whl" -ErrorAction SilentlyContinue)) {
     Write-Host "Downloading locked wheels ..."
     New-Item -ItemType Directory -Force -Path $wheels | Out-Null
-    & $python -m pip download -r (Join-Path $projectRoot "requirements-lock.txt") -d $wheels
+    & $python -s -m pip download -r (Join-Path $projectRoot "requirements-lock.txt") -d $wheels
     if ($LASTEXITCODE -ne 0) { throw "wheels 下载失败" }
 }
 Write-Host "Installing dependencies offline ..."
-& $python -m pip install --no-index --find-links $wheels -r (Join-Path $projectRoot "requirements-lock.txt")
+& $python -s -m pip install --no-index --find-links $wheels --ignore-installed -r (Join-Path $projectRoot "requirements-lock.txt")
 if ($LASTEXITCODE -ne 0) { throw "依赖离线安装失败" }
+
+# Self-containment gate: the bundle must satisfy itself without user-site.
+& $python -s -m pip check
+if ($LASTEXITCODE -ne 0) { throw "捆绑 Python 依赖不完整（pip check 失败）" }
+& $python -s -c "import pydantic, typing_extensions, pandas, numpy, pymongo, openai, httpx, requests, yaml, apscheduler, dotenv, tzlocal, h11, httpcore; print('bundle imports ok')"
+if ($LASTEXITCODE -ne 0) { throw "捆绑 Python 关键模块导入失败" }
 
 Write-Host ""
 Write-Host "Bundled runtimes:"

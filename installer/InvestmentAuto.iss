@@ -80,9 +80,13 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
   begin
-    // Yes = keep data (default); No = delete it.
-    RemoveUserData := MsgBox('是否保留用户数据（模拟账户、报告、API 配置等）？' + #13#10 +
-      '数据保存在 %LocalAppData%\InvestmentAuto。', mbConfirmation, MB_YESNO or MB_DEFBUTTON1) = IDNO;
+    // Silent uninstall never shows a dialog and always keeps data.
+    // Interactive: Yes = keep data (default); No = delete it.
+    if UninstallSilent() then
+      RemoveUserData := False
+    else
+      RemoveUserData := MsgBox('是否保留用户数据（模拟账户、报告、API 配置等）？' + #13#10 +
+        '数据保存在 %LocalAppData%\InvestmentAuto。', mbConfirmation, MB_YESNO or MB_DEFBUTTON1) = IDNO;
   end;
 
   if CurUninstallStep = usPostUninstall then

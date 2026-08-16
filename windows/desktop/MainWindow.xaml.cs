@@ -89,8 +89,9 @@ public partial class MainWindow : Window
         {
             args.Request.Headers.SetHeader("X-IA-Token", ready.Token);
         };
-        WebView.CoreWebView2.AddWebResourceRequestedFilter("http://127.0.0.1/*", CoreWebView2WebResourceContext.All);
-        WebView.CoreWebView2.AddWebResourceRequestedFilter("http://localhost/*", CoreWebView2WebResourceContext.All);
+        // Only OUR service origin (this launch's dynamic port) - not every
+        // loopback port and never external domains.
+        WebView.CoreWebView2.AddWebResourceRequestedFilter(ready.Url + "/*", CoreWebView2WebResourceContext.All);
 
         var startPage = _processManager.IsFirstRun ? "/setup" : "/";
         var startUrl = ready.Url + startPage + "?token=" + Uri.EscapeDataString(ready.Token);
