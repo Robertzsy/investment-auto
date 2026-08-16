@@ -138,6 +138,12 @@ def run_migration(source: str, items: Optional[List[str]] = None) -> Dict[str, A
     }
 
 
+# Env vars that must never survive migration: secrets live in DPAPI, and
+# machine-specific paths would point the desktop app back at the old machine.
+_SECRET_MARKERS = ("API_KEY", "APY_KEY", "TOKEN", "SECRET", "WEBHOOK", "URI", "PASSWORD", "PASSWD", "CREDENTIAL")
+_MACHINE_SPECIFIC_ENV = {"CONFIG_PATH", "INVESTMENT_AUTO_HOME", "IA_ACCESS_TOKEN"}
+
+
 def _migrate_env_secrets(source: Path, target_root: Path) -> List[str]:
     """Extract API keys from the legacy .env into the DPAPI store."""
     from src.secret_store import save_secret
@@ -154,24 +160,27 @@ def _migrate_env_secrets(source: Path, target_root: Path) -> List[str]:
         name, value = match.group(1), match.group(2).strip()
         if not value:
             continue
-        if any(marker in name.upper() for marker in ("API_KEY", "APY_KEY", "TOKEN", "SECRET", "WEBHOOK")):
+        if any(marker in name.upper() for marker in _SECRET_MARKERS):
             try:
                 save_secret(name, value)
                 migrated.append(name)
             except Exception:
                 continue
-    # Remove the keys from the copied .env (they now live in DPAPI).
+    # Remove secrets and machine-specific paths from the copied .env:
+    # secrets now live in DPAPI, and a stale CONFIG_PATH would redirect the
+    # desktop app config loading back to the old machine checkout.
     target_env = target_root / ".env"
     if target_env.exists():
         filtered = []
         for line in target_env.read_text(encoding="utf-8", errors="replace").splitlines():
             match = key_re.match(line.strip())
-            keep = not (
-                match
-                and match.group(2).strip()
-                and any(marker in match.group(1).upper() for marker in ("API_KEY", "APY_KEY", "TOKEN", "SECRET", "WEBHOOK"))
-            )
-            if keep:
+            drop = False
+            if match and match.group(2).strip():
+                name_upper = match.group(1).upper()
+                drop = name_upper in _MACHINE_SPECIFIC_ENV or any(
+                    marker in name_upper for marker in _SECRET_MARKERS
+                )
+            if not drop:
                 filtered.append(line)
         target_env.write_text("\n".join(filtered) + "\n", encoding="utf-8")
     return migrated
