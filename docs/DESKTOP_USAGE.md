@@ -13,10 +13,13 @@
 ## 二、本机自动化验证
 
 - 一键发行候选门禁：`powershell scripts\release-check.ps1`（自动依次执行下列全部检查，
-  任一失败退出码非 0，最后输出安装包 SHA-256 与大小；`-SkipUpgrade` 等开关可跳过单项）
-- 桌面外壳单元测试：`dotnet test windows\desktop\InvestmentAuto.Desktop.Tests`（单实例、ready 解析、pythonw 定位、开机自启、进程管理，17 项）
+  任一失败退出码非 0，最后输出安装包 SHA-256 与大小；`-SkipUpgrade` 等开关可跳过单项；
+  失败退出码已实测：指向不存在的安装包时退出码为 1）
+- 桌面外壳单元测试：`dotnet test windows\desktop\InvestmentAuto.Desktop.Tests`（单实例、ready 解析、pythonw 定位、开机自启、进程管理，18 项）
+- 首次向导端到端：`tests/test_setup_flow.py`（配置深合并、模型接线、账户文件创建、
+  模式/策略直写、迁移检测，9 项）+ 本机 HTTP 全链路模拟（见 DESKTOP_PLAN 状态矩阵）
 - 升级保数据：`scripts\verify-upgrade.ps1`（快照 → 静默覆盖安装 → SHA-256 逐文件比对，要求 0 缺失 0 变更）
-- Python 全量：`.venv\Scripts\python -m pytest tests`（252 项，开发模式回归）+ 捆绑运行时同套件复跑（验证离线依赖完整）
+- Python 全量：`.venv\Scripts\python -m pytest tests`（261 项，开发模式回归）+ 捆绑运行时同套件复跑（验证离线依赖完整）
 
 ## 三、用户安装与使用
 

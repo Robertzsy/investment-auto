@@ -31,6 +31,10 @@ def _default_portfolio() -> Dict[str, Any]:
 def _path() -> Path:
     return RUNTIME / "portfolio.json"
 
+def exists() -> bool:
+    """True when the on-disk portfolio file has actually been created."""
+    return _path().exists()
+
 def load() -> Dict[str, Any]:
     p = _path()
     if not p.exists():

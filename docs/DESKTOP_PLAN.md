@@ -156,10 +156,10 @@ def data_root() -> Path:                            # 用户数据根
 | ② | 开发模式无 env 行为不变 | `.venv` 全量 252 项 pytest | ✅ 自动化 |
 | ③ | config/market 从数据目录读、首启种子模板 | `tests/test_paths.py` + `_ensure_data_layout` 本机 E2E | ✅ 自动化 |
 | ④ | 子进程启动/健康/停止 | C# `ProcessManagerTests` + 本机 E2E（启动→ready→清理） | ✅ 自动化+实测 |
-| ⑤ | 窗口关闭后托盘后台续跑 | 交互行为 | ⏳ VM 清单 #7 |
-| ⑥ | 退出无孤儿进程（Job Object） | 本机 E2E：杀壳后无 pythonw/node 残留 | ✅ 实测 |
+| ⑤ | 窗口关闭后托盘后台续跑 | 关闭三选一 + 托盘静默模式延迟初始化（已实现）；按钮交互确认 | ⏳ VM 清单 #7 |
+| ⑥ | 退出无孤儿进程（Job Object） | 本机 E2E：杀壳后无 pythonw/node 残留；Job 句柄幂等复用 | ✅ 实测 |
 | ⑦ | 单实例重复双击激活 | C# `SingleInstanceTests`（3 项） | ✅ 自动化 |
-| ⑧ | WebView2 内部导航不跳外部浏览器 | 设计（Navigate ready.Url）+ 窗口内加载 | ⏳ VM 清单 #3 |
+| ⑧ | WebView2 内部导航不跳外部浏览器 | 本机实测：窗口内加载 /setup，前端持续轮询回环服务；令牌注入仅限 127.0.0.1/localhost | ✅ 实测 |
 | ⑨ | 离线 wheel 依赖可 import | 捆绑运行时跑通 252 项 pytest | ✅ 自动化 |
 | ⑩ | 干净环境无 Python/Node 可启动 | 全新 VM（无 Python/Node/.NET/Inno） | ⏳ VM 清单 #1-2 |
 | ⑪ | 桌面快捷方式启动 | 本机 E2E：安装→快捷方式→带参启动→ready 文件 | ✅ 实测 |
@@ -168,6 +168,9 @@ def data_root() -> Path:                            # 用户数据根
 | ⑭ | API Key 不进日志/安装目录（DPAPI） | `tests/test_secret_store.py`（4 项） | ✅ 自动化 |
 | ⑮ | 现有 Python 全量测试通过 | 252 项 × .venv + 捆绑运行时 | ✅ 自动化 |
 
-- 一键门禁：`scripts\release-check.ps1`（C# 17 项 + .venv 252 + 捆绑 252 + 升级保数据 + 哈希清单）
-- 剩余：⑤⑧⑩ 交互/干净环境项在 Win10/11 VM 验收（清单见 docs/DESKTOP_USAGE.md 第五节）；
+- 一键门禁：`scripts\release-check.ps1`（C# 18 项 + .venv 261 + 捆绑 261 + 升级保数据 + 哈希清单；失败退出码 1 已实测）
+- 首次向导端到端（2026-08-17 验收修复后实测）：检测 D:\investment-auto ✓；模型下拉数据 ✓；
+  模型/策略/模式/市场写入经深合并 ✓；portfolio.json 实际创建 ✓；向导完成前不启动投资
+  Agent、完成后 5 秒内自动启动 ✓（HTTP 全链路模拟，见 `tests/test_setup_flow.py` 9 项）
+- 剩余：⑤⑩ 交互/干净环境项在 Win10/11 VM 验收（清单见 docs/DESKTOP_USAGE.md 第五节）；
   VM 通过前不更新 GitHub Release。

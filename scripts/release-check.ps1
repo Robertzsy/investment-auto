@@ -16,7 +16,7 @@ param(
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $projectRoot
-$failures = @()
+$script:failures = @()
 
 function Run-Step([string]$name, [scriptblock]$body) {
     Write-Host "== $name"
@@ -24,7 +24,9 @@ function Run-Step([string]$name, [scriptblock]$body) {
         & $body
         Write-Host "   PASS"
     } catch {
-        $failures += $name
+        # script: scope - a plain += would shadow the caller's list inside
+        # the function and silently produce a green exit code.
+        $script:failures += $name
         Write-Host ("   FAIL: " + $_.Exception.Message) -ForegroundColor Red
     }
 }
@@ -78,8 +80,8 @@ Run-Step "Installer manifest" {
 }
 
 Write-Host ""
-if ($failures.Count -gt 0) {
-    Write-Host ("RELEASE CHECK FAILED: " + ($failures -join ", ")) -ForegroundColor Red
+if ($script:failures.Count -gt 0) {
+    Write-Host ("RELEASE CHECK FAILED: " + ($script:failures -join ", ")) -ForegroundColor Red
     exit 1
 }
 Write-Host "RELEASE CHECK PASSED - all automated gates green." -ForegroundColor Green

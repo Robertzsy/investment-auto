@@ -57,6 +57,55 @@ _SENSITIVE_ENV_MARKERS = (
     "MONGODB_URI",
 )
 
+# Role -> model tier mapping used by the first-run wizard. Analysts and
+# researchers do cheap high-volume work (quick model); managers, judges and
+# risk roles make decisions (deep model). Unknown roles default to deep.
+_QUICK_ROLES = {
+    "aggressive_analyst", "analyst", "bear_researcher", "bull_researcher",
+    "conservative_analyst", "fundamentals_analyst", "neutral_analyst",
+    "news_analyst", "researcher", "sentiment_analyst",
+    "technical_analyst", "trader",
+}
+_DEEP_ROLES = {
+    "investment_advisor", "judge", "portfolio_manager", "quant_analyst",
+    "research_manager", "risk_chairman", "risk_manager",
+}
+
+
+def _deep_merge(base: dict, overlay: dict) -> dict:
+    """Recursively merge overlay into base; lists/scalars are replaced."""
+    merged = dict(base or {})
+    for key, value in (overlay or {}).items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _write_config_merged(patch: dict) -> dict:
+    """Apply a patch to config.yaml via deep merge (never clobbers other
+    sections such as llm/schedule/autonomous/trading) and reload."""
+    import yaml
+
+    from src.config import cfg
+
+    config_path = config_dir() / "config.yaml"
+    existing: dict = {}
+    if config_path.exists():
+        try:
+            existing = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            existing = {}
+    merged = _deep_merge(existing, patch)
+    temporary = config_path.with_suffix(config_path.suffix + ".tmp")
+    temporary.write_text(
+        yaml.safe_dump(merged, allow_unicode=True, sort_keys=False), encoding="utf-8",
+    )
+    temporary.replace(config_path)
+    cfg.reload()
+    return merged
+
 
 def _is_sensitive_env_key(key: str) -> bool:
     normalized = key.upper()
@@ -151,6 +200,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._unauthorized()
         path = urlparse(self.path).path
 
+        if path == "/api/models/test":
+            return self._handle_models_test()
         if path == "/api/chat":
             return self._handle_chat()
         if path == "/api/investment-cycle":
@@ -171,6 +222,12 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_save_secrets()
         if path == "/api/migrate":
             return self._handle_migrate_run()
+        if path == "/api/setup/models":
+            return self._handle_setup_models()
+        if path == "/api/setup/mode":
+            return self._handle_setup_mode()
+        if path == "/api/setup/mandate":
+            return self._handle_setup_mandate()
         if path == "/api/setup/init":
             return self._handle_setup_init()
         if path == "/api/setup/complete":
@@ -531,17 +588,126 @@ class ChatHandler(SimpleHTTPRequestHandler):
             data = json.loads(body)
         except json.JSONDecodeError:
             return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"error": "payload must be a JSON object"})
 
         try:
-            import yaml
-            config_path = config_dir() / "config.yaml"
-            config_path.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False), encoding="utf-8")
-            # Reload config
-            from src.config import cfg
-            cfg.reload()
+            # Deep merge so partial saves (e.g. only markets.enable) never
+            # wipe llm/schedule/autonomous/trading sections.
+            _write_config_merged(data)
             self._json_response(200, {"ok": True})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
+
+    def _handle_models_test(self):
+        """Actually call the provider with the saved key (wizard '保存并测试')."""
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"ok": False, "error": "JSON 无效"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"ok": False, "error": "payload 必须是对象"})
+        provider = str(data.get("provider", "") or "").strip().lower()
+        model = str(data.get("model", "") or "").strip()
+        try:
+            from src.llm.registry import resolve_llm
+
+            llm = resolve_llm(provider=provider or None, model=model or None)
+            reply = llm.chat(
+                [{"role": "user", "content": "ping，只回复 pong。"}],
+                temperature=0.0,
+                max_tokens=8,
+            )
+            if not reply or not reply.strip():
+                return self._json_response(200, {"ok": False, "error": "服务商返回了空响应"})
+            self._json_response(200, {"ok": True, "reply": reply[:50]})
+        except Exception as exc:
+            logger.warning("Model test failed for provider=%s: %s", provider, exc)
+            self._json_response(200, {"ok": False, "error": str(exc)[:300]})
+
+    def _handle_setup_models(self):
+        """Wizard step 2: persist provider + quick/deep model selection."""
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"ok": False, "error": "JSON 无效"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"ok": False, "error": "payload 必须是对象"})
+        provider = str(data.get("provider", "") or "").strip().lower()
+        quick = str(data.get("quick_model", "") or "").strip()
+        deep = str(data.get("deep_model", "") or "").strip()
+        try:
+            from src.config import cfg
+
+            models = cfg.raw.get("llm", {}).get("models", {})
+            variants = models.get(provider, {}).get("variants", []) or []
+            if provider not in models:
+                return self._json_response(400, {"ok": False, "error": f"未知服务商: {provider}"})
+            if quick not in variants or deep not in variants:
+                return self._json_response(400, {"ok": False, "error": "模型不在该服务商的可选列表中"})
+
+            role_override: dict = {}
+            for role in set(_QUICK_ROLES) | set(_DEEP_ROLES):
+                role_override[role] = quick if role in _QUICK_ROLES else deep
+
+            patch = {
+                "llm": {
+                    "provider": provider,
+                    "quick_model": quick,
+                    "deep_model": deep,
+                    "models": {provider: {"model": deep}},
+                    "role_model_override": role_override,
+                },
+            }
+            _write_config_merged(patch)
+            self._json_response(200, {"ok": True})
+        except Exception as exc:
+            logger.warning("setup models save failed: %s", exc)
+            self._json_response(500, {"ok": False, "error": str(exc)[:300]})
+
+    def _handle_setup_mode(self):
+        """Wizard step 4: persist autonomous mode directly (no agent yet)."""
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"ok": False, "error": "JSON 无效"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"ok": False, "error": "payload 必须是对象"})
+        mode = str(data.get("mode", "") or "").strip().lower()
+        if mode not in {"manual", "automatic"}:
+            return self._json_response(400, {"ok": False, "error": "mode 必须是 manual 或 automatic"})
+        try:
+            from src.investment.service import _save_operation_mode
+
+            result = _save_operation_mode(mode)
+            self._json_response(200, {"ok": True, **result})
+        except Exception as exc:
+            logger.warning("setup mode save failed: %s", exc)
+            self._json_response(500, {"ok": False, "error": str(exc)[:300]})
+
+    def _handle_setup_mandate(self):
+        """Wizard step 3: persist strategy profile directly (no agent yet)."""
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"ok": False, "error": "JSON 无效"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"ok": False, "error": "payload 必须是对象"})
+        profile = str(data.get("profile", "") or "").strip().lower()
+        try:
+            from src.investment.mandate import set_mandate
+
+            payload = set_mandate(profile, selected_by="setup-wizard")
+            self._json_response(200, {"ok": True, "profile": payload.get("profile")})
+        except ValueError as exc:
+            self._json_response(400, {"ok": False, "error": str(exc)})
+        except Exception as exc:
+            logger.warning("setup mandate save failed: %s", exc)
+            self._json_response(500, {"ok": False, "error": str(exc)[:300]})
 
     def _handle_get_secrets(self):
         from src.secret_store import list_keys
@@ -610,17 +776,15 @@ class ChatHandler(SimpleHTTPRequestHandler):
         from src.portfolio import account
 
         try:
-            existing = account.load()
-            initialized = bool(isinstance(existing, dict) and existing.get("accounts"))
-            if not initialized:
-                account.save({"version": 2, "multiMarket": True, "accounts": {
-                    market: {"totalCapital": 500000, "cash": 500000, "holdings": [], "tradeHistory": []}
-                    for market in ["cn", "hk", "us", "etf"]
-                }, "fxRates": {"USD_CNY": 7.2, "HKD_CNY": 0.92}})
+            # account.load() returns the default portfolio when the file is
+            # missing, so "already initialized" must be judged by file
+            # existence - otherwise the wizard never writes portfolio.json.
+            already = account.exists()
+            if not already:
+                account.save(account.load())
+            self._json_response(200, {"ok": True, "created": not already, "initialized": already})
         except Exception as exc:
             self._json_response(500, {"ok": False, "error": str(exc)[:300]})
-            return
-        self._json_response(200, {"ok": True, "initialized": not initialized})
 
     def _handle_setup_complete(self):
         from src.paths import runtime_dir

@@ -82,17 +82,19 @@ public partial class MainWindow : Window
             throw new TimeoutException("WebView2 组件初始化超时（45 秒）。请重启应用；若反复出现请安装 WebView2 Runtime。");
         LogLine("start: core webview2 ready");
 
-        // Inject the per-launch token on every request, so the front-end
-        // never has to know about authentication.
+        // Inject the per-launch token ONLY on requests to our own loopback
+        // service - never on external domains. Also never log the tokenized
+        // URL: the query string carries the secret.
         WebView.CoreWebView2.WebResourceRequested += (_, args) =>
         {
             args.Request.Headers.SetHeader("X-IA-Token", ready.Token);
         };
-        WebView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
+        WebView.CoreWebView2.AddWebResourceRequestedFilter("http://127.0.0.1/*", CoreWebView2WebResourceContext.All);
+        WebView.CoreWebView2.AddWebResourceRequestedFilter("http://localhost/*", CoreWebView2WebResourceContext.All);
 
         var startPage = _processManager.IsFirstRun ? "/setup" : "/";
         var startUrl = ready.Url + startPage + "?token=" + Uri.EscapeDataString(ready.Token);
-        LogLine("start: navigating to " + startUrl);
+        LogLine("start: navigating to " + ready.Url + startPage + "?token=<redacted>");
         WebView.CoreWebView2.Navigate(startUrl);
         LogLine("start: navigation issued");
 
@@ -107,6 +109,8 @@ public partial class MainWindow : Window
         _ = RefreshStatusAsync();
     }
 
+    private bool _agentStartAttempted;
+
     private async Task RefreshStatusAsync()
     {
         try
@@ -118,6 +122,23 @@ public partial class MainWindow : Window
             ModeText.Text = "模式: " + status.OperationMode;
             MandateText.Text = "策略: " + status.Mandate;
             RoundText.Text = "轮次: " + status.LastRound;
+
+            // The wizard just completed: bring the autonomous agent up now.
+            // One attempt per launch avoids a pythonw spawn storm.
+            if (!_processManager.IsFirstRun && !status.AgentRunning
+                && status.ChatRunning && !_agentStartAttempted)
+            {
+                _agentStartAttempted = true;
+                try
+                {
+                    _processManager.StartAgent();
+                    LogLine("status: setup complete, starting investment agent");
+                }
+                catch (Exception ex)
+                {
+                    LogLine("status: FAILED to start investment agent: " + ex.Message);
+                }
+            }
         }
         catch
         {

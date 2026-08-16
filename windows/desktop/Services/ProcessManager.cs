@@ -83,9 +83,22 @@ internal sealed class ProcessManager : IDisposable
     {
         // The agent side is idempotent (scheduler lock + worker heartbeat);
         // the chat side binds a fresh dynamic port and rewrites the ready file.
+        //
+        // First run: only the chat service starts. The autonomous agent must
+        // NOT begin trading before the user finished the wizard (no models,
+        // strategy or mode selected yet). StartAgent() is called after the
+        // setup marker appears.
+        CreateJobObject();
+        if (!IsFirstRun) StartPython("run");
+        StartPython("chat");
+    }
+
+    /// <summary>Starts the autonomous agent process (post-setup).</summary>
+    public void StartAgent()
+    {
+        if (IsFirstRun) return; // wizard not finished; never start trading
         CreateJobObject();
         StartPython("run");
-        StartPython("chat");
     }
 
     private void Log(string message)
@@ -228,6 +241,9 @@ internal sealed class ProcessManager : IDisposable
 
     private void CreateJobObject()
     {
+        // Idempotent: repeated "启动服务" clicks must reuse the same job
+        // handle instead of leaking the previous one (orphaning its children).
+        if (_jobHandle != IntPtr.Zero) return;
         _jobHandle = CreateJobObject(IntPtr.Zero, null);
         var info = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION
         {

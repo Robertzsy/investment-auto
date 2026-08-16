@@ -77,6 +77,7 @@ async function render() {
   if (state.step===0) {
     s.innerHTML = '<h2>导入旧项目数据（可选）</h2><div id="migrateBox">正在检测 D:\\investment-auto ...</div>';
     const detect = await api('GET','/api/migrate');
+    state.migSource = (detect.sources && detect.sources.length) ? detect.sources[0].path : null;
     if (detect.sources && detect.sources.length) {
       const items = (detect.plan?.items||[]).map(i=>'<div class="check"><input type="checkbox" id="mi_'+i.replace(/[^a-z]/g,'')+'" value="'+i+'" checked><label>'+i+'</label></div>').join('');
       s.innerHTML = '<h2>检测到旧项目：'+detect.sources[0].path+'</h2><p class="hint">只复制、不删除原目录；目标已有文件会先备份；日志/锁/临时检查点不导入；密钥将转入 DPAPI 加密存储。</p>'+items+'<button onclick="runMigrate()">开始导入</button><div id="migrateResult"></div>';
@@ -92,8 +93,11 @@ async function render() {
     n.style.visibility='visible';
   } else if (state.step===2) {
     const models = await api('GET','/api/models');
-    const opts = (models.variants||models).map ? [] : [];
-    s.innerHTML = '<h2>快速 / 深度模型</h2><label>快速模型（日常对话）</label><select id="qm"></select><label>深度模型（投资决策）</label><select id="dm"></select><p class="hint">按模型服务商能力选择；决策类角色将使用深度模型。</p>';
+    const providerModels = (models && models[state.provider]) || {};
+    const variants = providerModels.variants || [];
+    const qopts = variants.map(v=>'<option'+(v===state.quickModel?' selected':'')+'>'+v+'</option>').join('');
+    const dopts = variants.map(v=>'<option'+(v===state.deepModel?' selected':'')+'>'+v+'</option>').join('');
+    s.innerHTML = '<h2>快速 / 深度模型</h2><p class="hint">服务商：'+state.provider+'</p><label>快速模型（分析/日常对话）</label><select id="qm">'+qopts+'</select><label>深度模型（投资决策）</label><select id="dm">'+dopts+'</select><p class="hint">按模型服务商能力选择；决策类角色将使用深度模型。</p>';
   } else if (state.step===3) {
     s.innerHTML = '<h2>投资策略档位</h2>'+chipRow('strategy',[{value:'conservative',label:'保守 - 优先保护本金'},{value:'neutral',label:'中立 - 风险收益平衡'},{value:'aggressive',label:'激进 - 主动捕捉机会'}])+'<p class="hint">每档同时包含最低置信度、仓位上限、回撤红线等硬边界。</p>';
   } else if (state.step===4) {
@@ -125,12 +129,17 @@ async function runMigrate() {
     : '<div class="okline">已导入 '+ (r.copied||[]).join(', ') + (r.secrets_migrated?.length?('；密钥已加密迁移：'+r.secrets_migrated.join(', ')):'') +'</div>';
   document.getElementById('next').style.visibility='visible';
 }
-function saveKey() {
+async function saveKey() {
   state.apiKey = document.getElementById('apikey').value;
   const envName = {deepseek:'DEEPSEEK_API_KEY',openai:'OPENAI_API_KEY',glm:'GLM_API_KEY',kimi:'KIMI_API_KEY'}[state.provider];
-  api('POST','/api/secrets',{[envName]:state.apiKey}).then(r=>{
-    document.getElementById('keyResult').innerHTML = r.ok ? '<div class="okline">密钥已加密保存</div>' : '<div class="err">'+r.error+'</div>';
-  });
+  const box = document.getElementById('keyResult');
+  const r = await api('POST','/api/secrets',{[envName]:state.apiKey});
+  if (!r.ok) { box.innerHTML = '<div class="err">'+r.error+'</div>'; return; }
+  box.innerHTML = '<div class="okline">密钥已加密保存，正在测试连接…</div>';
+  const t = await api('POST','/api/models/test',{provider:state.provider});
+  box.innerHTML = t.ok
+    ? '<div class="okline">连接成功：'+t.reply+'</div>'
+    : '<div class="err">密钥已保存，但连接测试失败：'+(t.error||'未知错误')+'</div>';
 }
 function toggleMarket(v){ if(state.markets.includes(v)) state.markets=state.markets.filter(x=>x!==v); else state.markets.push(v); }
 async function initAccount() {
@@ -139,8 +148,14 @@ async function initAccount() {
   document.getElementById('next').style.visibility='visible';
 }
 document.getElementById('next').onclick = async () => {
-  if (state.step===3) await api('POST','/api/investment/mandate',{profile:state.strategy});
-  if (state.step===4) await api('POST','/api/autonomy/mode',{mode:state.mode});
+  if (state.step===2) {
+    state.quickModel = document.getElementById('qm').value;
+    state.deepModel = document.getElementById('dm').value;
+    const r = await api('POST','/api/setup/models',{provider:state.provider,quick_model:state.quickModel,deep_model:state.deepModel});
+    if (!r.ok) { alert(r.error||'模型保存失败'); return; }
+  }
+  if (state.step===3) { const r = await api('POST','/api/setup/mandate',{profile:state.strategy}); if (!r.ok) { alert(r.error||'策略保存失败'); return; } }
+  if (state.step===4) { const r = await api('POST','/api/setup/mode',{mode:state.mode}); if (!r.ok) { alert(r.error||'模式保存失败'); return; } }
   if (state.step===5) await api('POST','/api/config',{markets:{enable:state.markets}});
   if (state.step===7) await api('POST','/api/secrets',{NOTIFY_WEBHOOK_URL:document.getElementById('webhook').value});
   if (state.step===STEP_NAMES.length-1) {

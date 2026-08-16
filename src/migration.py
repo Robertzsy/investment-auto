@@ -1,4 +1,4 @@
-"""Legacy-data migration for the first-run wizard (step 0).
+r"""Legacy-data migration for the first-run wizard (step 0).
 
 Detects a previous checkout (D:\investment-auto or INVESTMENT_AUTO_HOME),
 plans which user data can be imported, copies it into the desktop data
@@ -54,7 +54,7 @@ def detect_sources() -> List[Dict[str, Any]]:
     env_home = __import__("os").getenv("INVESTMENT_AUTO_HOME", "")
     if env_home:
         candidates.append(Path(env_home))
-    candidates.append(Path(r"D:investment-auto"))
+    candidates.append(Path(r"D:\investment-auto"))
     found = []
     for candidate in candidates:
         if (candidate / "src" / "main.py").exists() and candidate.resolve() != paths.APP_ROOT:

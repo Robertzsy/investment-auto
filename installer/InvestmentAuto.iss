@@ -71,17 +71,23 @@ Type: filesandordirs; Name: "{app}\node"
 
 [Code]
 // Ask whether to keep user data on uninstall (default: keep).
-procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+// When the user chooses NOT to keep it, actually delete the data directory
+// after the uninstall finishes.
 var
-  KeepData: Boolean;
+  RemoveUserData: Boolean;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
   begin
-    KeepData := MsgBox('是否保留用户数据（模拟账户、报告、API 配置等）？' + #13#10 +
-      '数据保存在 %LocalAppData%\InvestmentAuto，选择"是"将完整保留。',
-      mbConfirmation, MB_YESNO or MB_DEFBUTTON1) = IDYES;
-    // User data lives outside {app}: not deleting anything keeps it.
-    // Deleting would require code here; the default is to keep, which the
-    // uninstaller already does.
+    // Yes = keep data (default); No = delete it.
+    RemoveUserData := MsgBox('是否保留用户数据（模拟账户、报告、API 配置等）？' + #13#10 +
+      '数据保存在 %LocalAppData%\InvestmentAuto。', mbConfirmation, MB_YESNO or MB_DEFBUTTON1) = IDNO;
+  end;
+
+  if CurUninstallStep = usPostUninstall then
+  begin
+    if RemoveUserData and DirExists(ExpandConstant('{localappdata}\InvestmentAuto')) then
+      DelTree(ExpandConstant('{localappdata}\InvestmentAuto'), True, True, True);
   end;
 end;
