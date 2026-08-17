@@ -34,10 +34,12 @@ def test_chat_ui_sanitizes_all_markdown_before_inner_html():
 @pytest.fixture(autouse=True)
 def isolated_chat_state(monkeypatch, tmp_path):
     from src.investment import service
+    from src.manager import report_inbox
 
     monkeypatch.setattr(chat_server, "HISTORY_FILE", tmp_path / "chat_history.json")
     monkeypatch.setattr(chat_server, "MEMORY_FILE", tmp_path / "chat_memory.md")
     monkeypatch.setattr(service, "COMMAND_DIR", tmp_path / "investment_commands")
+    monkeypatch.setattr(report_inbox, "INBOX_DIR", tmp_path / "report_inbox")
     with chat_server._cancel_lock:
         chat_server._cancel_events.clear()
         chat_server._active_request_ids.clear()
