@@ -2,7 +2,28 @@
 from __future__ import annotations
 
 import locale
-from typing import Optional, Union
+import os
+import subprocess
+from typing import Any, Dict, Optional, Union
+
+
+_IS_WINDOWS = os.name == "nt"
+
+
+def hidden_subprocess_kwargs() -> Dict[str, Any]:
+    """Return flags that stop console children from flashing on Windows.
+
+    The desktop services run through ``pythonw``.  Without this flag, every
+    Node.js quote request creates a visible console; concurrent US screening
+    therefore produces a burst of windows.  Non-Windows callers receive no
+    additional keyword arguments.
+    """
+
+    if not _IS_WINDOWS:
+        return {}
+    return {
+        "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+    }
 
 
 def decode_subprocess_output(value: Optional[Union[bytes, str]]) -> str:

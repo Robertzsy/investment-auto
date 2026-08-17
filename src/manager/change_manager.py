@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import uuid
 from datetime import datetime
@@ -14,6 +15,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
 from src.platform.memory_store import StructuredMemoryStore
+from src.subprocess_utils import hidden_subprocess_kwargs
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -123,7 +125,11 @@ class ChangeManager:
 
     @staticmethod
     def _run_tests(commands: Iterable[str]) -> list[Dict[str, Any]]:
-        python = str(ROOT / ".venv" / "Scripts" / "python.exe")
+        # Use the interpreter that owns the running management service.  In a
+        # source checkout this is the active virtual environment; in the
+        # desktop edition it is the bundled Python runtime (there is no
+        # project-root .venv in an installed application).
+        python = sys.executable
         allowed = {
             "python -m pytest -q": [python, "-m", "pytest", "-q"],
             "python -m compileall src": [python, "-m", "compileall", "-q", "src"],
@@ -142,7 +148,13 @@ class ChangeManager:
                         argv = [python, "-m", "pytest", "-q", str(candidate.relative_to(ROOT)).replace("\\", "/")]
             if argv is None:
                 raise ValueError(f"不允许的测试命令: {command}")
-            completed = subprocess.run(argv, cwd=str(ROOT), capture_output=True, timeout=180)
+            completed = subprocess.run(
+                argv,
+                cwd=str(ROOT),
+                capture_output=True,
+                timeout=180,
+                **hidden_subprocess_kwargs(),
+            )
             results.append({
                 "command": normalized,
                 "returncode": completed.returncode,

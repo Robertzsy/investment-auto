@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict
 
-from src.subprocess_utils import decode_subprocess_output
+from src.subprocess_utils import decode_subprocess_output, hidden_subprocess_kwargs
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,6 +20,7 @@ def stock_fetcher(command: str, value: str) -> Dict[str, Any]:
             cwd=str(ROOT),
             capture_output=True,
             timeout=45,
+            **hidden_subprocess_kwargs(),
         )
         text = decode_subprocess_output(process.stdout).strip()
         stderr = decode_subprocess_output(process.stderr)

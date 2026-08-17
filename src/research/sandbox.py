@@ -21,6 +21,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
+from src.subprocess_utils import hidden_subprocess_kwargs
+
 ROOT = Path(__file__).resolve().parents[2]
 
 _EXECUTABLE_WHITELIST = {"python", "pytest", "git", "node"}
@@ -102,6 +104,7 @@ def run_command(
             capture_output=True,
             timeout=max(1, int(timeout)),
             env=minimal_env(),
+            **hidden_subprocess_kwargs(),
         )
     except subprocess.TimeoutExpired as exc:
         return {

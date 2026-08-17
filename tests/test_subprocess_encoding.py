@@ -1,11 +1,13 @@
 """Regression tests for Windows GBK subprocess decoding."""
 from __future__ import annotations
 
+import subprocess
 from types import SimpleNamespace
 
 from src.data import fetcher
 from src import main as main_module
-from src.subprocess_utils import decode_subprocess_output
+from src import subprocess_utils
+from src.subprocess_utils import decode_subprocess_output, hidden_subprocess_kwargs
 from src.platform import market_tools
 
 
@@ -31,9 +33,22 @@ def test_decode_subprocess_output_accepts_utf8_and_gb18030():
     assert decode_subprocess_output(text.encode("gb18030")) == text
 
 
+def test_hidden_subprocess_kwargs_uses_create_no_window_on_windows(monkeypatch):
+    monkeypatch.setattr(subprocess_utils, "_IS_WINDOWS", True)
+    monkeypatch.setattr(subprocess_utils.subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+    assert hidden_subprocess_kwargs() == {"creationflags": 0x08000000}
+
+
+def test_hidden_subprocess_kwargs_is_empty_off_windows(monkeypatch):
+    monkeypatch.setattr(subprocess_utils, "_IS_WINDOWS", False)
+    assert hidden_subprocess_kwargs() == {}
+
+
 def test_stock_fetcher_captures_bytes_instead_of_locale_text(monkeypatch):
     def fake_run(*args, **kwargs):
         assert kwargs.get("text") is not True
+        if subprocess_utils._IS_WINDOWS:
+            assert kwargs.get("creationflags") == subprocess.CREATE_NO_WINDOW
         return SimpleNamespace(
             stdout='{"name":"贵州茅台"}'.encode("utf-8"),
             stderr=b"",
@@ -47,6 +62,8 @@ def test_stock_fetcher_captures_bytes_instead_of_locale_text(monkeypatch):
 def test_data_fetcher_decodes_node_utf8(monkeypatch):
     def fake_run(*args, **kwargs):
         assert kwargs.get("text") is not True
+        if subprocess_utils._IS_WINDOWS:
+            assert kwargs.get("creationflags") == subprocess.CREATE_NO_WINDOW
         return SimpleNamespace(
             stdout='{"code":"sh600519","name":"贵州茅台"}'.encode("utf-8"),
             stderr=b"",
