@@ -147,7 +147,19 @@ def runtime_status(now: Optional[datetime] = None) -> Dict[str, Any]:
     latest_audit: Any = None
     if audits:
         try:
-            latest_audit = json.loads(audits[0].read_text(encoding="utf-8"))
+            payload = json.loads(audits[0].read_text(encoding="utf-8"))
+            # The desktop polls this snapshot every five seconds.  Returning
+            # the full evidence graph made each status response hundreds of
+            # kilobytes and duplicated it into command audits.  Detailed
+            # evidence remains available through cycle_evidence().
+            latest_audit = {
+                "file": audits[0].name,
+                **{
+                    key: payload.get(key)
+                    for key in ("generated_at", "market", "label", "status", "reason", "error", "evidence_ref")
+                    if payload.get(key) is not None
+                },
+            }
         except (OSError, json.JSONDecodeError) as exc:
             latest_audit = {"file": audits[0].name, "error": str(exc)}
     enabled = autonomous_enabled()

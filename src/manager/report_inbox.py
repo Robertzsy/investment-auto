@@ -56,3 +56,17 @@ def pending_events(inbox_dir: Optional[Path] = None) -> list[Dict[str, Any]]:
         except (OSError, json.JSONDecodeError, TypeError):
             continue
     return result
+
+
+def acknowledge_event(event_id: str, inbox_dir: Optional[Path] = None) -> bool:
+    """Remove one queued report after a live chat client received its result."""
+    normalized = str(event_id or "").strip()
+    if not normalized or any(character not in "0123456789abcdef" for character in normalized.lower()):
+        return False
+    path = (inbox_dir or INBOX_DIR) / f"{normalized}.json"
+    try:
+        existed = path.is_file()
+        path.unlink(missing_ok=True)
+        return existed
+    except OSError:
+        return False

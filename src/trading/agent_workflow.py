@@ -10,7 +10,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from src.llm.registry import resolve_llm
 from src.trading.citations import (
@@ -843,6 +843,8 @@ def _run_symbol_research(
 
 def _parallel_symbol_research(
     symbols: Sequence[str],
+    *,
+    progress_callback: Optional[Callable[[str], None]] = None,
     **kwargs: Any,
 ) -> tuple[Dict[str, Dict[str, Any]], Dict[str, str]]:
     workers = max(1, min(len(symbols) or 1, int(kwargs["settings"].get("symbol_workers", 2))))
@@ -853,12 +855,22 @@ def _parallel_symbol_research(
             executor.submit(_run_symbol_research, symbol, **kwargs): symbol
             for symbol in symbols
         }
+        completed = 0
         for future in as_completed(futures):
             symbol = futures[future]
             try:
                 reports[symbol] = future.result()
             except Exception as exc:
                 errors[symbol] = str(exc)[:2000]
+            completed += 1
+            if progress_callback is not None:
+                try:
+                    outcome = "完成" if symbol in reports else "失败"
+                    progress_callback(
+                        f"多 Agent 逐标的研究进度 {completed}/{len(symbols)}：{symbol} {outcome}"
+                    )
+                except Exception:
+                    logger.debug("Symbol progress callback failed", exc_info=True)
     return reports, errors
 
 
@@ -868,6 +880,7 @@ def run_analysis_workflow(
     *,
     memory_store: Optional[AgentMemoryStore] = None,
     checkpoint: Optional[Mapping[str, Any]] = None,
+    progress_callback: Optional[Callable[[str], None]] = None,
 ) -> Dict[str, Any]:
     settings = config.get("agent_workflow", {})
     if not isinstance(settings, Mapping) or not bool(settings.get("enabled", True)):
@@ -894,6 +907,7 @@ def run_analysis_workflow(
     started = time.monotonic()
     symbol_research, symbol_errors = _parallel_symbol_research(
         symbols,
+        progress_callback=progress_callback,
         context=context,
         evidence=evidence,
         settings=settings,
@@ -905,6 +919,8 @@ def run_analysis_workflow(
     errors.update({f"symbol:{key}": value for key, value in symbol_errors.items()})
     if symbol_errors:
         raise RuntimeError("逐标的研究未完整完成: " + json.dumps(symbol_errors, ensure_ascii=False))
+    if progress_callback is not None:
+        progress_callback(f"逐标的研究已完成 {len(symbols)}/{len(symbols)}，正在生成组合草案…")
 
     # The portfolio layer receives the final trader report for every security,
     # not the entire collection of intermediate prose.
@@ -940,6 +956,8 @@ def run_analysis_workflow(
     proposal = dict(proposal_result.get("proposal", {}) or {})
     timings["portfolio_proposal"] = proposal_result.get("timing", 0.0)
     portfolio_evidence["AGENT:PORTFOLIO_MANAGER:PROPOSAL"] = proposal
+    if progress_callback is not None:
+        progress_callback("组合草案已完成，正在进行激进/中立/保守风险辩论…")
 
     risk_rounds: List[Dict[str, Any]] = []
     risk_round_count = max(1, min(3, int(settings.get("risk_debate_rounds", 1))))
@@ -991,6 +1009,8 @@ def run_analysis_workflow(
             portfolio_evidence[_report_evidence_id(role, round_number)] = report
         timings[f"risk_debate_{round_number}"] = risk_result.get("timing", 0.0)
         risk_rounds.append({"round": round_number, "reports": reports})
+        if progress_callback is not None:
+            progress_callback(f"风险辩论第 {round_number}/{risk_round_count} 轮已完成…")
 
     def _run_risk_manager():
         started = time.monotonic()
@@ -1011,6 +1031,8 @@ def run_analysis_workflow(
     risk_manager = dict(risk_manager_result.get("report", {}) or {})
     timings["risk_judgement"] = risk_manager_result.get("timing", 0.0)
     portfolio_evidence[_report_evidence_id("risk_manager")] = risk_manager
+    if progress_callback is not None:
+        progress_callback("风险经理裁决已完成，正在生成最终组合决策…")
 
     def _run_portfolio():
         started = time.monotonic()
@@ -1035,6 +1057,8 @@ def run_analysis_workflow(
     portfolio_result, _pm_resumed = _checkpointed(checkpoint, "portfolio_decision", _run_portfolio)
     portfolio = dict(portfolio_result.get("report", {}) or {})
     timings["portfolio_decision"] = portfolio_result.get("timing", 0.0)
+    if progress_callback is not None:
+        progress_callback("最终组合决策已完成，正在交回硬风控执行层…")
 
     if checkpoint_cycle_id:
         try:

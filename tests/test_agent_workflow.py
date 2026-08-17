@@ -163,6 +163,7 @@ def test_portfolio_decision_must_cover_every_candidate_and_holding():
 
 def test_staged_workflow_orders_roles_and_builds_portfolio(monkeypatch, tmp_path):
     calls = []
+    progress = []
 
     def fake_call(role, **kwargs):
         evidence = kwargs["evidence"]
@@ -193,7 +194,8 @@ def test_staged_workflow_orders_roles_and_builds_portfolio(monkeypatch, tmp_path
         lambda roles, **kwargs: ({role: fake_call(role, **kwargs) for role in roles}, {}),
     )
     result = agent_workflow.run_analysis_workflow(
-        _context(), _config(), memory_store=agent_workflow.AgentMemoryStore(tmp_path)
+        _context(), _config(), memory_store=agent_workflow.AgentMemoryStore(tmp_path),
+        progress_callback=progress.append,
     )
 
     assert result["workflow"] == "per_symbol_research_graph_v2"
@@ -207,6 +209,8 @@ def test_staged_workflow_orders_roles_and_builds_portfolio(monkeypatch, tmp_path
     assert "AGENT:BULL_RESEARCHER:R1" in research_manager_call[1]
     final_portfolio_call = [item for item in calls if item[0] == "portfolio_manager"][-1]
     assert "AGENT:RISK_MANAGER" in final_portfolio_call[1]
+    assert any("1/1" in item and "600519" in item for item in progress)
+    assert progress[-1] == "最终组合决策已完成，正在交回硬风控执行层…"
 
 
 def test_call_role_retries_truncated_json_and_persists_own_memory(monkeypatch, tmp_path):

@@ -130,9 +130,19 @@ def test_operation_mode_api_enables_complete_cycle_execution(monkeypatch: pytest
 
 
 def test_autonomy_status_api_exposes_operation_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    from src.trading import controller
-
-    monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
+    monkeypatch.setattr(
+        "src.investment.status.runtime_status",
+        lambda: {
+            "operation_mode": "automatic",
+            "auto_execute": True,
+            "control": {},
+            "mandate": {"profile": "neutral"},
+        },
+    )
+    monkeypatch.setattr(
+        "src.investment.command_bus.InvestmentAgentClient.issue",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("status must not enter command queue")),
+    )
     handler = _FakeHandler()
 
     server.ChatHandler._handle_autonomy_status(handler)  # type: ignore[arg-type]

@@ -463,7 +463,9 @@ def _staged_autonomous_setup(monkeypatch, tmp_path):
     return checkpoints
 
 
-def _fake_staged_workflow(context, config, checkpoint=None):
+def _fake_staged_workflow(context, config, checkpoint=None, progress_callback=None):
+    if progress_callback is not None:
+        progress_callback("逐标的研究已完成 1/1")
     from src.trading import checkpoints
 
     if checkpoint and checkpoint.get("cycle_id"):

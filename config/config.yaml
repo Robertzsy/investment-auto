@@ -38,6 +38,9 @@ app:
   timezone: Asia/Shanghai
 autonomous:
   agent_workers: 4
+  command_hard_timeout_seconds: 1800
+  command_heartbeat_seconds: 10
+  command_idle_timeout_seconds: 300
   agent_workflow:
     enabled: true
     json_retries: 1

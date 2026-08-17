@@ -195,9 +195,9 @@ def _report_context(question: str) -> Dict[str, Any]:
 
 
 def _ops_context() -> Dict[str, Any]:
-    from src.investment.command_bus import InvestmentAgentClient
+    from src.investment.status import runtime_status
 
-    return InvestmentAgentClient().issue("status", requested_by="conversation-manager", timeout=30)
+    return {"ok": True, **runtime_status()}
 
 
 PORTFOLIO_AGENT = Agent(

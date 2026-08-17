@@ -666,7 +666,12 @@ def run_autonomous_cycle(
             if _staged_workflow_enabled(config):
                 from src.trading.agent_workflow import run_analysis_workflow
 
-                staged_workflow = run_analysis_workflow(context, config, checkpoint=checkpoint_payload)
+                staged_workflow = run_analysis_workflow(
+                    context,
+                    config,
+                    checkpoint=checkpoint_payload,
+                    progress_callback=progress,
+                )
                 chair = dict(staged_workflow.get("portfolio_manager", {}))
                 chair["decisions"] = _normalize_decisions(
                     chair,

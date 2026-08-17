@@ -131,7 +131,7 @@ def _write_report(path: Path, title: str, content: str, generated_at: datetime, 
     path.parent.mkdir(parents=True, exist_ok=True)
     if catch_up:
         run_mode = "启动补跑"
-    elif "-manual-" in path.stem or "-chat-" in path.stem:
+    elif any(marker in path.stem for marker in ("-manual-", "-chat-", "-button-", "-agent-")):
         run_mode = "手动整轮"
     else:
         run_mode = "全自动定时"
@@ -436,7 +436,11 @@ def _run_intraday_job(
                 "fills": autonomous.get("execution", {}).get("fills", []),
             },
         }
-        if re.fullmatch(r"\d{4}", label):
+        # Scheduled reports and management-triggered reports are queued for
+        # chat recovery.  A live command client acknowledges its event after
+        # receiving the outbox result; when that client disconnects or times
+        # out, the event remains and is imported by the next history refresh.
+        if re.fullmatch(r"\d{4}", label) or label.startswith(("button-", "agent-")):
             try:
                 from src.manager.report_inbox import publish_cycle_report
 

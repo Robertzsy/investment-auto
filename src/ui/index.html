@@ -485,13 +485,15 @@ async function stopGeneration() {
   if (body && isGenerating) body.insertAdjacentHTML('beforeend', `<div style="color:var(--text-dim);font-size:.85rem;margin-top:8px">⏹️ 已请求停止生成</div>`);
 }
 
-function appendMessage(role, html, isTemp) {
+function appendMessage(role, html, isTemp, timeValue) {
   const box = document.getElementById('chatBox');
   const div = document.createElement('div');
   div.className = `msg ${role}`;
   const ts = document.createElement('span');
   ts.className = 'ts';
-  ts.textContent = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
+  const messageTime = timeValue ? new Date(timeValue) : new Date();
+  ts.textContent = (Number.isNaN(messageTime.getTime()) ? new Date() : messageTime)
+    .toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
   div.appendChild(ts);
   const body = document.createElement('div');
   body.className = 'body';
@@ -516,7 +518,7 @@ async function loadHistory(render=true) {
     box.appendChild(welcome);
     (data.history || []).forEach(m => {
       if (m.role === 'user' || m.role === 'assistant') {
-        appendMessage(m.role, renderMarkdown(m.content || ''));
+        appendMessage(m.role, renderMarkdown(m.content || ''), false, m.time);
       }
     });
   } catch(e) { console.warn('history load failed', e); }

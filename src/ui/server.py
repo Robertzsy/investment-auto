@@ -492,9 +492,12 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
     def _handle_autonomy_status(self):
         try:
-            from src.investment.command_bus import InvestmentAgentClient
+            from src.investment.status import runtime_status
 
-            self._json_response(200, InvestmentAgentClient().issue("status", requested_by="chat-ui", timeout=30))
+            # Status is a read-only shared-state snapshot.  Sending it through
+            # the single-threaded investment queue would enqueue a new job
+            # every five seconds while a long research cycle owns the worker.
+            self._json_response(200, {"ok": True, **runtime_status()})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
 

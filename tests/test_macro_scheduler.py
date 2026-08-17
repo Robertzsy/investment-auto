@@ -190,6 +190,13 @@ def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, 
 
     monkeypatch.setattr(scheduler, "resolve_llm", lambda **kwargs: FakeLLM())
     monkeypatch.setattr(scheduler, "_deliver_completed_report", lambda *args: {"status": "delivered"})
+    published = []
+    monkeypatch.setattr(
+        "src.manager.report_inbox.publish_cycle_report",
+        lambda result, **kwargs: published.append((result, kwargs)) or {
+            "status": "queued_for_chat", "event_id": "a" * 32,
+        },
+    )
     monkeypatch.setattr(
         "src.investment.reflection.InvestmentReflectionService.evaluate_pending",
         lambda *args, **kwargs: [],
@@ -211,7 +218,7 @@ def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, 
     })
     current = datetime(2026, 8, 12, 22, 1, tzinfo=ZoneInfo("Asia/Shanghai"))
 
-    result = scheduler._run_intraday_job("us", "22:01", "chat-220100", now=current, scheduled_at=current)
+    result = scheduler._run_intraday_job("us", "22:01", "button-220100", now=current, scheduled_at=current)
     content = Path(result["report"]).read_text(encoding="utf-8")
 
     assert result["status"] == "generated"
@@ -221,6 +228,8 @@ def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, 
     assert "MSFT" in content and "观望/继续持有" in content
     assert "AAPL" in content and "卖出/减仓" in content
     assert "已成交" in content
+    assert result["chat_delivery"]["status"] == "queued_for_chat"
+    assert len(published) == 1
 
 
 def test_us_evening_misfire_keeps_original_schedule_date(monkeypatch, tmp_path):

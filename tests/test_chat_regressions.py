@@ -22,7 +22,7 @@ def test_chat_ui_sanitizes_all_markdown_before_inner_html():
     assert "return sanitizeHtml(rendered);" in html
     assert "body.innerHTML = sanitizeHtml(html);" in html
     assert "appendMessage('user', renderMarkdown(displayText, true));" in html
-    assert "appendMessage(m.role, renderMarkdown(m.content || ''));" in html
+    assert "appendMessage(m.role, renderMarkdown(m.content || ''), false, m.time);" in html
 
     marked_lines = [line.strip() for line in html.splitlines() if "marked.parse" in line]
     assert marked_lines == [
