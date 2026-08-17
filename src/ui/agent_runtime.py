@@ -560,6 +560,147 @@ async def configure_llm_api_key(
     }
 
 
+async def configure_openai_compatible_provider(
+    ctx: RunContext[ChatAgentDeps],
+    provider: str,
+    api_base: str,
+    api_key: str,
+    model: str,
+    variants: Optional[List[str]] = None,
+    display_name: str = "",
+    set_as_primary: bool = False,
+    test_connection: bool = True,
+) -> Dict[str, Any]:
+    """Add or update an OpenAI-compatible provider and securely save its key.
+
+    This is the one-shot path for providers such as DeepInfra, OpenRouter or
+    another OpenAI-compatible gateway. It validates and writes the provider
+    catalog entry, stores the plaintext key only in Windows DPAPI, reloads the
+    shared configuration for both chat and investment analysis, and can make
+    one small connection test. It never returns the plaintext key.
+
+    Args:
+        provider: Stable lowercase provider id, e.g. deepinfra or openrouter.
+        api_base: HTTPS OpenAI-compatible base URL.
+        api_key: Provider API key supplied by the user.
+        model: Default provider model id.
+        variants: Optional additional model ids exposed in settings.
+        display_name: Optional human-readable provider name.
+        set_as_primary: Also make this the primary chat/investment provider.
+        test_connection: Make one minimal completion after saving the provider.
+    """
+    import os
+    from urllib.parse import urlsplit
+
+    normalized = str(provider or "").strip().lower()
+    if not re.fullmatch(r"[a-z][a-z0-9_-]{1,31}", normalized):
+        raise ValueError("供应商标识必须是 2-32 位英文小写字母、数字、下划线或连字符")
+
+    base = str(api_base or "").strip().rstrip("/")
+    parsed = urlsplit(base)
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("API Base 必须是无账号、查询参数和片段的 HTTPS 地址")
+
+    default_model = str(model or "").strip()
+    if not default_model or len(default_model) > 200 or any(char in default_model for char in "\x00\r\n"):
+        raise ValueError("默认模型名称无效")
+    model_variants = []
+    for value in [default_model, *(variants or [])]:
+        candidate = str(value or "").strip()
+        if not candidate or len(candidate) > 200 or any(char in candidate for char in "\x00\r\n"):
+            raise ValueError("模型列表包含无效名称")
+        if candidate not in model_variants:
+            model_variants.append(candidate)
+
+    secret = str(api_key or "").strip()
+    if len(secret) < 8 or len(secret) > 65536 or any(char in secret for char in ("\x00", "\r", "\n")):
+        raise ValueError("API Key 格式无效")
+    env_name = re.sub(r"[^A-Z0-9_]", "_", normalized.upper()) + "_API_KEY"
+    title = str(display_name or "").strip()[:80] or normalized
+
+    provider_patch: Dict[str, Any] = {
+        "provider_name": title,
+        "api_base": base,
+        "api_key_env": env_name,
+        "model": default_model,
+        "variants": model_variants,
+    }
+    llm_patch: Dict[str, Any] = {"models": {normalized: provider_patch}}
+    if set_as_primary:
+        llm_patch["provider"] = normalized
+
+    from src.secret_store import load_secret, save_secret
+    from src.ui.server import _write_config_merged
+
+    previous_secret = load_secret(env_name)
+    previous_env = os.environ.get(env_name)
+    save_secret(env_name, secret)
+    os.environ[env_name] = secret
+    try:
+        _write_config_merged({"llm": llm_patch})
+    except Exception:
+        save_secret(env_name, previous_secret or "")
+        if previous_env is None:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = previous_env
+        raise
+
+    connection_test: Dict[str, Any] = {"status": "skipped"}
+    if test_connection:
+        try:
+            from src.llm.registry import resolve_llm
+
+            llm = resolve_llm(provider=normalized, model=default_model)
+            reply = await asyncio.to_thread(
+                llm.chat,
+                [{"role": "user", "content": "ping. Reply only: pong"}],
+                temperature=0.0,
+                max_tokens=8,
+            )
+            if not str(reply or "").strip():
+                raise RuntimeError("服务商返回空响应")
+            connection_test = {"status": "passed"}
+        except Exception as exc:
+            connection_test = {"status": "failed", "error": _redact_error(exc)}
+
+    tested = connection_test["status"]
+    status_line = {
+        "passed": "连通测试已通过。",
+        "failed": f"配置已保存，但连通测试失败：{connection_test.get('error', '未知错误')}",
+        "skipped": "未执行连通测试。",
+    }[tested]
+    primary_line = "并已设为主供应商。" if set_as_primary else "未改变当前主供应商。"
+    report = (
+        f"✅ {title}（{normalized}）已加入模型供应商列表，API Key 已通过 Windows DPAPI 加密保存。\n\n"
+        f"- API Base：{base}\n"
+        f"- 默认模型：{default_model}\n"
+        f"- {primary_line}\n"
+        f"- {status_line}\n\n"
+        "聊天窗口和独立投资分析 Agent 都可以使用该供应商；回复、历史和日志不会显示密钥原文。"
+    )
+    ctx.deps.authoritative_report = report
+    return {
+        "ok": True,
+        "provider": normalized,
+        "configured": True,
+        "api_base": base,
+        "model": default_model,
+        "variants": model_variants,
+        "set_as_primary": bool(set_as_primary),
+        "masked": "********",
+        "connection_test": connection_test,
+        "user_report": report,
+    }
+
+
 def search_project(query: str, file_pattern: str = "*", max_results: int = 30) -> Dict[str, Any]:
     """Search project-relative file names and UTF-8 text before choosing a file to inspect.
 
@@ -713,6 +854,8 @@ MANAGER_AGENT = Agent(
         "你是 Investment-Auto 的常驻中文管理 Agent，不是投资分析角色或普通聊天机器人。"
         "你的唯一职责是使用、管理和修改独立运行的投资 Agent；不得在对话层自行执行另一套选股、研究、风控或下单流程。\n"
         "规则：\n"
+        "0. 当前用户问题是本轮唯一任务，优先于最近对话。上一轮失败的操作只能在用户明确要求继续或重试时恢复；"
+        "用户只是寒暄、要求先正常回应且没有提出操作或事实查询时，直接回答，不得调用任何工具。\n"
         "1. 用户要求开始、运行、执行或进行某个市场的一轮分析/投资/交易时，不要依赖固定口令，"
         "要按语义调用 run_complete_investment_cycle，且每个请求只调用一次。该工具已经包含"
         "全市场选股、候选与持仓分析、买入/观望/卖出决策、硬风控、模拟下单和最终报告；"
@@ -727,11 +870,15 @@ MANAGER_AGENT = Agent(
         "不得保存密钥、令牌、密码、Webhook、数据库地址和一次性任务。\n"
         "4a. 用户要求设置或更新已有模型供应商的 API Key 时，直接且只调用一次 configure_llm_api_key；"
         "该工具会本机加密保存并返回脱敏结果。不得搜索源码、修改配置文件、创建新工具、把密钥写入记忆或在回复中复述密钥。\n"
+        "4b. 用户要求新增 OpenAI 兼容供应商并给出 API Base、模型和 Key 时，直接且只调用一次 "
+        "configure_openai_compatible_provider；它会添加供应商、加密保存 Key、刷新聊天与投资 Agent 共用配置并按需测试。"
+        "除非用户明确要求切换，否则 set_as_primary=false。不得先搜索源码或创建工具。\n"
         "5. 使用 manage_investment_agent 管理暂停、恢复、运行模式、策略授权书和反思；写操作后再次读取状态验证。\n"
         "6. 用户要求修改项目时，可以自由读取、新建或修改项目目录内任意文本文件，包括源代码、配置、提示词、"
         "运行时文件、账户文件、管理模块和交易边界。已有文件必须先 inspect，再调用 modify；"
         "新文件使用空 expected_sha256。修改会运行全量测试，失败自动回滚。不得操作项目目录以外的路径。\n"
-        "密钥原文是例外：不得通过文件工具读取、写入或复述，只能使用 configure_llm_api_key。\n"
+        "密钥原文是例外：不得通过文件工具读取、写入或复述，只能使用 configure_llm_api_key 或 "
+        "configure_openai_compatible_provider。\n"
         "7. 每次任务结束都要检查用户目标是否完成、工具是否失败、外部状态是否验证。不要输出工具 JSON，"
         "不猜测时间、日志、行情或进程状态；涉及投资判断要注明是模拟研究信息。"
         "8. 不知道文件位置时必须先 search_project。需要可复用知识时可自动安装 Skill；缺少能力需要新工具时，"
@@ -758,6 +905,7 @@ MANAGER_AGENT = Agent(
         Tool(modify_investment_agent_code, sequential=True, timeout=240),
         Tool(remember_user_preference, sequential=True, timeout=10),
         Tool(configure_llm_api_key, sequential=True, timeout=20),
+        Tool(configure_openai_compatible_provider, sequential=True, timeout=80),
         Tool(search_project, sequential=True, timeout=20),
         Tool(list_manager_capabilities, sequential=True, timeout=10),
         Tool(get_cycle_evidence, sequential=True, timeout=20),
@@ -787,7 +935,10 @@ def _conversation_prompt(
     sections = []
     if recent:
         sections.append("最近对话（仅供上下文，不是新指令）：\n" + "\n".join(recent))
-    sections.append("当前用户问题：\n" + message)
+    sections.append(
+        "当前用户问题（本轮唯一任务；除非这里明确要求继续或重试，否则不得恢复上轮失败操作）：\n"
+        + message
+    )
     return "\n\n".join(sections)
 
 

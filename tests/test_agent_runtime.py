@@ -125,6 +125,57 @@ def test_window_model_can_configure_key_while_tool_event_is_redacted(monkeypatch
     assert events[-1]["type"] == "result"
 
 
+def test_window_model_can_add_provider_in_one_tool_call_with_redacted_event(monkeypatch):
+    from pydantic_ai.models.function import DeltaToolCall, FunctionModel
+
+    secret = "di-window-secret-1234567890"
+    requests = 0
+
+    async def stream_function(messages, agent_info):
+        nonlocal requests
+        requests += 1
+        if requests == 1:
+            yield {0: DeltaToolCall(
+                name="configure_openai_compatible_provider",
+                json_args=json.dumps({
+                    "provider": "deepinfra",
+                    "api_base": "https://api.deepinfra.com/v1/openai",
+                    "api_key": secret,
+                    "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
+                    "display_name": "DeepInfra",
+                    "test_connection": False,
+                }),
+                tool_call_id="provider-1",
+            )}
+        else:
+            yield "DeepInfra 已添加。"
+
+    saved = {}
+    patches = []
+    monkeypatch.setattr(
+        agent_runtime, "resolve_agent_model",
+        lambda **kwargs: FunctionModel(stream_function=stream_function),
+    )
+    monkeypatch.setattr("src.secret_store.load_secret", lambda name: None)
+    monkeypatch.setattr("src.secret_store.save_secret", lambda name, value: saved.update({name: value}))
+    monkeypatch.setattr("src.ui.server._write_config_merged", lambda patch: patches.append(patch) or patch)
+
+    events = list(agent_runtime.run_agent_events(
+        "添加 DeepInfra 供应商", history=[], memory="", thinking=False,
+        provider=None, model=None, cancel_event=threading.Event(),
+    ))
+
+    assert requests == 2
+    assert saved == {"DEEPINFRA_API_KEY": secret}
+    assert len(patches) == 1
+    tool_event = next(event for event in events if event["type"] == "tool")
+    assert tool_event["name"] == "configure_openai_compatible_provider"
+    assert tool_event["params"]["api_key"] == "********"
+    assert secret not in repr(events)
+    assert events[-1]["type"] == "result"
+    assert "DeepInfra（deepinfra）已加入模型供应商列表" in events[-1]["content"]
+
+
 def test_loop_detector_stops_identical_call_before_second_execution():
     detector = agent_runtime._ToolLoopDetector()
     detector.record_call("call-1", "get_security_snapshot", {"code": "AAPL"})
@@ -205,6 +256,81 @@ def test_manager_can_configure_api_key_without_echo(monkeypatch):
     assert secret not in ctx.deps.authoritative_report
 
 
+def test_manager_can_add_openai_compatible_provider_atomically(monkeypatch):
+    saved = {}
+    patches = []
+    secret = "di-test-secret-never-echo"
+    monkeypatch.setattr("src.secret_store.load_secret", lambda name: None)
+    monkeypatch.setattr("src.secret_store.save_secret", lambda name, value: saved.update({name: value}))
+    monkeypatch.setattr("src.ui.server._write_config_merged", lambda patch: patches.append(patch) or patch)
+    monkeypatch.delenv("DEEPINFRA_API_KEY", raising=False)
+    ctx = SimpleNamespace(deps=SimpleNamespace(authoritative_report=""))
+
+    result = asyncio.run(agent_runtime.configure_openai_compatible_provider(
+        ctx,
+        provider="deepinfra",
+        api_base="https://api.deepinfra.com/v1/openai/",
+        api_key=secret,
+        model="deepseek-ai/DeepSeek-V4-Flash-0731",
+        variants=["deepseek-ai/DeepSeek-V4-Flash-0731"],
+        display_name="DeepInfra",
+        test_connection=False,
+    ))
+
+    assert saved == {"DEEPINFRA_API_KEY": secret}
+    assert patches == [{"llm": {"models": {"deepinfra": {
+        "provider_name": "DeepInfra",
+        "api_base": "https://api.deepinfra.com/v1/openai",
+        "api_key_env": "DEEPINFRA_API_KEY",
+        "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
+        "variants": ["deepseek-ai/DeepSeek-V4-Flash-0731"],
+    }}}}]
+    assert result["configured"] is True
+    assert result["connection_test"] == {"status": "skipped"}
+    assert result["masked"] == "********"
+    assert secret not in repr(result)
+    assert secret not in repr(patches)
+    assert secret not in ctx.deps.authoritative_report
+
+
+def test_new_provider_config_rolls_back_secret_if_config_write_fails(monkeypatch):
+    saved = []
+    monkeypatch.setattr("src.secret_store.load_secret", lambda name: "old-secret-value")
+    monkeypatch.setattr("src.secret_store.save_secret", lambda name, value: saved.append((name, value)))
+    monkeypatch.setattr(
+        "src.ui.server._write_config_merged",
+        lambda patch: (_ for _ in ()).throw(OSError("disk full")),
+    )
+    ctx = SimpleNamespace(deps=SimpleNamespace(authoritative_report=""))
+
+    with pytest.raises(OSError, match="disk full"):
+        asyncio.run(agent_runtime.configure_openai_compatible_provider(
+            ctx,
+            provider="deepinfra",
+            api_base="https://api.deepinfra.com/v1/openai",
+            api_key="new-secret-value",
+            model="deepseek-ai/DeepSeek-V4-Flash-0731",
+            test_connection=False,
+        ))
+
+    assert saved == [
+        ("DEEPINFRA_API_KEY", "new-secret-value"),
+        ("DEEPINFRA_API_KEY", "old-secret-value"),
+    ]
+
+
+def test_conversation_prompt_does_not_implicitly_resume_failed_task():
+    prompt = agent_runtime._conversation_prompt(
+        "说话",
+        [{"role": "assistant", "content": "Agent 运行失败：连续只读工具调用"}],
+        "",
+    )
+
+    assert "本轮唯一任务" in prompt
+    assert "不得恢复上轮失败操作" in prompt
+    assert prompt.endswith("说话")
+
+
 def test_manager_system_prompt_defines_semantic_cycle_and_memory_tools():
     instructions = "\n".join(
         value for value in agent_runtime.MANAGER_AGENT._instructions if isinstance(value, str)
@@ -213,4 +339,6 @@ def test_manager_system_prompt_defines_semantic_cycle_and_memory_tools():
     assert "run_complete_investment_cycle" in instructions
     assert "remember_user_preference" in instructions
     assert "configure_llm_api_key" in instructions
+    assert "configure_openai_compatible_provider" in instructions
+    assert "上一轮失败的操作只能在用户明确要求继续或重试时恢复" in instructions
     assert "不得要求用户逐步确认" in instructions

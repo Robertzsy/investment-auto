@@ -102,6 +102,13 @@ llm:
       - deepseek-chat
       - deepseek-v4-pro
       - deepseek-v4-flash
+    deepinfra:
+      provider_name: DeepInfra
+      api_base: https://api.deepinfra.com/v1/openai
+      api_key_env: DEEPINFRA_API_KEY
+      model: deepseek-ai/DeepSeek-V4-Flash-0731
+      variants:
+      - deepseek-ai/DeepSeek-V4-Flash-0731
     glm:
       api_base: https://open.bigmodel.cn/api/paas/v4
       api_key_env: GLM_API_KEY

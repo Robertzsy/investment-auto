@@ -175,6 +175,7 @@ def test_typed_manager_catalog_exposes_versioned_management_not_shell_or_executi
         "modify_investment_agent_code",
         "remember_user_preference",
         "configure_llm_api_key",
+        "configure_openai_compatible_provider",
         # Management-plane extensions: capability registry, project search and
         # cycle evidence lookup.  Still no shell, file writes or execution.
         "search_project",
