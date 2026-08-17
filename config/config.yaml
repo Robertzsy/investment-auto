@@ -96,6 +96,7 @@ llm:
       api_key_env: DEEPSEEK_API_KEY
       model: deepseek-v4-pro
       variants:
+      - deepseek-chat
       - deepseek-v4-pro
       - deepseek-v4-flash
     glm:
@@ -138,6 +139,7 @@ llm:
     news_analyst: deepseek-v4-flash
     portfolio_manager: deepseek-v4-pro
     quant_analyst: deepseek-v4-pro
+    research: deepseek-chat
     research_manager: deepseek-v4-pro
     researcher: deepseek-v4-flash
     risk_chairman: deepseek-v4-pro

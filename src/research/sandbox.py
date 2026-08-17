@@ -3,7 +3,7 @@
 The trading path and the management conversation never get a shell.  The
 research loop does, under these constraints:
 
-* executable whitelist (python, pytest, git read-only, node scripts);
+* executable whitelist (python, pytest, git read-only, node scripts, rg read-only search);
 * no shell metacharacters - commands run as an argv list, so ; && | > cannot
   be interpreted;
 * every path argument must resolve inside the project root (the workspace is
@@ -25,12 +25,13 @@ from src.subprocess_utils import hidden_subprocess_kwargs
 
 ROOT = Path(__file__).resolve().parents[2]
 
-_EXECUTABLE_WHITELIST = {"python", "pytest", "git", "node"}
+_EXECUTABLE_WHITELIST = {"python", "pytest", "git", "node", "rg"}
 _GIT_READ_ONLY = {"diff", "status", "log", "show", "rev-parse", "branch"}
 _SENSITIVE_ENV_MARKERS = (
     "API_KEY", "APY_KEY", "TOKEN", "SECRET", "PASSWORD", "WEBHOOK", "MONGODB_URI",
 )
 _MAX_OUTPUT_CHARS = 4000
+_PRIVATE_PATH_PARTS = {".git", ".venv", "runtime", "data", "build", "release"}
 
 
 def minimal_env() -> Dict[str, str]:
@@ -96,6 +97,14 @@ def run_command(
             resolved = _resolve_path_argument(text, directory)
             if resolved != root and root not in resolved.parents:
                 raise ValueError(f"路径参数越出项目目录: {argument}")
+            try:
+                relative_parts = resolved.relative_to(root).parts
+            except ValueError:
+                relative_parts = ()
+            if resolved.name.startswith(".env") or any(part in _PRIVATE_PATH_PARTS for part in relative_parts):
+                raise ValueError(f"路径参数属于私密或生成数据: {argument}")
+            if executable == "rg" and resolved == root:
+                raise ValueError("rg 必须指定 src/tests/config/docs 等明确子目录，禁止扫描项目根")
 
     try:
         completed = subprocess.run(

@@ -256,6 +256,7 @@ def main() -> None:
         shell_mode = str(research_settings.get("shell", "restricted")).strip().lower()
         include_shell_tools = shell_mode != "none"
         shell_timeout_seconds = int(research_settings.get("shell_timeout_seconds", 60))
+        request_limit = int(research_settings.get("request_limit", 32))
         workspace_value = str(research_settings.get("workspace", "")).strip()
         workspace_root = Path(workspace_value) if workspace_value else None
         if workspace_root is not None and not workspace_root.is_absolute():
@@ -268,6 +269,7 @@ def main() -> None:
             workspace_root=workspace_root,
             include_shell_tools=include_shell_tools,
             shell_timeout_seconds=shell_timeout_seconds,
+            request_limit=request_limit,
             extra_tools=task_tools(args.task),
             on_progress=lambda message: logger.info(message),
         )

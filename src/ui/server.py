@@ -734,7 +734,15 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return
         try:
             for key, value in data.items():
-                save_secret(str(key), str(value or ""))
+                name = str(key)
+                secret = str(value or "")
+                save_secret(name, secret)
+                # Keep adapters created later in this chat process in sync.
+                # The standalone investment process reads the same DPAPI store.
+                if secret.strip():
+                    os.environ[name] = secret
+                else:
+                    os.environ.pop(name, None)
         except Exception as exc:
             logger.warning("Secret save failed: %s", exc)
             self._json_response(500, {"ok": False, "error": str(exc)[:300]})

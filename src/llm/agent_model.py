@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from pydantic_ai.models import Model
@@ -21,7 +20,7 @@ def _configured_model(provider: str, model_override: Optional[str] = None) -> Mo
     key_env = str(provider_config.get("api_key_env", "")).strip()
     if not key_env:
         raise ValueError(f"LLM provider '{provider}' 缺少 api_key_env")
-    api_key = os.getenv(key_env, "").strip()
+    api_key = cfg.llm_api_key(provider, provider_config).strip()
     if not api_key:
         raise ValueError(f"LLM provider '{provider}' 需要环境变量 {key_env}")
 

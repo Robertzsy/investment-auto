@@ -172,6 +172,7 @@ def test_typed_manager_catalog_exposes_versioned_management_not_shell_or_executi
         "inspect_investment_agent_code",
         "modify_investment_agent_code",
         "remember_user_preference",
+        "configure_llm_api_key",
         # Management-plane extensions: capability registry, project search and
         # cycle evidence lookup.  Still no shell, file writes or execution.
         "search_project",
@@ -185,6 +186,22 @@ def test_typed_manager_catalog_exposes_versioned_management_not_shell_or_executi
         "uninstall_manager_tool",
     }
     assert not ({"run_shell", "write_file", "execute_orders"} & tool_names)
+
+
+def test_chat_history_redacts_api_keys_on_write_and_migrates_existing_plaintext():
+    secret = "sk-history-secret-1234567890"
+    chat_server.append_history("user", f"请配置 {secret}")
+    raw = chat_server.HISTORY_FILE.read_text(encoding="utf-8")
+    assert secret not in raw
+    assert "********" in raw
+
+    chat_server.HISTORY_FILE.write_text(
+        '[{"role":"user","content":"API_KEY=' + secret + '","time":"now"}]',
+        encoding="utf-8",
+    )
+    loaded = chat_server.load_history(10)
+    assert secret not in loaded[0]["content"]
+    assert secret not in chat_server.HISTORY_FILE.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize(

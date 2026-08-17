@@ -16,10 +16,14 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
+from pydantic_ai import RunContext
+
 from src.research.workspace import ResearchWorkspace
 
 logger = logging.getLogger("investment-auto.research")
 TIMEZONE = ZoneInfo("Asia/Shanghai")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_PRIVATE_PROJECT_PARTS = {".git", ".venv", "runtime", "data", "build", "release"}
 
 TASK_DESCRIPTIONS: Dict[str, str] = {
     "backtest": (
@@ -120,7 +124,7 @@ def _workspace_tools(include_shell_tools: bool = True):
     include_shell_tools=False produces a shell-less agent (architecture.
     research.shell=none); the trading plane never has a shell either way.
     """
-    from pydantic_ai import RunContext, Tool
+    from pydantic_ai import Tool
 
     async def list_workspace(ctx: RunContext[ResearchDeps]) -> Dict[str, Any]:
         return {"files": ctx.deps.workspace.list_files()}
@@ -132,10 +136,48 @@ def _workspace_tools(include_shell_tools: bool = True):
         saved = ctx.deps.workspace.write_file(ctx.deps.round_no, path, content)
         return {"saved": str(saved.relative_to(ctx.deps.workspace.run_dir)).replace(chr(92), "/")}
 
+    async def read_project_file(
+        ctx: RunContext[ResearchDeps], path: str, start_line: int = 1, max_lines: int = 200,
+    ) -> Dict[str, Any]:
+        """Read one non-sensitive source or test file from the project.
+
+        Secret values and generated runtime/build trees are intentionally
+        unavailable to the external research model.
+        """
+        relative = Path(str(path or "").replace(chr(92), "/"))
+        if relative.is_absolute() or ".." in relative.parts:
+            return {"ok": False, "error": "只允许项目内相对路径"}
+        if not relative.parts or relative.name.startswith(".env") or any(
+            part in _PRIVATE_PROJECT_PARTS for part in relative.parts
+        ):
+            return {"ok": False, "error": "该路径属于私密或生成数据，禁止研究模型读取"}
+        target = (PROJECT_ROOT / relative).resolve()
+        if target != PROJECT_ROOT and PROJECT_ROOT not in target.parents:
+            return {"ok": False, "error": "路径越出项目目录"}
+        if not target.is_file():
+            return {"ok": False, "error": "文件不存在"}
+        try:
+            content = target.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            return {"ok": False, "error": str(exc)[:500]}
+        lines = content.splitlines()
+        start = max(1, int(start_line))
+        count = max(20, min(300, int(max_lines)))
+        selected = lines[start - 1:start - 1 + count]
+        return {
+            "ok": True,
+            "path": str(relative).replace(chr(92), "/"),
+            "start_line": start,
+            "end_line": start + len(selected) - 1,
+            "content": "\n".join(f"{start + index}: {line}" for index, line in enumerate(selected)),
+            "has_more": start - 1 + len(selected) < len(lines),
+        }
+
     tools = [
         Tool(list_workspace, sequential=True, timeout=15),
         Tool(read_workspace_file, sequential=True, timeout=15),
         Tool(write_workspace_file, sequential=True, timeout=15),
+        Tool(read_project_file, sequential=True, timeout=15),
     ]
     if include_shell_tools:
         async def run_research_command(ctx: RunContext[ResearchDeps], command: str, timeout: Optional[int] = None) -> Dict[str, Any]:
@@ -143,11 +185,22 @@ def _workspace_tools(include_shell_tools: bool = True):
 
             configured = max(1, ctx.deps.shell_timeout_seconds)
             limit = max(1, min(configured, int(timeout or configured)))
-            return run_command(
-                command,
-                workdir=ctx.deps.workspace.run_dir,
-                timeout=limit,
-            )
+            try:
+                return run_command(
+                    command,
+                    workdir=ctx.deps.workspace.run_dir,
+                    timeout=limit,
+                )
+            except (OSError, ValueError) as exc:
+                # A rejected research command is recoverable model feedback,
+                # not a reason to abort the entire fresh-agent round.
+                return {
+                    "exit_code": None,
+                    "timed_out": False,
+                    "rejected": True,
+                    "stdout": "",
+                    "stderr": str(exc)[:1000],
+                }
 
         tools.append(Tool(run_research_command, sequential=True, timeout=310))
     return tools
@@ -161,7 +214,7 @@ def default_agent_factory(extra_tools: Sequence[Any] = (), include_shell_tools: 
     return Agent(
         name="investment_research",
         deps_type=ResearchDeps,
-        result_type=RoundReport,
+        output_type=RoundReport,
         tools=tools,
         retries=1,
         tool_timeout=90,
@@ -179,6 +232,7 @@ def run_research_loop(
     extra_tools: Sequence[Any] = (),
     include_shell_tools: bool = True,
     shell_timeout_seconds: int = 60,
+    request_limit: int = 32,
     on_progress: Optional[Callable[[str], None]] = None,
     agent_factory: Optional[Callable[..., Any]] = None,
 ) -> ResearchOutcome:
@@ -234,9 +288,12 @@ def run_research_loop(
             result = agent.run_sync(
                 prompt,
                 deps=deps,
-                usage_limits=UsageLimits(request_limit=16, total_tokens_limit=60000),
+                usage_limits=UsageLimits(
+                    request_limit=max(4, min(128, int(request_limit))),
+                    total_tokens_limit=120000,
+                ),
             )
-            report_payload = result.data
+            report_payload = result.output
         except Exception as exc:
             logger.exception("Research round %s failed", round_no)
             report_payload = RoundReport(

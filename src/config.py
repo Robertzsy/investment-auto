@@ -71,8 +71,11 @@ class AppConfig:
     def llm_model(self, provider: str) -> str:
         return self.llm_model_config(provider).get("model", "")
 
-    def llm_api_key(self, provider: str) -> str:
-        env_key = self.llm_model_config(provider).get("api_key_env", "")
+    def llm_api_key(self, provider: str, provider_config: Optional[Dict[str, Any]] = None) -> str:
+        model_config = provider_config or self.llm_model_config(provider)
+        env_key = str(model_config.get("api_key_env", "")).strip()
+        if not env_key:
+            return ""
         value = os.getenv(env_key, "")
         if not value:
             # Desktop app: secrets live in the DPAPI store, not .env or logs.

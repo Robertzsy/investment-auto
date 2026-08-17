@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, AsyncIterable, Dict, Generator, List, Optional
 
 from pydantic_ai import Agent, CancellationToken, RunContext, Tool, UsageLimits
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.exceptions import RunCancelled, UsageLimitExceeded
 from pydantic_ai.messages import FunctionToolCallEvent, FunctionToolResultEvent
 
@@ -48,18 +49,41 @@ class _ToolLoopDetector:
 
     def __init__(self) -> None:
         self._calls: Dict[str, str] = {}
+        self._call_counts: Dict[str, int] = {}
         self._results: Dict[str, int] = {}
+        self._read_only_streak = 0
 
     def record_call(self, tool_call_id: str, tool_name: str, arguments: Any) -> None:
-        self._calls[tool_call_id] = f"{tool_name}:{_json_safe(arguments, limit=4000)}"
+        call_key = f"{tool_name}:{_json_safe(arguments, limit=4000)}"
+        self._calls[tool_call_id] = call_key
+        self._call_counts[call_key] = self._call_counts.get(call_key, 0) + 1
+        if self._call_counts[call_key] >= 2:
+            raise RepeatedToolLoop(f"检测到完全相同的工具调用，已在重复执行前停止：{tool_name}")
 
     def record_result(self, tool_call_id: str, tool_name: str, result: Any) -> None:
         call_key = self._calls.get(tool_call_id, tool_name)
         result_key = f"{call_key}:{_json_safe(result, limit=6000)}"
         fingerprint = hashlib.sha256(result_key.encode("utf-8", errors="replace")).hexdigest()
         self._results[fingerprint] = self._results.get(fingerprint, 0) + 1
-        if self._results[fingerprint] >= 2:
-            raise RepeatedToolLoop(f"检测到重复工具调用且结果没有变化：{tool_name}")
+        read_only = {
+            "search_project", "inspect_investment_agent_code", "list_manager_capabilities",
+            "get_cycle_evidence", "load_manager_skill", "search_security",
+            "get_security_snapshot", "get_stock_screening",
+        }
+        self._read_only_streak = self._read_only_streak + 1 if tool_name in read_only else 0
+        if self._read_only_streak >= 10:
+            raise RepeatedToolLoop("连续只读工具调用没有形成操作或最终答案，已提前停止以避免循环")
+
+
+class _ToolExecutionGuard(AbstractCapability[Any]):
+    """Enforce idempotency in the execution layer, before side effects run."""
+
+    async def wrap_tool_execute(self, ctx, *, call, tool_def, args, handler):
+        detector = ctx.deps.tool_loop_detector
+        detector.record_call(call.tool_call_id or "", call.tool_name, args)
+        result = await handler(args)
+        detector.record_result(call.tool_call_id or "", call.tool_name, result)
+        return result
 
 
 @dataclass
@@ -68,10 +92,13 @@ class ChatAgentDeps:
     event_queue: "queue.Queue[Dict[str, Any]]"
     authoritative_report: str = ""
     completed_tool_calls: List[str] = None  # type: ignore[assignment]
+    tool_loop_detector: _ToolLoopDetector = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         if self.completed_tool_calls is None:
             self.completed_tool_calls = []
+        if self.tool_loop_detector is None:
+            self.tool_loop_detector = _ToolLoopDetector()
 
 
 def _json_safe(value: Any, *, limit: int = 16_000) -> str:
@@ -489,6 +516,50 @@ def remember_user_preference(note: str) -> Dict[str, Any]:
     return ManagerMemory().remember(note, source="conversation-manager")
 
 
+async def configure_llm_api_key(
+    ctx: RunContext[ChatAgentDeps], provider: str, api_key: str,
+) -> Dict[str, Any]:
+    """Securely configure one existing LLM provider for chat and investment analysis.
+
+    Use this when a user asks the window model to configure an API key for
+    them. The plaintext is stored only in the local Windows DPAPI store; the
+    tool result and final answer never echo it.
+
+    Args:
+        provider: Existing provider id, e.g. deepseek, openai, glm, or kimi.
+        api_key: The provider API key supplied by the user.
+    """
+    import os
+
+    normalized = str(provider or "").strip().lower()
+    provider_config = cfg.llm_model_config(normalized)
+    if not provider_config:
+        raise ValueError("未知模型供应商，请先在设置中添加供应商配置")
+    env_name = str(provider_config.get("api_key_env", "")).strip()
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,127}", env_name):
+        raise ValueError("该供应商的 api_key_env 配置无效")
+    secret = str(api_key or "").strip()
+    if len(secret) < 8 or len(secret) > 65536 or any(char in secret for char in ("\x00", "\r", "\n")):
+        raise ValueError("API Key 格式无效")
+    from src.secret_store import save_secret
+
+    save_secret(env_name, secret)
+    os.environ[env_name] = secret
+    display_name = str(provider_config.get("provider_name", normalized) or normalized)
+    report = (
+        f"✅ {display_name} API Key 已通过 Windows DPAPI 加密保存。\n\n"
+        "聊天窗口和独立投资分析 Agent 将共同使用这项配置；回复、历史和日志不会显示密钥原文。"
+    )
+    ctx.deps.authoritative_report = report
+    return {
+        "ok": True,
+        "provider": normalized,
+        "configured": True,
+        "masked": "********",
+        "user_report": report,
+    }
+
+
 def search_project(query: str, file_pattern: str = "*", max_results: int = 30) -> Dict[str, Any]:
     """Search project-relative file names and UTF-8 text before choosing a file to inspect.
 
@@ -654,10 +725,13 @@ MANAGER_AGENT = Agent(
         "直接以该报告为最终依据，不要继续调用其他工具或声称只完成了筛选。\n"
         "4. 当用户明确要求记住，或表达了稳定且未来有用的操作偏好时，调用 remember_user_preference；"
         "不得保存密钥、令牌、密码、Webhook、数据库地址和一次性任务。\n"
+        "4a. 用户要求设置或更新已有模型供应商的 API Key 时，直接且只调用一次 configure_llm_api_key；"
+        "该工具会本机加密保存并返回脱敏结果。不得搜索源码、修改配置文件、创建新工具、把密钥写入记忆或在回复中复述密钥。\n"
         "5. 使用 manage_investment_agent 管理暂停、恢复、运行模式、策略授权书和反思；写操作后再次读取状态验证。\n"
         "6. 用户要求修改项目时，可以自由读取、新建或修改项目目录内任意文本文件，包括源代码、配置、提示词、"
-        "运行时文件、密钥文件、账户文件、管理模块和交易边界。已有文件必须先 inspect，再调用 modify；"
+        "运行时文件、账户文件、管理模块和交易边界。已有文件必须先 inspect，再调用 modify；"
         "新文件使用空 expected_sha256。修改会运行全量测试，失败自动回滚。不得操作项目目录以外的路径。\n"
+        "密钥原文是例外：不得通过文件工具读取、写入或复述，只能使用 configure_llm_api_key。\n"
         "7. 每次任务结束都要检查用户目标是否完成、工具是否失败、外部状态是否验证。不要输出工具 JSON，"
         "不猜测时间、日志、行情或进程状态；涉及投资判断要注明是模拟研究信息。"
         "8. 不知道文件位置时必须先 search_project。需要可复用知识时可自动安装 Skill；缺少能力需要新工具时，"
@@ -683,6 +757,7 @@ MANAGER_AGENT = Agent(
         Tool(inspect_investment_agent_code, sequential=True, timeout=20),
         Tool(modify_investment_agent_code, sequential=True, timeout=240),
         Tool(remember_user_preference, sequential=True, timeout=10),
+        Tool(configure_llm_api_key, sequential=True, timeout=20),
         Tool(search_project, sequential=True, timeout=20),
         Tool(list_manager_capabilities, sequential=True, timeout=10),
         Tool(get_cycle_evidence, sequential=True, timeout=20),
@@ -694,6 +769,7 @@ MANAGER_AGENT = Agent(
     ],
     retries=1,
     tool_timeout=90,
+    capabilities=[_ToolExecutionGuard()],
 )
 
 
@@ -739,16 +815,9 @@ def _memory_instructions(memory: str) -> str:
 
 
 def _redact_error(exc: BaseException) -> str:
-    text = str(exc) or exc.__class__.__name__
-    for provider_config in cfg.raw.get("llm", {}).get("models", {}).values():
-        env_name = str(provider_config.get("api_key_env", ""))
-        if env_name:
-            import os
+    from src.secret_store import redact_text
 
-            secret = os.getenv(env_name, "")
-            if secret:
-                text = text.replace(secret, "***")
-    return text[:2000]
+    return redact_text(str(exc) or exc.__class__.__name__)[:2000]
 
 
 def run_agent_events(
@@ -770,29 +839,20 @@ def run_agent_events(
     prompt = _conversation_prompt(message, history, memory)
 
     async def event_handler(_: RunContext[ChatAgentDeps], stream: AsyncIterable[Any]) -> None:
-        loop_detector = _ToolLoopDetector()
         async for event in stream:
             if isinstance(event, FunctionToolCallEvent):
                 try:
                     arguments = event.part.args_as_dict()
                 except Exception:
                     arguments = {"raw": event.part.args_as_json_str()}
-                loop_detector.record_call(
-                    event.tool_call_id,
-                    event.part.tool_name,
-                    arguments,
-                )
+                from src.secret_store import redact_mapping
+
                 events.put({
                     "type": "tool",
                     "name": event.part.tool_name,
-                    "params": arguments,
+                    "params": redact_mapping(arguments),
                 })
             elif isinstance(event, FunctionToolResultEvent):
-                loop_detector.record_result(
-                    event.tool_call_id,
-                    event.part.tool_name,
-                    event.part.content,
-                )
                 deps.completed_tool_calls.append(event.part.tool_name)
 
     async def run() -> None:

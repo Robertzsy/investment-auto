@@ -38,6 +38,22 @@ def test_sandbox_runs_whitelisted_python(tmp_path):
     assert "42" in result["stdout"]
 
 
+def test_sandbox_allows_read_only_ripgrep(tmp_path):
+    (tmp_path / "sample.txt").write_text("needle\n", encoding="utf-8")
+    result = sandbox.run_command("rg needle sample.txt", workdir=tmp_path, project_root=tmp_path)
+    assert result["exit_code"] == 0
+    assert "needle" in result["stdout"]
+
+
+def test_sandbox_ripgrep_rejects_project_root_and_private_paths(tmp_path):
+    private = tmp_path / "runtime"
+    private.mkdir()
+    with pytest.raises(ValueError, match="禁止扫描项目根"):
+        sandbox.run_command(f'rg needle "{tmp_path}"', workdir=tmp_path, project_root=tmp_path)
+    with pytest.raises(ValueError, match="私密或生成数据"):
+        sandbox.run_command(f'rg needle "{private}"', workdir=tmp_path, project_root=tmp_path)
+
+
 def test_sandbox_times_out(tmp_path):
     result = sandbox.run_command('python -c "import time; time.sleep(5)"', workdir=tmp_path, timeout=1, project_root=tmp_path)
     assert result["timed_out"] is True
@@ -77,7 +93,7 @@ class _FakeAgent:
         self.prompts.append(prompt)
         if not self.reports:
             raise AssertionError("fake agent ran out of reports")
-        return SimpleNamespace(data=self.reports.pop(0))
+        return SimpleNamespace(output=self.reports.pop(0))
 
 
 def _factory(reports):
@@ -133,6 +149,27 @@ def test_loop_prompt_is_fresh_without_history(tmp_path):
 def test_loop_rejects_unknown_task(tmp_path):
     with pytest.raises(ValueError, match="task 必须是"):
         loop.run_research_loop("目标", "sell_everything", workspace_root=tmp_path)
+
+
+def test_workspace_tools_resolve_run_context_annotations():
+    """The real Pydantic tool builder must resolve nested-tool annotations."""
+    tools = loop._workspace_tools(include_shell_tools=True)
+    assert [tool.name for tool in tools] == [
+        "list_workspace",
+        "read_workspace_file",
+        "write_workspace_file",
+        "read_project_file",
+        "run_research_command",
+    ]
+
+
+def test_default_agent_factory_matches_installed_pydantic_api(monkeypatch):
+    from pydantic_ai.models.test import TestModel
+    from src.llm import agent_model
+
+    monkeypatch.setattr(agent_model, "resolve_agent_model", lambda **kwargs: TestModel())
+    agent = loop.default_agent_factory(include_shell_tools=False)
+    assert agent.name == "investment_research"
 
 
 # ---------- backtest ----------

@@ -15,6 +15,7 @@ import base64
 import ctypes
 import json
 import os
+import re
 import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -135,3 +136,48 @@ def delete_secret(key: str) -> None:
         payload = _read_store()
         payload.pop(str(key or "").strip(), None)
         _write_store(payload)
+
+
+_KEY_SHAPE_RE = re.compile(r"(?<![A-Za-z0-9])(?:sk|key)-[A-Za-z0-9_-]{12,}", re.I)
+_LABELLED_SECRET_RE = re.compile(
+    r"(?i)((?:api[_ -]?key|token|secret|password|passwd)\s*[:=：]?\s*)([^\s,;，；]{12,})"
+)
+
+
+def redact_text(value: Any) -> str:
+    """Remove configured and key-shaped secrets from user-visible text."""
+    text = str(value or "")
+    names = set(list_keys())
+    try:
+        from src.config import cfg
+
+        names.update(
+            str(item.get("api_key_env", "")).strip()
+            for item in cfg.raw.get("llm", {}).get("models", {}).values()
+            if str(item.get("api_key_env", "")).strip()
+        )
+    except Exception:
+        pass
+    for name in names:
+        secret = os.getenv(name, "") or load_secret(name) or ""
+        if len(secret) >= 8:
+            text = text.replace(secret, "********")
+    text = _KEY_SHAPE_RE.sub("********", text)
+    return _LABELLED_SECRET_RE.sub(lambda match: match.group(1) + "********", text)
+
+
+def redact_mapping(value: Any) -> Any:
+    """Recursively redact tool arguments without changing their structure."""
+    if isinstance(value, dict):
+        result: Dict[str, Any] = {}
+        for key, item in value.items():
+            if any(marker in str(key).upper() for marker in ("KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD")):
+                result[str(key)] = "********" if item else item
+            else:
+                result[str(key)] = redact_mapping(item)
+        return result
+    if isinstance(value, list):
+        return [redact_mapping(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(redact_mapping(item) for item in value)
+    return redact_text(value) if isinstance(value, str) else value

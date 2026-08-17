@@ -5,6 +5,18 @@
 投资系统现在可以安装为真正的 Windows 桌面应用：安装后双击桌面图标，在独立桌面窗口
 内使用全部功能，不需要浏览器、CMD、PowerShell、Python 或 Node.js。
 
+### 2026-08-17 密钥链路与 Agent 防循环热修复
+
+- 设置页的 LLM API Key 改为与首次向导相同的 Windows DPAPI 加密存储；聊天适配器与
+  独立投资 Agent 统一使用“环境变量优先、DPAPI 回退”的解析链路；
+- 管理窗口新增 `configure_llm_api_key` 原生工具，可替用户配置已有供应商，工具事件、
+  最终回答、错误和对话历史统一脱敏，旧历史中的密钥形态在读取时自动清理；
+- 重复工具检测从事后事件观察层移到 Pydantic AI 工具执行中间件，相同工具与参数第二次
+  调用会在副作用发生前拦截；连续 10 次只读搜索/检查也会提前停止；
+- 修复 DSH/Ralph 与 Pydantic AI 2.27 的启动兼容（`output_type`/`result.output`、全局
+  `RunContext`），增加受控分页源码读取、只读 `rg`、可恢复命令拒绝和可配置请求上限；
+  DSH 工具角色固定使用兼容 function calling 的 `deepseek-chat`，不影响投资角色模型。
+
 ### 核心交付
 
 - **桌面窗口**：.NET 8 WPF + WebView2 承载现有全部页面（仪表盘/对话/报告/持仓/设置），

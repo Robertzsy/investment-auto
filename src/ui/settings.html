@@ -493,6 +493,7 @@ html{scroll-behavior:smooth;scroll-padding-top:16px}
 <script>
 let config = {};
 let envVars = {};
+let secretKeys = new Set();
 let marketConfigs = {};
 let mandateData = {};
 let currentRiskMarket = 'cn';
@@ -514,15 +515,17 @@ function providers() {
 
 async function loadConfig() {
   try {
-    const [configRes, envRes, marketConfigRes, mandateRes] = await Promise.all([
+    const [configRes, envRes, secretsRes, marketConfigRes, mandateRes] = await Promise.all([
       fetch('/api/config'),
       fetch('/api/env'),
+      fetch('/api/secrets'),
       fetch('/api/market-configs'),
       fetch('/api/investment/mandate')
     ]);
-    if (!configRes.ok || !envRes.ok || !marketConfigRes.ok || !mandateRes.ok) throw new Error('配置接口返回异常');
+    if (!configRes.ok || !envRes.ok || !secretsRes.ok || !marketConfigRes.ok || !mandateRes.ok) throw new Error('配置接口返回异常');
     config = await configRes.json();
     envVars = await envRes.json();
+    secretKeys = new Set((await secretsRes.json()).keys || []);
     marketConfigs = await marketConfigRes.json();
     mandateData = await mandateRes.json();
     renderConfig();
@@ -756,7 +759,7 @@ function renderApiKeys() {
   
   for (const [key, info] of Object.entries(providers())) {
     const envKey = (config.llm?.models?.[key]?.api_key_env) || (key.toUpperCase() + '_API_KEY');
-    const hasKey = Boolean(envVars[envKey]);
+    const hasKey = secretKeys.has(envKey) || Boolean(envVars[envKey]);
     const currentModel = config.llm?.models?.[key]?.model || info.defaultModel;
     const currentBase = config.llm?.models?.[key]?.api_base || info.defaultBase;
     const safeKey = escapeHtml(key);
@@ -907,12 +910,13 @@ async function saveConfig() {
   if (!validateTradingControls()) return;
 
   // 收集 API Keys
-  const newEnv = {};
+  const newSecrets = {};
   for (const key of Object.keys(providers())) {
     const envKey = (config.llm?.models?.[key]?.api_key_env) || (key.toUpperCase() + '_API_KEY');
     const value = document.getElementById(`apikey_${key}`).value;
-    if (value) newEnv[envKey] = value;
+    if (value) newSecrets[envKey] = value;
   }
+  const newEnv = {};
   const mongoUri = document.getElementById('screenMongoUri').value.trim();
   if (mongoUri) newEnv.MONGODB_URI = mongoUri;
   const finnhubApiKey = document.getElementById('finnhubApiKey').value.trim();
@@ -920,15 +924,20 @@ async function saveConfig() {
   const notifyWebhookUrl = document.getElementById('notifyWebhookUrl').value.trim();
   if (notifyWebhookUrl) newEnv.NOTIFY_WEBHOOK_URL = notifyWebhookUrl;
   
-  // 保存到 .env
+  // LLM 密钥写入 Windows DPAPI；其他现有环境设置保持兼容。
   try {
-    await fetch('/api/env', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(newEnv)
-    });
+    const requests = [];
+    if (Object.keys(newSecrets).length) requests.push(fetch('/api/secrets', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(newSecrets)
+    }));
+    if (Object.keys(newEnv).length) requests.push(fetch('/api/env', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(newEnv)
+    }));
+    const responses = await Promise.all(requests);
+    if (responses.some(response => !response.ok)) throw new Error('密钥接口返回异常');
   } catch(e) {
     showToast('⚠️ API Keys 保存失败: ' + e.message, 'error');
+    return;
   }
 
   // 收集模型配置

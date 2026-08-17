@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-from src.llm import registry
+from src.llm import agent_model, registry
 from src.llm.adapter import GenericOpenAILLM
 from src.ui import server
 
@@ -80,6 +80,23 @@ def test_env_save_validates_and_updates_running_environment(
     server.ChatHandler._handle_save_env(invalid)  # type: ignore[arg-type]
     assert invalid.responses[-1][0] == 400
     assert "BAD\nKEY=value" not in (tmp_path / ".env").read_text(encoding="utf-8")
+
+
+def test_save_secrets_updates_dpapi_and_current_process_without_plaintext_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    saved = {}
+    monkeypatch.setattr("src.secret_store.save_secret", lambda name, value: saved.update({name: value}))
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    handler = _FakeHandler(b'{"DEEPSEEK_API_KEY":"dpapi-test-secret"}')
+
+    server.ChatHandler._handle_save_secrets(handler)  # type: ignore[arg-type]
+
+    assert handler.responses[-1] == (200, {"ok": True})
+    assert saved == {"DEEPSEEK_API_KEY": "dpapi-test-secret"}
+    assert os.environ["DEEPSEEK_API_KEY"] == "dpapi-test-secret"
+    assert not (tmp_path / ".env").exists()
 
 
 def test_operation_mode_api_enables_complete_cycle_execution(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -381,6 +398,45 @@ def test_provider_never_reuses_openai_key_for_another_vendor(monkeypatch: pytest
                 "model": "deepseek-v4-pro",
             }
         )
+
+
+def test_legacy_adapter_uses_shared_dpapi_aware_key_resolver(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured = {}
+    monkeypatch.delenv("TEST_API_KEY", raising=False)
+    monkeypatch.setattr("src.llm.adapter.cfg.llm_api_key", lambda provider, provider_config=None: "dpapi-value")
+    monkeypatch.setattr(
+        "src.llm.adapter.OpenAI",
+        lambda **kwargs: captured.update(kwargs) or SimpleNamespace(),
+    )
+
+    GenericOpenAILLM({
+        "provider_name": "test", "api_key_env": "TEST_API_KEY",
+        "api_base": "https://example.invalid/v1", "model": "test-model",
+    })
+    assert captured["api_key"] == "dpapi-value"
+
+
+def test_pydantic_agent_model_uses_shared_dpapi_aware_key_resolver(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured = {}
+    provider_config = {
+        "provider_name": "test", "api_key_env": "TEST_API_KEY",
+        "api_base": "https://example.invalid/v1", "model": "test-model",
+    }
+    monkeypatch.delenv("TEST_API_KEY", raising=False)
+    monkeypatch.setattr(agent_model.cfg, "llm_model_config", lambda provider: provider_config)
+    monkeypatch.setattr(agent_model.cfg, "llm_api_key", lambda provider, config=None: "dpapi-value")
+    monkeypatch.setattr(agent_model, "OpenAIProvider", lambda **kwargs: captured.update(kwargs) or "provider")
+    monkeypatch.setattr(agent_model, "OpenAIChatModel", lambda name, provider: (name, provider))
+
+    assert agent_model._configured_model("test") == ("test-model", "provider")
+    assert captured["api_key"] == "dpapi-value"
+
+
+def test_settings_page_saves_llm_keys_to_secret_api():
+    html = (Path(__file__).parents[1] / "src" / "ui" / "settings.html").read_text(encoding="utf-8")
+    assert "fetch('/api/secrets')" in html
+    assert "secretKeys.has(envKey)" in html
+    assert "body: JSON.stringify(newSecrets)" in html
 
 
 def test_llm_client_uses_bounded_configurable_request_timeout(

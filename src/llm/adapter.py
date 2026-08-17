@@ -6,6 +6,8 @@ from typing import Any, Dict, Iterator, List, Optional
 
 from openai import OpenAI
 
+from src.config import cfg
+
 from .base import BaseLLM
 
 
@@ -19,13 +21,11 @@ class GenericOpenAILLM(BaseLLM):
     """
 
     def __init__(self, provider_config: Dict[str, Any], model_override: str | None = None) -> None:
-        import os
-
         key_env = str(provider_config.get("api_key_env", "")).strip()
         provider_name = str(provider_config.get("provider_name", "openai"))
         if not key_env:
             raise ValueError(f"LLM provider '{provider_name}' has no api_key_env configured")
-        api_key = os.getenv(key_env, "").strip()
+        api_key = cfg.llm_api_key(provider_name, provider_config).strip()
         if not api_key:
             raise ValueError(f"LLM provider '{provider_name}' requires environment variable {key_env}")
 

@@ -46,14 +46,29 @@ _LEGACY_TOOL_NAMES = {
 
 
 # ── history/memory ───────────────────────────────────
+def _sanitize_history(history: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], bool]:
+    from src.secret_store import redact_text
+
+    sanitized: List[Dict[str, Any]] = []
+    changed = False
+    for item in history:
+        clean = dict(item)
+        original = str(clean.get("content", ""))
+        redacted = redact_text(original)
+        clean["content"] = redacted
+        changed = changed or redacted != original
+        sanitized.append(clean)
+    return sanitized, changed
+
+
 def load_history(limit: int = 30) -> List[Dict[str, Any]]:
     with _history_lock:
         try:
             data = json.loads(HISTORY_FILE.read_text(encoding="utf-8")) if HISTORY_FILE.exists() else []
+            data, changed = _sanitize_history(data if isinstance(data, list) else [])
             from src.manager.report_inbox import pending_events
 
             known = {str(item.get("event_id")) for item in data if item.get("event_id")}
-            changed = False
             consumed_paths: List[Path] = []
             for event in pending_events():
                 event_id = str(event.get("event_id", ""))
@@ -83,7 +98,8 @@ def load_history(limit: int = 30) -> List[Dict[str, Any]]:
 def save_history(history: List[Dict[str, Any]]) -> None:
     with _history_lock:
         RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-        HISTORY_FILE.write_text(json.dumps(history[-200:], ensure_ascii=False, indent=2), encoding="utf-8")
+        sanitized, _ = _sanitize_history(history[-200:])
+        HISTORY_FILE.write_text(json.dumps(sanitized, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def append_history(role: str, content: str) -> None:
