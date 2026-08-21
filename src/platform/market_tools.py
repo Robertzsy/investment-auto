@@ -11,12 +11,15 @@ from src.subprocess_utils import decode_subprocess_output, hidden_subprocess_kwa
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def stock_fetcher(command: str, value: str) -> Dict[str, Any]:
+def stock_fetcher(command: str, value: str, option: str = "") -> Dict[str, Any]:
     """Call the bundled market-data adapter without depending on the UI."""
     script = ROOT / "scripts" / "stock-fetcher.js"
     try:
+        argv = ["node", str(script), command, str(value)]
+        if str(option).strip():
+            argv.append(str(option))
         process = subprocess.run(
-            ["node", str(script), command, str(value)],
+            argv,
             cwd=str(ROOT),
             capture_output=True,
             timeout=45,

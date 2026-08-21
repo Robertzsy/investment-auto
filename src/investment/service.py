@@ -123,6 +123,23 @@ class InvestmentAgentService:
 
             result = run_investment_cycle(market, label=label, progress_callback=progress_callback)
             return {"ok": True, **result, "mandate": get_mandate()}
+        if command.command == InvestmentCommand.RUN_SCHEDULED_CYCLE:
+            market = normalize_market(command.payload.get("market"))
+            cycle_type = str(command.payload.get("cycle_type", "intraday")).strip().lower()
+            if cycle_type not in {"intraday", "close"}:
+                raise ValueError("cycle_type 必须是 intraday 或 close")
+            from src.scheduler import run_scheduled_cycle
+
+            result = run_scheduled_cycle(
+                market,
+                cycle_type=cycle_type,
+                label=str(command.payload.get("label", "scheduled-skill"))[:40],
+                time_str=str(command.payload.get("time", ""))[:10],
+                catch_up=bool(command.payload.get("catch_up", False)),
+                scheduled_at=str(command.payload.get("scheduled_at", "")),
+                progress_callback=progress_callback,
+            )
+            return {"ok": True, **result, "mandate": get_mandate()}
         if command.command == InvestmentCommand.PAUSE:
             state = control.set_paused(True, reason=str(command.payload.get("reason", "管理 AI 暂停"))[:500], updated_by=command.requested_by)
             return {"ok": True, "control": state}

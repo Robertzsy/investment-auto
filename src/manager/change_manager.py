@@ -93,7 +93,18 @@ class ChangeManager:
             temporary.write_text(content, encoding="utf-8")
             temporary.replace(path)
             commands = list(tests) or ["python -m pytest -q"]
-            results = self._run_tests(commands)
+            try:
+                results = self._run_tests(commands)
+            except Exception as exc:
+                # A verifier launch/timeout failure is still a failed change.
+                # Never leave the just-written file in place because the test
+                # harness itself raised before returning a normal result.
+                results = [{
+                    "command": "test-harness",
+                    "returncode": -1,
+                    "stdout": "",
+                    "stderr": _redact(str(exc)),
+                }]
             passed = all(item["returncode"] == 0 for item in results)
             rolled_back = False
             if not passed:
@@ -119,9 +130,46 @@ class ChangeManager:
                 "tests": results,
                 "status": "verified_restart_requested" if passed else "rolled_back",
                 "rolled_back": rolled_back,
-                "backup": str(backup.relative_to(ROOT)).replace("\\", "/") if backup.exists() else None,
+                "backup": str(backup.relative_to(BACKUP_DIR)).replace("\\", "/") if backup.exists() else None,
             })
             return record
+
+    def rollback(self, change: Mapping[str, Any], *, reason: str) -> Dict[str, Any]:
+        """Restore one verified change when its semantic replay does not pass."""
+        target = _resolve_path(str(change.get("target", "")))
+        expected_hash = str(change.get("new_sha256", ""))
+        backup_value = str(change.get("backup") or "").replace("\\", "/")
+        with _lock:
+            current = target.read_text(encoding="utf-8") if target.exists() else ""
+            current_hash = hashlib.sha256(current.encode("utf-8")).hexdigest()
+            if expected_hash and current_hash != expected_hash:
+                raise RuntimeError("补丁应用后文件又发生变化，拒绝覆盖并发修改")
+            if backup_value:
+                backup = (BACKUP_DIR / Path(backup_value)).resolve()
+                backup_root = BACKUP_DIR.resolve()
+                if backup_root not in backup.parents or not backup.is_file():
+                    raise FileNotFoundError("修复补丁的可恢复备份不存在")
+                target.parent.mkdir(parents=True, exist_ok=True)
+                temporary = target.with_suffix(target.suffix + ".rollback.tmp")
+                shutil.copy2(backup, temporary)
+                temporary.replace(target)
+            elif target.exists():
+                target.unlink()
+            restart_path = runtime_dir() / "investment" / "restart_requested.json"
+            try:
+                pending = json.loads(restart_path.read_text(encoding="utf-8"))
+                if str(pending.get("change_id", "")) == str(change.get("change_id", "")):
+                    restart_path.unlink()
+            except (OSError, json.JSONDecodeError, AttributeError):
+                pass
+            return self.store.append("change_proposals", {
+                "change_id": str(change.get("change_id", "")),
+                "target": str(change.get("target", "")),
+                "status": "semantic_replay_rolled_back",
+                "rolled_back": True,
+                "reason": str(reason)[:2000],
+                "restored_at": _now(),
+            })
 
     @staticmethod
     def _run_tests(commands: Iterable[str]) -> list[Dict[str, Any]]:
@@ -134,6 +182,13 @@ class ChangeManager:
             "python -m pytest -q": [python, "-m", "pytest", "-q"],
             "python -m compileall src": [python, "-m", "compileall", "-q", "src"],
         }
+        repair_categories = {
+            "identity_mismatch", "stale_data", "data_gap", "contract_failure", "workflow_failure",
+        }
+        for category in repair_categories:
+            allowed[f"python -m src.manager.repair_verifier {category}"] = [
+                python, "-m", "src.manager.repair_verifier", category,
+            ]
         results = []
         for command in commands:
             normalized = re.sub(r"\s+", " ", str(command).strip())

@@ -1,0 +1,1 @@
+{"steps": [{"id": "cycle", "action": "investment.run_cycle", "required": true, "retries": 0, "input_defaults": {"label": "skill"}}]}

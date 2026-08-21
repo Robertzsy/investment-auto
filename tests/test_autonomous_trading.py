@@ -255,6 +255,24 @@ def test_paper_broker_persists_and_backfills_security_names(tmp_path):
     assert repaired["accounts"]["cn"]["holdings"][0]["name"] == "药明康德"
 
 
+def test_paper_broker_initializes_missing_market_with_default_capital(tmp_path):
+    portfolio = tmp_path / "portfolio.json"
+    portfolio.write_text(
+        json.dumps({"version": 2, "multiMarket": True, "accounts": {}, "fxRates": {}}),
+        encoding="utf-8",
+    )
+
+    result = execute_orders(
+        "us", [], market_config=CN_CONFIG, trading_mode="paper", now=NOW,
+        portfolio_path=portfolio,
+    )
+
+    saved = json.loads(portfolio.read_text(encoding="utf-8"))
+    assert result["cash_after"] == 500000
+    assert saved["accounts"]["us"]["totalCapital"] == 500000
+    assert saved["accounts"]["us"]["cash"] == 500000
+
+
 def test_broker_refuses_non_paper_mode(tmp_path):
     portfolio = tmp_path / "portfolio.json"
     _portfolio(portfolio)

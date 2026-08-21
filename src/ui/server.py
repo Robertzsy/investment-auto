@@ -119,6 +119,57 @@ def _optimizer_files(directory: Path, market: str = "all") -> list[Path]:
     return sorted(directory.glob(pattern), key=lambda path: path.stat().st_mtime, reverse=True)
 
 
+def _harness_snapshot(limit: int = 30) -> dict:
+    """Build the redacted desktop control-plane snapshot."""
+    from src.manager.execution_trace import ExecutionTrace
+    from src.manager.session_store import SessionStore
+    from src.manager.skill_registry import SkillRegistry
+    from src.manager.skill_scheduler import SkillScheduler
+    from src.platform.memory_store import StructuredMemoryStore
+    from src.version import __version__
+
+    packages = SkillRegistry().catalog()
+    skills = []
+    for package in packages:
+        skills.append({
+            **package.manifest.to_dict(),
+            "source": package.source,
+            "workflow": [step.to_dict() for step in package.steps],
+            "completion_contract": package.completion_contract,
+        })
+    sessions = SessionStore().records()
+    schedules = SkillScheduler().list()
+    executions = ExecutionTrace.recent(limit=limit)
+    repairs = StructuredMemoryStore().recent("incident_repairs", limit=min(limit, 50))
+    completed = sum(1 for item in executions if item.get("status") == "completed")
+    degraded = sum(1 for item in executions if item.get("status") == "degraded")
+    failed = sum(1 for item in executions if item.get("status") not in {"completed", "running"})
+    return {
+        "ok": True,
+        "runtime": "skill-runtime",
+        "version": __version__,
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "summary": {
+            "skills": len(skills),
+            "builtin_skills": sum(1 for item in skills if item.get("source") == "builtin"),
+            "custom_skills": sum(1 for item in skills if item.get("source") == "runtime"),
+            "active_sessions": sum(1 for item in sessions if item.get("last_request")),
+            "schedules": len(schedules),
+            "enabled_schedules": sum(1 for item in schedules if item.get("enabled", True)),
+            "recent_completed": completed,
+            "recent_degraded": degraded,
+            "recent_failed": failed,
+            "recent_repairs": len(repairs),
+            "verified_repairs": sum(1 for item in repairs if item.get("status") == "verified_repair"),
+        },
+        "skills": skills,
+        "sessions": sessions,
+        "schedules": schedules,
+        "executions": executions,
+        "repairs": repairs,
+    }
+
+
 ACCESS_TOKEN = os.getenv("IA_ACCESS_TOKEN", "").strip()
 
 
@@ -181,6 +232,14 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_get_secrets()
         if path == "/api/migrate":
             return self._handle_migrate_detect()
+        if path == "/api/harness":
+            try:
+                limit = int(query.get("limit", ["30"])[0])
+            except (TypeError, ValueError):
+                return self._json_response(400, {"error": "limit must be an integer"})
+            return self._handle_harness(limit)
+        if path == "/api/harness/trace":
+            return self._handle_harness_trace(query.get("execution_id", [""])[0])
 
         # Static files
         if path == "/" or path == "":
@@ -193,6 +252,8 @@ class ChatHandler(SimpleHTTPRequestHandler):
             self.path = "/macro.html"
         elif path == "/setup":
             self.path = "/setup.html"
+        elif path == "/harness":
+            self.path = "/harness.html"
         return super().do_GET()
 
     def do_POST(self):
@@ -234,6 +295,10 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_setup_complete()
         if path.startswith("/api/autonomy/"):
             return self._handle_autonomy_control(path.rsplit("/", 1)[-1])
+        if path == "/api/harness/schedules":
+            return self._handle_harness_schedule_create()
+        if path == "/api/harness/schedules/control":
+            return self._handle_harness_schedule_control()
 
         self.send_response(404)
         self.end_headers()
@@ -352,6 +417,91 @@ class ChatHandler(SimpleHTTPRequestHandler):
             self._json_response(200, available_models())
         except Exception as e:
             self._json_response(500, {"error": str(e)})
+
+    def _handle_harness(self, limit: int = 30):
+        try:
+            self._json_response(200, _harness_snapshot(limit=max(1, min(200, limit))))
+        except Exception as exc:
+            logger.exception("harness snapshot error")
+            self._json_response(500, {"error": str(exc)})
+
+    def _handle_harness_trace(self, execution_id: str):
+        try:
+            from src.manager.execution_trace import ExecutionTrace
+
+            self._json_response(200, {"trace": ExecutionTrace.load(execution_id)})
+        except ValueError as exc:
+            self._json_response(400, {"error": str(exc)})
+        except FileNotFoundError as exc:
+            self._json_response(404, {"error": str(exc)})
+        except Exception as exc:
+            logger.exception("harness trace error")
+            self._json_response(500, {"error": str(exc)})
+
+    def _handle_harness_schedule_create(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict) or not isinstance(data.get("inputs", {}), dict):
+            return self._json_response(400, {"error": "payload and inputs must be JSON objects"})
+        try:
+            from src.manager.skill_scheduler import SkillScheduler
+
+            result = SkillScheduler().create(
+                skill_name=str(data.get("skill_name", "")),
+                cron=str(data.get("cron", "")),
+                inputs=data.get("inputs", {}),
+                schedule_id=str(data.get("schedule_id", "")),
+                timezone=str(data.get("timezone", "")),
+                enabled=bool(data.get("enabled", True)),
+            )
+            self._json_response(201, result)
+        except (TypeError, ValueError, KeyError) as exc:
+            self._json_response(400, {"error": str(exc)})
+        except PermissionError as exc:
+            self._json_response(403, {"error": str(exc)})
+        except FileExistsError as exc:
+            self._json_response(409, {"error": str(exc)})
+        except Exception as exc:
+            logger.exception("harness schedule create error")
+            self._json_response(500, {"error": str(exc)})
+
+    def _handle_harness_schedule_control(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"error": "payload must be a JSON object"})
+        schedule_id = str(data.get("schedule_id", ""))
+        action = str(data.get("action", "")).strip().lower()
+        try:
+            from src.manager.skill_scheduler import SkillScheduler
+
+            scheduler = SkillScheduler()
+            if action == "enable":
+                result = scheduler.set_enabled(schedule_id, True)
+            elif action == "disable":
+                result = scheduler.set_enabled(schedule_id, False)
+            elif action == "delete":
+                result = scheduler.delete(schedule_id)
+            elif action == "run":
+                result = scheduler.execute(schedule_id)
+            else:
+                return self._json_response(400, {"error": "action must be enable, disable, delete, or run"})
+            self._json_response(200, result)
+        except ValueError as exc:
+            self._json_response(400, {"error": str(exc)})
+        except FileNotFoundError as exc:
+            self._json_response(404, {"error": str(exc)})
+        except RuntimeError as exc:
+            self._json_response(409, {"error": str(exc)})
+        except Exception as exc:
+            logger.exception("harness schedule control error")
+            self._json_response(500, {"error": str(exc)})
 
     def _handle_get_history(self):
         try:
@@ -533,14 +683,21 @@ class ChatHandler(SimpleHTTPRequestHandler):
         if not isinstance(data, dict):
             return self._json_response(400, {"error": "payload must be a JSON object"})
         try:
-            from src.investment.command_bus import InvestmentAgentClient
+            from src.manager.skill_runtime import SkillRuntime
 
-            result = InvestmentAgentClient().issue(
-                "set_strategy",
-                {"profile": data.get("profile")},
+            execution = SkillRuntime().run(
+                "更新投资策略授权书",
+                skill_name="account-management",
+                inputs={"action": "set_strategy", "value": data.get("profile")},
                 requested_by="chat-ui",
-                timeout=30,
             )
+            if execution.get("status") != "completed":
+                raise RuntimeError(str(execution.get("error") or execution.get("validation")))
+            result = dict(execution.get("outputs", {}).get("control", {}))
+            result["skill_execution"] = {
+                "execution_id": execution.get("execution_id"),
+                "validation": execution.get("validation"),
+            }
             self._json_response(200, result)
         except ValueError as e:
             self._json_response(400, {"error": str(e)})
@@ -563,21 +720,41 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 mode = str(data.get("mode", "")).lower()
                 if mode not in {"manual", "automatic"}:
                     return self._json_response(400, {"error": "mode must be manual or automatic"})
-                from src.investment.command_bus import InvestmentAgentClient
+                from src.manager.skill_runtime import SkillRuntime
 
-                result = InvestmentAgentClient().issue(
-                    "set_mode", {"mode": mode}, requested_by="chat-ui", timeout=30,
+                execution = SkillRuntime().run(
+                    "更新投资运行模式",
+                    skill_name="account-management",
+                    inputs={"action": "set_mode", "value": mode},
+                    requested_by="chat-ui",
                 )
+                if execution.get("status") != "completed":
+                    raise RuntimeError(str(execution.get("error") or execution.get("validation")))
+                result = dict(execution.get("outputs", {}).get("control", {}))
+                result["skill_execution"] = {
+                    "execution_id": execution.get("execution_id"),
+                    "validation": execution.get("validation"),
+                }
                 return self._json_response(200, result)
 
             command = {"pause": "pause", "resume": "resume", "kill": "kill", "reset-kill": "reset_kill"}.get(action)
             if command is None:
                 return self._json_response(404, {"error": "unknown autonomy action"})
-            from src.investment.command_bus import InvestmentAgentClient
+            from src.manager.skill_runtime import SkillRuntime
 
-            result = InvestmentAgentClient().issue(
-                command, {"reason": reason}, requested_by="chat-ui", timeout=30,
+            execution = SkillRuntime().run(
+                f"投资运行控制：{command}",
+                skill_name="account-management",
+                inputs={"action": command, "reason": reason},
+                requested_by="chat-ui",
             )
+            if execution.get("status") != "completed":
+                raise RuntimeError(str(execution.get("error") or execution.get("validation")))
+            result = dict(execution.get("outputs", {}).get("control", {}))
+            result["skill_execution"] = {
+                "execution_id": execution.get("execution_id"),
+                "validation": execution.get("validation"),
+            }
             self._json_response(200, result)
         except RuntimeError as e:
             self._json_response(409, {"error": str(e)})
@@ -787,12 +964,11 @@ class ChatHandler(SimpleHTTPRequestHandler):
         from src.portfolio import account
 
         try:
-            # account.load() returns the default portfolio when the file is
-            # missing, so "already initialized" must be judged by file
-            # existence - otherwise the wizard never writes portfolio.json.
+            # Persist the normalized representation even when the file already
+            # exists.  A previous migration may have copied an empty accounts
+            # object, which is not a valid initialized paper portfolio.
             already = account.exists()
-            if not already:
-                account.save(account.load())
+            account.save(account.load())
             self._json_response(200, {"ok": True, "created": not already, "initialized": already})
         except Exception as exc:
             self._json_response(500, {"ok": False, "error": str(exc)[:300]})
@@ -1186,4 +1362,7 @@ def start_server(host: str = "localhost", port: int = 8080, open_browser: bool =
         server.serve_forever()
     except KeyboardInterrupt:
         logger.info("Chat server stopped")
-        server.shutdown()
+    finally:
+        # ``shutdown()`` must be called from a different thread than
+        # ``serve_forever()``; calling it here deadlocks Ctrl+C/dev shutdown.
+        server.server_close()

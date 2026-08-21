@@ -45,6 +45,34 @@ def publish_cycle_report(
     return {"status": "queued_for_chat", "event_id": event_id}
 
 
+def publish_skill_report(
+    result: Mapping[str, Any],
+    *,
+    title: str,
+    report_content: str,
+    inbox_dir: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Publish a generic completed Skill execution without cycle-specific formatting."""
+    directory = inbox_dir or INBOX_DIR
+    directory.mkdir(parents=True, exist_ok=True)
+    event_id = uuid.uuid4().hex
+    payload = {
+        "event_id": event_id,
+        "type": "skill_execution_report",
+        "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "skill": result.get("skill"),
+        "execution_id": result.get("execution_id"),
+        "status": result.get("status"),
+        "title": title,
+        "content": report_content.strip(),
+    }
+    target = directory / f"{event_id}.json"
+    temporary = target.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(target)
+    return {"status": "queued_for_chat", "event_id": event_id}
+
+
 def pending_events(inbox_dir: Optional[Path] = None) -> list[Dict[str, Any]]:
     directory = inbox_dir or INBOX_DIR
     result = []

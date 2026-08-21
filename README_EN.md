@@ -12,7 +12,22 @@ The system discovers candidates across the market, combines them with existing h
 >
 > [Download the installer and view release notes](https://github.com/Robertzsy/investment-auto/releases/tag/v0.7.0)
 
-## What's New in v0.7.0
+> **The main branch is now v0.9.1:** the Harness validates identity, freshness, and evidence coverage, and adds production supervised repair with minimal patches, installed-runtime probes, fresh-interpreter semantic replay, and automatic rollback. Build the desktop app with `scripts/build-desktop.ps1` before the installer is published.
+
+## Current Mainline: v0.9.1
+
+- Management chat now runs as a persistent Agent Harness whose top-level model sees only six high-level capabilities; investment functions are permissioned Skill Actions.
+- Built-in Skills cover security analysis, market overview, screening, portfolio review and optimization, complete investment cycles, scheduled cycles, account management, and system administration.
+- Every Skill has a manifest, deterministic workflow, and completion contract. Security identity, market-data freshness, factual consistency, and evidence coverage determine whether a task is actually complete.
+- Failed trajectories can enter supervised repair. Only one minimal exact patch is permitted, and it must pass installed-runtime verification plus fresh-interpreter semantic replay; every failed check rolls back automatically.
+- The desktop Harness workspace exposes Skills, persistent sessions, execution trajectories, completion validation, schedules, and repair audits.
+- The standalone investment Agent, command bus, paper-trading hard risk controls, evidence store, and resumable work units remain non-bypassable execution boundaries.
+
+See [CHANGELOG.md](CHANGELOG.md) for the complete history and [docs/SKILL_RUNTIME.md](docs/SKILL_RUNTIME.md) for the Harness extension contract.
+
+Current source validation (2026-08-21): `322/322` Python tests, `18/18` Windows desktop tests, and `56/56` Skill-routing evaluations passed.
+
+## v0.7.0 Desktop Release Notes
 
 From v0.4.0 to v0.7.0, Investment Auto received a system-wide upgrade covering the investment Agent architecture, management Agent, autonomous-execution safety, and the Windows desktop application. The release spans 44 commits, 107 changed files, and approximately 11,000 new lines of code.
 
@@ -415,23 +430,11 @@ Models can submit recommendations only. They cannot bypass deterministic control
 
 ## Management Chat Agent
 
-The AI chat is the management plane; the investment Agent is the execution plane.
+The chat is now a persistent Agent Harness, while the standalone investment Agent remains the execution plane. The top-level model sees only six high-level capabilities: `run_skill`, `list_skills`, `schedule_skill`, `list_skill_schedules`, `manage_runtime`, and `handoff_session`.
 
-The management chat can:
+Investment functions are internal, permissioned Actions executed by complete Skill packages. A package contains `SKILL.md`, a manifest, a deterministic workflow, and a completion contract. Research, portfolio, execution, and system administration use separate persistent session scopes. Scheduled jobs pin the Skill version and structured inputs instead of replaying a natural-language prompt.
 
-- Inspect Agent and scheduler status
-- Trigger a complete investment cycle
-- Switch manual and automatic modes
-- Change the investment mandate
-- Pause, resume, or emergency-stop the system
-- Inspect reports, logs, and execution evidence
-- Modify project code and configuration
-- Run tests and roll back failed changes
-- Install project-local Skills
-- Register project-local Tools
-- Build management reflections from past errors
-
-The chat uses native model tool calls rather than keyword-based business routing.
+Creating a capability compiles and tests a complete Skill, registers it atomically, and can fulfill the current request in the same turn. A tool call alone never counts as success; the Skill completion contract must pass, and every execution writes an auditable trajectory.
 
 ## Reflection and Memory
 

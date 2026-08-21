@@ -1,0 +1,12 @@
+{
+  "name": "complete-investment-cycle",
+  "description": "运行一次包含选股、持仓研究、决策、硬风控、模拟订单和报告的完整投资周期",
+  "version": "1.0.0",
+  "intents": ["complete_investment_cycle", "run_market_cycle", "automatic_investment"],
+  "triggers": ["完整投资", "自动投资", "运行一轮", "执行一轮", "跑一轮", "开始投资", "开始交易", "美股交易", "A股交易", "港股交易", "ETF交易", "完整周期", "模拟投资"],
+  "session_scope": "investment_execution",
+  "side_effect_level": "investment_execution",
+  "allowed_actions": ["investment.run_cycle"],
+  "priority": 120,
+  "enabled": true
+}

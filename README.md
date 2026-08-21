@@ -14,7 +14,22 @@
 >
 > [下载安装包与查看更新说明](https://github.com/Robertzsy/investment-auto/releases/tag/v0.7.0)
 
-## v0.7.0 重大更新
+> **main 分支已升级至 v0.9.1：** Harness 会校验证券身份、行情时效和证据覆盖率，并提供安装版可运行的受监督修复：最小补丁、内置验证器、全新解释器原请求回放和失败自动回滚。发布安装包前可使用 `scripts/build-desktop.ps1` 构建桌面程序。
+
+## v0.9.1 当前主线更新
+
+- 管理对话升级为持久化 Agent Harness，顶层仅保留六个高层能力，投资函数全部收敛为受控 Skill Actions；
+- 内置证券分析、市场概览、选股、组合检查与优化、完整投资周期、定时轮次、账户管理和系统管理等 Skills；
+- Skill 使用明确的 Manifest、Workflow 和完成契约，证券身份、行情时效、事实一致性和证据覆盖率共同决定任务是否真正完成；
+- 失败轨迹可进入受监督修复：只允许最小精确补丁，必须通过安装版内置验证器和全新解释器语义回放，任何失败都会自动回滚；
+- 桌面端新增 Harness 工作台，可查看 Skill、持久会话、执行轨迹、完成验证、定时任务和修复审计；
+- 独立投资 Agent、命令总线、纸面交易硬风控、证据库和可恢复工作单元继续作为不可绕过的执行边界。
+
+完整版本记录见 [CHANGELOG.md](CHANGELOG.md)，Harness 扩展契约见 [docs/SKILL_RUNTIME.md](docs/SKILL_RUNTIME.md)。
+
+当前源码验证（2026-08-21）：Python 全量测试 `322/322`、Windows 桌面测试 `18/18`、Skill 路由评估 `56/56` 通过。
+
+## v0.7.0 桌面发行说明
 
 从 v0.4.0 到 v0.7.0，Investment Auto 完成了投资 Agent 架构、管理 Agent、自主交易安全机制和 Windows 桌面应用的系统性升级。本次升级包含 44 个提交、107 个文件变更，新增约 11,000 行代码。
 
@@ -368,56 +383,53 @@ python -m src.main research --task bugfix --objective 修复XX模块缺陷 --max
 
 ## 管理对话与投资 Agent 边界
 
-对话面板是管理控制面，独立投资 Agent 是执行面。对话层只负责使用、管理和修改投资 Agent，
-不再保留关键词业务路由或另一套选股/风控/交易流程。完整轮次、暂停恢复、模式与策略切换都通过
-统一命令契约执行；Docker 中通过共享命令队列跨进程通信。
-
-- 对话管理 Agent 可以读取和修改投资 Agent 的代码、配置、提示词与工作流，但只能修改受控目录。
-- 代码修改要求读取后的 SHA-256，保存版本化备份并执行全量测试；测试失败自动回滚。
-- 管理 Agent 没有任意 Shell、实盘交易、密钥、账户历史或控制审计覆盖权限。
-- 对话请求全部使用原生语义 function calling，不再使用中文关键词匹配分流。
-- 每轮限制模型请求数、工具调用数与总 Token；相同工具、参数和结果重复两次会安全停止。
-- 交易建议仍必须经过标的池、仓位、现金、换手、每日次数、止损止盈、最大回撤及撮合规则。
-
-## 管理 Agent 自建工具闭环（create_manager_tool）
-
-管理 Agent 可以**自动为自己添加缺少的工具**。当用户的需求现有工具无法完成、且该需求是稳定可复用的能力时，
-Agent 会自行生成工具代码，并在同一条消息内完成创建与回答，无需人工参与：
+对话面板是 Harness 协调面，独立投资 Agent 是执行面。顶层 Manager 不再直接面对行情、选股、
+组合、风控和交易函数，只保留六个高层能力：`run_skill`、`list_skills`、`schedule_skill`、
+`list_skill_schedules`、`manage_runtime` 和 `handoff_session`。
 
 ```text
-校验输入（名称/Schema/禁止导入清单/async 禁用）
-→ 写入独立工具模块 src/manager/tools/<name>.py（原子写，拒绝覆盖）
-→ 导入并核对函数签名与 Schema（属性⊆参数、无默认值参数必须 required、拒绝 *args/仅位置参数）
-→ 编译/测试（白名单命令）
-→ 注册工具清单 runtime/manager/capabilities/tools/
-→ 强制试调用（失败即整体回滚，回滚后核验代码与清单确实消失）
-→ fulfill：携带用户当前需求的调用参数立即执行，结果同轮回传模型作答
+用户 / API / 定时任务
+→ 持久领域会话
+→ Skill Selector
+→ 完整 SKILL.md + Workflow
+→ 受控 Action Registry
+→ 投资服务 / 命令总线
+→ 完成契约验证 + trajectory
 ```
 
-**使用方式**：直接在对话中说“给自己增加一个查询 ×× 的工具”，或直接提出需求（如“帮我对比茅台和宁德时代
-过去 30 天的走势相关性”），Agent 会自主判断缺能力、创建工具并用 fulfill_result 在同一轮回答。
-新工具从下一条消息起自动出现在工具集中，永久可用；uninstall_manager_tool 可完整卸载
-（清单 + 源码 + import 缓存），同名工具可重新创建。
+- `investment_research`、`portfolio_management`、`investment_execution`、`system_admin` 四个会话分别持久化上下文与实体。
+- 顶层模型只选择少量高层 Skill；行情、基本面、选股、组合和交易函数是 Skill 内部 Action，不进入顶层工具目录。
+- 内置 Skill 覆盖证券分析、选股、组合检查、组合优化、完整投资周期、结构化定时轮次、账户管理和系统能力。
+- 所有写操作仍经过独立投资命令总线与既有硬风控；研究会话不能修改账户，管理会话不能直接下单。
+- 成功由 Skill 的 `completion.schema.json` 判定，不再使用“调用过工具”作为验证。
+- 每次运行保存 Skill 版本、步骤、Action 输入输出摘要、错误、重试、验证结果和最终报告。
 
-**安全边界**：
+## 自建 Skill 闭环（create_skill）
 
-- 工具代码禁止导入交易/账户/命令执行模块（AST 检查在写盘前拦截：src/trading、src/portfolio、
-  src/investment、src.research.sandbox、subprocess），管理 Agent 的无实盘权限边界不因自建工具而放宽；
-- 试调用是强制步骤：没有验证用例的工具不允许注册；只有 fulfill 参数时一次执行兼任试调用，
-  带副作用的工具每次创建最多执行一次；
-- 创建与卸载共用按工具名线程锁 + 操作系统级文件锁（msvcrt.locking / fcntl.flock），
-  内核原子、进程退出自动释放，无陈旧锁竞争窗口；
-- 运行时安装的工具不入库（gitignore 只保留包 __init__.py）。
+创建新能力由独立 `system_admin` 会话完成，产物是完整可执行 Skill，而不是继续向顶层堆叠一个函数：
 
-**已知边界**：模型是否“自主决定”创建工具依赖其遵循指令的能力，不能由代码硬保证。真实 API 评估：
+```text
+理解能力需求
+→ 生成 manifest.json / SKILL.md / workflow.json / completion.schema.json
+→ 绑定现有受控 Actions
+→ 必要时创建只读自定义 Action
+→ 强制真实试运行
+→ 完成契约验证
+→ 原子注册
+→ 使用 fulfill_request 当轮执行用户原始任务
+```
+
+自建 Skill 保存在 `runtime/manager/skills/`；领域会话、定时任务和执行轨迹分别保存在
+`runtime/manager/sessions/`、`runtime/manager/skill_schedules/` 与 `runtime/manager/trajectories/`。
+自动任务固定 Skill 名称、版本、Cron、时区和结构化输入，触发时不重新解释自然语言。
+
+路由验收：
 
 ```bash
-python scripts/eval-manager-tooling.py --request "帮我对比贵州茅台和宁德时代过去30个交易日的价格走势相关性"
+python scripts/eval-skill-runtime.py
 ```
 
-脚本注入 nonce 校验码，要求其同时出现在工具返回与最终答案（证明同轮闭环），pass/fail 以退出码表示，
-并自动卸载评估期间创建的工具（--keep 保留）。实测（DeepSeek）：模型自主判断缺能力、一次调用完成创建、
-用真实历史数据计算相关性并同轮回答，PASS；对现有工具已能覆盖的需求则正确选择不创建。
+详细设计与扩展约束见 `docs/SKILL_RUNTIME.md`。
 
 
 ## 投资授权书与双反思

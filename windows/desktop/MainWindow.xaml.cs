@@ -120,6 +120,9 @@ public partial class MainWindow : Window
             var status = await _processManager.FetchStatusAsync(_ready);
             AgentStatusText.Text = status.AgentRunning ? "投资 Agent: ● 运行中" : "投资 Agent: 未运行";
             ChatStatusText.Text = status.ChatRunning ? "对话服务: ● 运行中" : "对话服务: 未运行";
+            HarnessText.Text = status.HarnessSkills > 0
+                ? $"Harness: ● {status.HarnessSkills} Skills · {status.HarnessLastStatus}"
+                : "Harness: 未就绪";
             ModeText.Text = "模式: " + status.OperationMode;
             MandateText.Text = "策略: " + status.Mandate;
             RoundText.Text = "轮次: " + status.LastRound;
@@ -144,6 +147,7 @@ public partial class MainWindow : Window
         catch
         {
             ChatStatusText.Text = "对话服务: 未连接";
+            HarnessText.Text = "Harness: 未连接";
         }
     }
 

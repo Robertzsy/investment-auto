@@ -1,0 +1,12 @@
+{
+  "name": "security-analysis",
+  "description": "分析或比较证券的行情、技术数据、基本面、公司新闻、情绪数据缺口与主要风险",
+  "version": "2.0.0",
+  "intents": ["security_analysis", "valuation_analysis", "compare_securities", "quote_research"],
+  "triggers": ["分析", "研究", "估值", "行情", "股价", "股票", "证券", "基金", "对比", "比较", "新闻", "基本面", "技术面", "情绪", "风险", "贵不贵", "值不值得", "谁更值得", "更值得", "长期关注", "analyze", "compare", "valuation", "quote"],
+  "session_scope": "investment_research",
+  "side_effect_level": "read_only",
+  "allowed_actions": ["security.resolve", "security.snapshot", "security.research", "security.validate", "security.synthesize", "report.security"],
+  "priority": 50,
+  "enabled": true
+}

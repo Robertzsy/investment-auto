@@ -1,0 +1,8 @@
+{
+  "steps": [
+    {"id": "benchmarks", "action": "market.benchmarks", "required": true, "retries": 1},
+    {"id": "breadth", "action": "market.breadth", "required": true, "retries": 1},
+    {"id": "quality", "action": "market.validate", "required": true, "retries": 0},
+    {"id": "report", "action": "report.market_overview", "required": true, "retries": 0}
+  ]
+}

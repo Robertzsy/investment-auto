@@ -42,6 +42,7 @@ autonomous:
   command_heartbeat_seconds: 10
   command_idle_timeout_seconds: 300
   agent_workflow:
+    allow_partial_symbol_research: true
     enabled: true
     json_retries: 1
     max_parallel_workers: 4
@@ -50,6 +51,7 @@ autonomous:
     memory_entries_per_role: 6
     minimum_base_analysts: 4
     minimum_citations: 1
+    minimum_symbol_research_success_ratio: 0.8
     require_citations: true
     research_data_timeout_seconds: 12
     research_data_ttl_minutes: 30

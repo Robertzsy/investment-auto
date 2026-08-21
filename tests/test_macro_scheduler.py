@@ -308,6 +308,8 @@ def test_scheduler_registers_macro_job(monkeypatch, tmp_path):
     monkeypatch.setattr(scheduler, "run_catch_up", lambda: [])
     instance = scheduler.start(catch_up=False)
     try:
-        assert "macro-daily" in {job.id for job in instance.get_jobs()}
+        job_ids = {job.id for job in instance.get_jobs()}
+        assert "macro-daily" in job_ids
+        assert "runtime-skill-schedule-refresh" in job_ids
     finally:
         instance.shutdown(wait=False)

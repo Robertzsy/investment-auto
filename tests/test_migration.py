@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -58,6 +59,12 @@ def test_migration_copies_without_touching_source(monkeypatch, tmp_path):
     # source untouched
     assert (root / "config" / "config.yaml").read_text(encoding="utf-8") == before
     assert (root / "src" / "main.py").exists()
+    migrated = json.loads(
+        (data_root / "runtime" / "data" / "portfolio.json").read_text(encoding="utf-8")
+    )
+    assert result["portfolio_repaired"] is True
+    assert migrated["accounts"]["cn"]["cash"] == 500000
+    assert migrated["accounts"]["us"]["cash"] == 500000
 
 
 def test_migration_backs_up_existing_target(monkeypatch, tmp_path):

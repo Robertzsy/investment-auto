@@ -82,6 +82,7 @@ def compact_report(payload: Mapping[str, Any], *, portfolio: bool = False) -> Di
     keep = (
         "role", "role_name", "stage", "summary", "thesis", "stance", "confidence",
         "data_gaps", "citations", "citation_repairs", "memory_note", "workflow",
+        "tool_recovery", "safety_fallback", "safety_override",
     )
     compact: Dict[str, Any] = {key: payload.get(key) for key in keep if key in payload}
     findings = payload.get("findings", [])

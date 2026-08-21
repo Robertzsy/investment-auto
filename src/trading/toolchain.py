@@ -28,6 +28,19 @@ from src.trading.citations import (
     validate_citations,
 )
 
+
+class ToolMediatedError(ValueError):
+    """A bounded tool loop ended without an accepted submission.
+
+    ``diagnostic`` deliberately contains only tool names, argument keys and
+    validation outcomes.  It is safe to persist without copying the model's
+    complete analysis or the evidence catalog into logs.
+    """
+
+    def __init__(self, message: str, diagnostic: Sequence[Mapping[str, Any]]) -> None:
+        super().__init__(message)
+        self.diagnostic = [dict(item) for item in diagnostic]
+
 _TOOL_SPECS: List[Dict[str, Any]] = [
     {
         "type": "function",
@@ -218,11 +231,32 @@ def run_tool_mediated_chat(
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
+    diagnostic: List[Dict[str, Any]] = []
+    catalog_queried = False
+    submission_attempted = False
     for _round in range(max(1, tool_rounds)):
-        response = llm.chat_tools(messages, tools=tools, **chat_kwargs)
+        round_kwargs = dict(chat_kwargs)
+        force_submit = (
+            catalog_queried
+            or submission_attempted
+            or _round == max(1, tool_rounds) - 1
+        )
+        if force_submit:
+            round_kwargs["tool_choice"] = {
+                "type": "function",
+                "function": {"name": "submit_analysis"},
+            }
+        response = llm.chat_tools(messages, tools=tools, **round_kwargs)
         if not isinstance(response, Mapping):
             raise ValueError("LLM 工具调用返回了非对象结果")
         tool_calls = response.get("tool_calls") or []
+        round_diagnostic: Dict[str, Any] = {
+            "round": _round + 1,
+            "forced_submit": force_submit,
+            "content_chars": len(str(response.get("content", "") or "")),
+            "calls": [],
+        }
+        diagnostic.append(round_diagnostic)
         if not tool_calls:
             content = str(response.get("content", "") or "").strip()
             if not content:
@@ -281,6 +315,9 @@ def run_tool_mediated_chat(
         submitted: Optional[Dict[str, Any]] = None
         repair_notes: List[str] = []
         for call in tool_calls:
+            function = call.get("function", {}) if isinstance(call, Mapping) else {}
+            name = str(function.get("name", "") or "") if isinstance(function, Mapping) else ""
+            arguments = function.get("arguments", {}) if isinstance(function, Mapping) else {}
             result, is_submit, payload = _execute_tool_call(
                 call,
                 allowed_evidence=allowed_evidence,
@@ -292,6 +329,22 @@ def run_tool_mediated_chat(
                 require_all_upstreams=require_all_upstreams,
                 attach_missing_upstream=attach_missing_upstream,
             )
+            if name == "list_evidence_ids":
+                catalog_queried = True
+            if is_submit:
+                submission_attempted = True
+            result_summary: Dict[str, Any] = {}
+            if "accepted" in result:
+                result_summary["accepted"] = bool(result.get("accepted"))
+            if result.get("error"):
+                result_summary["error"] = str(result.get("error"))[:500]
+            if isinstance(result.get("evidence_ids"), list):
+                result_summary["evidence_count"] = len(result["evidence_ids"])
+            round_diagnostic["calls"].append({
+                "name": name or "unknown",
+                "argument_keys": sorted(str(key) for key in arguments) if isinstance(arguments, Mapping) else [],
+                "result": result_summary,
+            })
             messages.append({
                 "role": "tool",
                 "tool_call_id": str(call.get("id", "") or "unknown"),
@@ -301,4 +354,17 @@ def run_tool_mediated_chat(
                 submitted = payload
         if submitted is not None:
             return submitted, list(submitted.pop("citation_repairs", repair_notes))
-    raise ValueError("工具调用轮次用尽，未收到有效提交")
+    last_error = ""
+    for item in reversed(diagnostic):
+        for call in reversed(item.get("calls", [])):
+            error = call.get("result", {}).get("error")
+            if error:
+                last_error = str(error)
+                break
+        if last_error:
+            break
+    detail = f"；末次校验: {last_error}" if last_error else ""
+    raise ToolMediatedError(
+        "工具调用轮次用尽，未收到有效提交" + detail,
+        diagnostic,
+    )

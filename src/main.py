@@ -208,13 +208,31 @@ def main() -> None:
     if args.command == "catchup":
         from src.scheduler import run_catch_up
 
-        print(json.dumps(run_catch_up(markets=[args.market]), ensure_ascii=False, indent=2))
+        previous_transport = os.environ.get("INVESTMENT_AGENT_TRANSPORT")
+        os.environ["INVESTMENT_AGENT_TRANSPORT"] = "local"
+        try:
+            result = run_catch_up(markets=[args.market])
+        finally:
+            if previous_transport is None:
+                os.environ.pop("INVESTMENT_AGENT_TRANSPORT", None)
+            else:
+                os.environ["INVESTMENT_AGENT_TRANSPORT"] = previous_transport
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 
     if args.command == "once":
         from src.scheduler import run_once
 
-        print(run_once(args.market))
+        previous_transport = os.environ.get("INVESTMENT_AGENT_TRANSPORT")
+        os.environ["INVESTMENT_AGENT_TRANSPORT"] = "local"
+        try:
+            result = run_once(args.market)
+        finally:
+            if previous_transport is None:
+                os.environ.pop("INVESTMENT_AGENT_TRANSPORT", None)
+            else:
+                os.environ["INVESTMENT_AGENT_TRANSPORT"] = previous_transport
+        print(result)
         return
 
     if args.command == "run":

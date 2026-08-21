@@ -8,6 +8,7 @@ config/secrets/
 config.local.yaml
 
 # runtime data (never commit user trading data)
+/runtime/
 runtime/data/
 runtime/logs/
 runtime/reports/

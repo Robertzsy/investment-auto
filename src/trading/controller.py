@@ -776,6 +776,8 @@ def run_autonomous_cycle(
                 "committee": committee,
                 "committee_errors": committee_errors,
                 "agent_workflow": staged_workflow,
+                "warnings": list(staged_workflow.get("warnings", [])) if isinstance(staged_workflow, Mapping) else [],
+                "degraded_mode": staged_workflow.get("degraded_mode") if isinstance(staged_workflow, Mapping) else None,
                 "evidence_ref": staged_workflow.get("evidence_ref", "") if isinstance(staged_workflow, Mapping) else "",
                 "checkpoint": (
                     {

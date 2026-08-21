@@ -43,6 +43,10 @@ _RUNTIME_INCLUDE = (
     "trading/audit",
     "trading/agent_memory",
     "manager/capabilities",     # self-created tools/skills
+    "manager/skills",           # executable runtime-created Skill packages
+    "manager/sessions",         # persistent domain-session state
+    "manager/skill_schedules",  # direct structured Skill schedules
+    "manager/trajectories",     # auditable Skill execution traces
     "research/workspace",
 )
 _RUNTIME_EXCLUDE = ("logs", "locks", "checkpoints", "agent_failures", "bus", "launcher")
@@ -97,6 +101,7 @@ def run_migration(source: str, items: Optional[List[str]] = None) -> Dict[str, A
     copied: List[str] = []
     skipped: List[str] = []
     secrets_migrated: List[str] = []
+    portfolio_repaired = False
 
     for item in selected:
         # "env" maps to the hidden .env file at the project root.
@@ -124,6 +129,25 @@ def run_migration(source: str, items: Optional[List[str]] = None) -> Dict[str, A
             shutil.copy2(source_path, target_path)
         copied.append(item)
 
+    # A legacy tree can contain a syntactically valid but incomplete account
+    # shell such as {"accounts": {}}.  Normalize it immediately so running a
+    # cycle before reopening the setup wizard cannot persist zero-capital
+    # market accounts.
+    migrated_portfolio = target_root / "runtime" / "data" / "portfolio.json"
+    if "runtime/data" in copied and migrated_portfolio.exists():
+        from src.portfolio.account import normalize_portfolio
+
+        raw_portfolio = json.loads(migrated_portfolio.read_text(encoding="utf-8"))
+        normalized_portfolio = normalize_portfolio(raw_portfolio)
+        if normalized_portfolio != raw_portfolio:
+            temporary = migrated_portfolio.with_suffix(migrated_portfolio.suffix + ".tmp")
+            temporary.write_text(
+                json.dumps(normalized_portfolio, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            temporary.replace(migrated_portfolio)
+            portfolio_repaired = True
+
     # Legacy .env secrets -> DPAPI store; plain-text keys never land in .env.
     if "env" in selected or not selected:
         secrets_migrated = _migrate_env_secrets(root, target_root)
@@ -135,6 +159,7 @@ def run_migration(source: str, items: Optional[List[str]] = None) -> Dict[str, A
         "skipped": skipped,
         "backup": str(backup_root),
         "secrets_migrated": secrets_migrated,
+        "portfolio_repaired": portfolio_repaired,
     }
 
 

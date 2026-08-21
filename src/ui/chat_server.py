@@ -176,16 +176,21 @@ def _investment_cycle_events(
     label: str,
     cancel_event: threading.Event,
 ) -> Generator[Dict[str, Any], None, None]:
-    yield {"type": "tool", "name": "run_complete_investment_cycle", "params": {"market": market}}
+    yield {
+        "type": "tool",
+        "name": "run_skill",
+        "params": {"skill_name": "complete-investment-cycle", "market": market},
+    }
     updates: "queue.Queue[Dict[str, Any]]" = queue.Queue()
 
     def run_complete_cycle() -> None:
         try:
-            from src.investment.command_bus import InvestmentAgentClient
+            from src.manager.skill_runtime import SkillRuntime
 
-            result = InvestmentAgentClient().issue(
-                "run_cycle",
-                {"market": market, "label": label},
+            result = SkillRuntime().run(
+                f"一键执行{market.upper()}完整投资轮次",
+                skill_name="complete-investment-cycle",
+                inputs={"market": market, "label": label},
                 requested_by="chat-button",
                 progress_callback=lambda value: updates.put({"type": "status", "content": value}),
             )
@@ -209,9 +214,10 @@ def _investment_cycle_events(
             result = update["value"]
         elif update["type"] == "error":
             error = update["value"]
-    from src.investment.reporting import format_cycle_result
-
-    final_answer = format_cycle_result(result) if result else f"## ❌ 完整投资轮次失败\n\n{error or '未知错误'}"
+    final_answer = (
+        str(result.get("user_report") or result.get("error") or "Skill 未产生报告")
+        if result else f"## ❌ 完整投资轮次失败\n\n{error or '未知错误'}"
+    )
     emitted = ""
     for chunk in _chunk_text(final_answer, 18):
         emitted += chunk

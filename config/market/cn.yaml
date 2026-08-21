@@ -17,16 +17,16 @@ trading:
   slippage: 0.001
   price_decimals: 2
 risk:
-  single_stock_max_pct: 12.0
+  single_stock_max_pct: 10.0
   single_sector_max_pct: 30
-  min_cash_reserve_pct: 3.0
-  hard_stop_pct: -8.0
-  trailing_stop_pct: -5.0
-  take_profit_1_pct: 12.0
-  take_profit_1_sell_ratio: 0.4
-  take_profit_2_pct: 20.0
-  take_profit_2_sell_ratio: 0.5
-  max_drawdown_pct: -20.0
+  min_cash_reserve_pct: 5.0
+  hard_stop_pct: -7.0
+  trailing_stop_pct: -4.0
+  take_profit_1_pct: 15.0
+  take_profit_1_sell_ratio: 0.3
+  take_profit_2_pct: 25.0
+  take_profit_2_sell_ratio: 0.4
+  max_drawdown_pct: -18.0
   min_position_count: 6
   max_position_count: 12
   target_total_exposure: 75

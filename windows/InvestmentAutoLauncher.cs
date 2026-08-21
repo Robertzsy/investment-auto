@@ -17,8 +17,8 @@ using Microsoft.Win32;
 [assembly: AssemblyCompany("Investment Auto Contributors")]
 [assembly: AssemblyProduct("Investment Auto")]
 [assembly: AssemblyCopyright("MIT License")]
-[assembly: AssemblyVersion("0.4.0.0")]
-[assembly: AssemblyFileVersion("0.4.0.0")]
+[assembly: AssemblyVersion("0.9.1.0")]
+[assembly: AssemblyFileVersion("0.9.1.0")]
 
 namespace InvestmentAuto.Windows
 {

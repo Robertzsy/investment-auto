@@ -141,6 +141,33 @@ def test_change_manager_rolls_back_failed_change(monkeypatch, tmp_path):
     assert target.read_text(encoding="utf-8") == "VALUE = 1\n"
 
 
+def test_change_manager_rolls_back_when_test_harness_raises(monkeypatch, tmp_path):
+    import src.manager.change_manager as module
+
+    root = tmp_path / "repo"
+    target = root / "src" / "manager" / "sample.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("VALUE = 1\n", encoding="utf-8")
+    monkeypatch.setattr(module, "ROOT", root)
+    monkeypatch.setattr(module, "BACKUP_DIR", root / "runtime" / "backups")
+    monkeypatch.setattr(module, "ALLOWED_ROOTS", (root,))
+    monkeypatch.setattr(
+        ChangeManager,
+        "_run_tests",
+        staticmethod(lambda commands: (_ for _ in ()).throw(TimeoutError("verifier timed out"))),
+    )
+    manager = ChangeManager(StructuredMemoryStore(root / "memory"))
+    result = manager.apply_text_change(
+        "src/manager/sample.py",
+        "VALUE = 2\n",
+        reason="test harness exception rollback",
+        expected_sha256=hashlib.sha256(b"VALUE = 1\n").hexdigest(),
+    )
+    assert result["status"] == "rolled_back"
+    assert result["tests"][0]["returncode"] == -1
+    assert target.read_text(encoding="utf-8") == "VALUE = 1\n"
+
+
 def test_queue_transport_refuses_when_worker_is_not_alive(monkeypatch):
     monkeypatch.setenv("INVESTMENT_AGENT_TRANSPORT", "queue")
     monkeypatch.setattr(InvestmentAgentClient, "worker_alive", staticmethod(lambda max_age_seconds=5: False))

@@ -158,6 +158,41 @@ def test_setup_init_creates_portfolio_file(monkeypatch, tmp_path):
     assert second.json()["created"] is False
 
 
+def test_setup_init_repairs_existing_empty_account_shell(monkeypatch, tmp_path):
+    from src.portfolio import account
+
+    monkeypatch.setattr(account, "RUNTIME", tmp_path / "data")
+    account._path().parent.mkdir(parents=True)
+    account._path().write_text('{"version": 2, "accounts": {}}', encoding="utf-8")
+
+    handler = _ProbeHandler("/api/setup/init")
+    server.ChatHandler._handle_setup_init(handler)
+
+    assert handler.status == 200
+    assert handler.json()["created"] is False
+    saved = json.loads(account._path().read_text(encoding="utf-8"))
+    assert set(saved["accounts"]) >= {"cn", "hk", "us", "etf"}
+    assert all(saved["accounts"][market]["cash"] == 500000 for market in ("cn", "hk", "us", "etf"))
+
+
+def test_dashboard_uses_defaults_for_existing_empty_account_shell(monkeypatch, tmp_path):
+    from src import screening
+    from src.portfolio import account
+
+    monkeypatch.setattr(account, "RUNTIME", tmp_path / "data")
+    account._path().parent.mkdir(parents=True)
+    account._path().write_text('{"version": 2, "accounts": {}}', encoding="utf-8")
+    monkeypatch.setattr(cfg, "_data", {"markets": {"enable": ["cn", "hk", "us", "etf"]}})
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
+    monkeypatch.setattr(screening, "latest_screening", lambda market: None)
+
+    data = server.ChatHandler._build_dashboard_data(object(), "all")
+
+    assert data["stats"]["total_assets"] == 2_000_000
+    assert data["stats"]["cash_ratio"] == 100
+    assert data["asset_distribution"]["values"] == [500000, 500000, 500000, 500000]
+
+
 def test_setup_mandate_writes_file(monkeypatch, tmp_path):
     from src.investment import mandate
 

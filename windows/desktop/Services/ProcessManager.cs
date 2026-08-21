@@ -198,6 +198,28 @@ internal sealed class ProcessManager : IDisposable
         }
         catch { status.ChatRunning = false; }
 
+        try
+        {
+            using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+            using var request = new System.Net.Http.HttpRequestMessage(
+                System.Net.Http.HttpMethod.Get, ready.Url + "/api/harness?limit=1");
+            request.Headers.Add("X-IA-Token", ready.Token);
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                var root = doc.RootElement;
+                if (root.TryGetProperty("summary", out var summary)
+                    && summary.TryGetProperty("skills", out var skills))
+                    status.HarnessSkills = skills.GetInt32();
+                if (root.TryGetProperty("executions", out var executions)
+                    && executions.ValueKind == JsonValueKind.Array && executions.GetArrayLength() > 0
+                    && executions[0].TryGetProperty("status", out var latestStatus))
+                    status.HarnessLastStatus = latestStatus.GetString() ?? "就绪";
+            }
+        }
+        catch { /* Harness status is additive; chat health remains authoritative. */ }
+
         status.AgentRunning = IsAgentAlive();
         status.LastRound = ReadLastRoundTime();
         return status;
@@ -361,4 +383,6 @@ internal sealed class RuntimeStatus
     public string OperationMode { get; set; } = "-";
     public string Mandate { get; set; } = "-";
     public string LastRound { get; set; } = "-";
+    public int HarnessSkills { get; set; }
+    public string HarnessLastStatus { get; set; } = "就绪";
 }

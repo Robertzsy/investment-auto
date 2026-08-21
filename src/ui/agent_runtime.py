@@ -17,7 +17,7 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, AsyncIterable, Dict, Generator, List, Optional
+from typing import Any, AsyncIterable, Dict, Generator, List, Mapping, Optional
 
 from pydantic_ai import Agent, CancellationToken, RunContext, Tool, UsageLimits
 from pydantic_ai.capabilities import AbstractCapability
@@ -52,37 +52,111 @@ class _ToolLoopDetector:
         self._call_counts: Dict[str, int] = {}
         self._results: Dict[str, int] = {}
         self._read_only_streak = 0
+        self._admin_read_only_streak = 0
+        self._admin_tool_calls = 0
+        self._admin_mutations = 0
+        self._trace: List[Dict[str, str]] = []
 
-    def record_call(self, tool_call_id: str, tool_name: str, arguments: Any) -> None:
+    def record_call(
+        self,
+        tool_call_id: str,
+        tool_name: str,
+        arguments: Any,
+        *,
+        scope: str = "manager",
+    ) -> None:
         call_key = f"{tool_name}:{_json_safe(arguments, limit=4000)}"
         self._calls[tool_call_id] = call_key
         self._call_counts[call_key] = self._call_counts.get(call_key, 0) + 1
         if self._call_counts[call_key] >= 2:
             raise RepeatedToolLoop(f"检测到完全相同的工具调用，已在重复执行前停止：{tool_name}")
+        if scope == "system_admin":
+            self._admin_tool_calls += 1
+            if self._admin_tool_calls > 6:
+                raise RepeatedToolLoop("system_admin 已达到 6 次工具调用上限，必须依据现有证据结束本轮")
+            is_mutation = tool_name == "modify_investment_agent_code" or (
+                tool_name == "repair_incident"
+                and isinstance(arguments, Mapping)
+                and bool(str(arguments.get("new_content", "")) or str(arguments.get("patch_find", "")))
+            )
+            if is_mutation:
+                self._admin_mutations += 1
+                if self._admin_mutations > 1:
+                    raise RepeatedToolLoop("system_admin 每个故障最多允许一个代码变更，第二次变更已在执行前停止")
 
-    def record_result(self, tool_call_id: str, tool_name: str, result: Any) -> None:
+    def record_result(
+        self,
+        tool_call_id: str,
+        tool_name: str,
+        result: Any,
+        *,
+        scope: str = "manager",
+    ) -> str:
         call_key = self._calls.get(tool_call_id, tool_name)
         result_key = f"{call_key}:{_json_safe(result, limit=6000)}"
         fingerprint = hashlib.sha256(result_key.encode("utf-8", errors="replace")).hexdigest()
         self._results[fingerprint] = self._results.get(fingerprint, 0) + 1
+        self._trace.append({
+            "tool": tool_name,
+            "result": _json_safe(result, limit=1600),
+        })
+        self._trace = self._trace[-16:]
         read_only = {
-            "search_project", "inspect_investment_agent_code", "list_manager_capabilities",
-            "get_cycle_evidence", "load_manager_skill", "search_security",
-            "get_security_snapshot", "get_stock_screening",
+            "list_skills", "list_skill_schedules",
         }
         self._read_only_streak = self._read_only_streak + 1 if tool_name in read_only else 0
-        if self._read_only_streak >= 10:
-            raise RepeatedToolLoop("连续只读工具调用没有形成操作或最终答案，已提前停止以避免循环")
+        if self._read_only_streak >= 12:
+            raise RepeatedToolLoop(
+                "连续只读工具调用没有形成操作或最终答案；已停止继续调用工具并转入无工具总结"
+            )
+        if self._read_only_streak == 8:
+            return (
+                "管理循环保护：已经连续完成 8 次只读检查。下一步必须依据现有证据直接给出最终结论，"
+                "或调用 run_skill / handoff_session 等高层 Harness 能力；"
+                "不要继续搜索或重复读取文件。"
+            )
+        if scope == "system_admin":
+            admin_read_only = {
+                "search_project", "inspect_investment_agent_code", "list_skills", "list_skill_schedules",
+            }
+            self._admin_read_only_streak = (
+                self._admin_read_only_streak + 1 if tool_name in admin_read_only else 0
+            )
+            if self._admin_read_only_streak >= 4:
+                raise RepeatedToolLoop(
+                    "system_admin 连续 4 次只读检查仍未形成结构化诊断；已停止继续搜索"
+                )
+            if self._admin_read_only_streak == 3:
+                return (
+                    "system_admin 只读检查预算已用完。下一步只能调用 repair_incident 形成结构化诊断/回放，"
+                    "执行一个有依据的变更，或直接给出最终结论。"
+                )
+        return ""
+
+    def recovery_context(self) -> str:
+        """Compact evidence for a no-tool finalizer after the guard trips."""
+        return _json_safe(self._trace, limit=24_000)
 
 
 class _ToolExecutionGuard(AbstractCapability[Any]):
     """Enforce idempotency in the execution layer, before side effects run."""
 
+    def __init__(self, *, scope: str = "manager") -> None:
+        self.scope = scope
+
     async def wrap_tool_execute(self, ctx, *, call, tool_def, args, handler):
         detector = ctx.deps.tool_loop_detector
-        detector.record_call(call.tool_call_id or "", call.tool_name, args)
+        detector.record_call(call.tool_call_id or "", call.tool_name, args, scope=self.scope)
         result = await handler(args)
-        detector.record_result(call.tool_call_id or "", call.tool_name, result)
+        warning = detector.record_result(
+            call.tool_call_id or "", call.tool_name, result, scope=self.scope
+        )
+        if warning:
+            if isinstance(result, dict):
+                result = dict(result)
+                result["manager_loop_guard"] = warning
+            else:
+                result = {"result": result, "manager_loop_guard": warning}
         return result
 
 
@@ -93,12 +167,16 @@ class ChatAgentDeps:
     authoritative_report: str = ""
     completed_tool_calls: List[str] = None  # type: ignore[assignment]
     tool_loop_detector: _ToolLoopDetector = None  # type: ignore[assignment]
+    verified: bool = False
+    last_skill_result: Dict[str, Any] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         if self.completed_tool_calls is None:
             self.completed_tool_calls = []
         if self.tool_loop_detector is None:
             self.tool_loop_detector = _ToolLoopDetector()
+        if self.last_skill_result is None:
+            self.last_skill_result = {}
 
 
 def _json_safe(value: Any, *, limit: int = 16_000) -> str:
@@ -107,6 +185,33 @@ def _json_safe(value: Any, *, limit: int = 16_000) -> str:
     except Exception:
         text = repr(value)
     return text[:limit]
+
+
+async def _forward_tool_events(
+    deps: ChatAgentDeps,
+    stream: AsyncIterable[Any],
+    *,
+    session: str,
+) -> None:
+    """Forward both outer and nested Agent tool events to the same desktop stream."""
+    async for event in stream:
+        if isinstance(event, FunctionToolCallEvent):
+            try:
+                arguments = event.part.args_as_dict()
+            except Exception:
+                arguments = {"raw": event.part.args_as_json_str()}
+            from src.secret_store import redact_mapping
+
+            payload: Dict[str, Any] = {
+                "type": "tool",
+                "name": event.part.tool_name,
+                "params": redact_mapping(arguments),
+            }
+            if session != "manager":
+                payload["session"] = session
+            deps.event_queue.put(payload)
+        elif isinstance(event, FunctionToolResultEvent):
+            deps.completed_tool_calls.append(event.part.tool_name)
 
 
 def _portfolio_context() -> Dict[str, Any]:
@@ -473,6 +578,72 @@ def inspect_investment_agent_code(path: str) -> Dict[str, Any]:
     return ChangeManager().inspect(path)
 
 
+async def repair_incident(
+    ctx: RunContext[ChatAgentDeps],
+    execution_id: str = "",
+    path: str = "",
+    new_content: str = "",
+    patch_find: str = "",
+    patch_replace: str = "",
+    expected_sha256: str = "",
+    reason: str = "",
+) -> Dict[str, Any]:
+    """Diagnose a failed Skill, optionally apply one bounded patch, and replay the original request.
+
+    Call without a patch first when the failed execution is unknown. The result identifies the
+    failure category and the minimal allowed file range. For an existing file, inspect it and send
+    one exact patch_find/patch_replace pair plus expected_sha256; full-file replacement is rejected.
+    The patch runs installed-runtime verification probes, then replays the original read-only request
+    in a fresh interpreter so changed modules are really imported. Failed probes, replay errors, or
+    failed semantic validation restore the backup. External billing/network/permission problems are
+    returned as external_blocker and never trigger a code mutation.
+
+    Args:
+        execution_id: Failed/degraded execution id; empty selects the latest repairable trajectory.
+        path: Optional one project-relative file selected from diagnosis.suggested_files.
+        new_content: Complete content only when diagnosis permits creating a new file.
+        patch_find: Exact existing snippet to replace; must occur once and be at most 200 lines.
+        patch_replace: Replacement snippet; may be empty for a bounded deletion.
+        expected_sha256: Hash from inspect_investment_agent_code, required for an existing file.
+        reason: Concise evidence-based repair reason.
+    """
+    from src.manager.incident_repair import IncidentRepairSupervisor
+
+    ctx.deps.event_queue.put({"type": "status", "content": "[incident-repair] 读取失败轨迹并分类"})
+    result = await asyncio.to_thread(
+        IncidentRepairSupervisor().repair,
+        execution_id=execution_id,
+        path=path,
+        new_content=new_content,
+        patch_find=patch_find,
+        patch_replace=patch_replace,
+        expected_sha256=expected_sha256,
+        reason=reason,
+    )
+    status = str(result.get("status", ""))
+    if status == "verified_repair":
+        report = (
+            "✅ 故障补丁已通过目标测试，并且原始用户请求回放通过全部语义质量门禁。\n\n"
+            f"- 原执行：{result.get('execution_id', '')}\n"
+            f"- 回放执行：{result.get('replay', {}).get('replay_execution_id', '')}\n"
+            "- 回放进程：全新解释器（已加载补丁）\n"
+            "- 未通过回放的补丁会自动恢复；本次补丁将在桌面服务重启后正式生效。"
+        )
+        ctx.deps.authoritative_report = report
+        ctx.deps.verified = True
+        result["user_report"] = report
+    elif status == "external_blocker":
+        report = (
+            "故障已分类为 external_blocker：外部账户余额、网络、权限或供应商状态不能通过本地代码修复。"
+            "系统没有修改任何文件，也不会伪报修复成功。"
+        )
+        ctx.deps.authoritative_report = report
+        result["user_report"] = report
+    elif status == "rolled_back":
+        result["user_report"] = "补丁的测试或原始请求语义回放未通过，文件已从备份自动恢复。"
+    return result
+
+
 def modify_investment_agent_code(
     path: str,
     new_content: str,
@@ -669,14 +840,30 @@ async def configure_openai_compatible_provider(
                 raise RuntimeError("服务商返回空响应")
             connection_test = {"status": "passed"}
         except Exception as exc:
-            connection_test = {"status": "failed", "error": _redact_error(exc)}
+            error = _redact_error(exc)
+            normalized_error = error.casefold()
+            billing_failure = any(marker in normalized_error for marker in (
+                "402", "positive balance", "add balance", "top-up", "insufficient balance",
+            ))
+            connection_test = {
+                "status": "failed",
+                "error": error,
+                "category": "billing" if billing_failure else "provider_error",
+                "requires_user_action": billing_failure,
+            }
 
     tested = connection_test["status"]
-    status_line = {
-        "passed": "连通测试已通过。",
-        "failed": f"配置已保存，但连通测试失败：{connection_test.get('error', '未知错误')}",
-        "skipped": "未执行连通测试。",
-    }[tested]
+    if tested == "passed":
+        status_line = "连通测试已通过。"
+    elif tested == "skipped":
+        status_line = "未执行连通测试。"
+    elif connection_test.get("category") == "billing":
+        status_line = (
+            "endpoint、模型路由和请求格式均已生效，但供应商返回 402 余额不足。"
+            "这是 DeepInfra 账户计费状态，需要在供应商侧充值或开启自动充值；本地改代码或新增工具无法修复。"
+        )
+    else:
+        status_line = f"配置已保存，但连通测试失败：{connection_test.get('error', '未知错误')}"
     primary_line = "并已设为主供应商。" if set_as_primary else "未改变当前主供应商。"
     report = (
         f"✅ {title}（{normalized}）已加入模型供应商列表，API Key 已通过 Windows DPAPI 加密保存。\n\n"
@@ -847,73 +1034,350 @@ def uninstall_manager_tool(name: str) -> Dict[str, Any]:
     return uninstall_manager_tool_complete(name)
 
 
+async def run_skill(
+    ctx: RunContext[ChatAgentDeps],
+    request: str,
+    skill_name: str = "",
+    market: str = "",
+    symbols: str = "",
+    arguments_json: str = "",
+) -> Dict[str, Any]:
+    """Run one executable Skill through the persistent Harness.
+
+    Args:
+        request: The user's complete current request, copied without simplifying it.
+        skill_name: Optional explicit Skill name. Empty lets the deterministic selector choose.
+        market: Optional cn, hk, us, or etf input.
+        symbols: Optional comma-separated resolved symbols. Names may remain in request.
+        arguments_json: Optional additional JSON object inputs required by the Skill.
+    """
+    from src.manager.skill_builder import parse_json_object
+    from src.manager.skill_runtime import SkillRuntime
+
+    inputs = parse_json_object(arguments_json, "arguments_json")
+    if market:
+        inputs["market"] = str(market).strip().lower()
+    if symbols:
+        inputs["symbols"] = symbols
+
+    def progress(value: str) -> None:
+        ctx.deps.event_queue.put({"type": "status", "content": str(value)})
+
+    result = await asyncio.to_thread(
+        SkillRuntime().run,
+        request,
+        skill_name=skill_name,
+        inputs=inputs,
+        requested_by="conversation-manager",
+        progress_callback=progress,
+    )
+    ctx.deps.last_skill_result = result
+    ctx.deps.verified = bool(result.get("validation", {}).get("passed")) and result.get("status") == "completed"
+    if result.get("user_report"):
+        ctx.deps.authoritative_report = str(result["user_report"])
+    return {
+        "status": result.get("status"),
+        "skill": result.get("skill"),
+        "session_scope": result.get("session_scope"),
+        "execution_id": result.get("execution_id"),
+        "user_report": result.get("user_report"),
+        "validation": result.get("validation"),
+        "error": result.get("error"),
+    }
+
+
+def list_skills() -> Dict[str, Any]:
+    """List high-level executable Skills; internal Actions are intentionally hidden."""
+    from src.manager.skill_registry import SkillRegistry
+
+    return {"skills": SkillRegistry().records()}
+
+
+async def create_skill(
+    ctx: RunContext[ChatAgentDeps],
+    name: str,
+    description: str,
+    instructions: str,
+    session_scope: str,
+    side_effect_level: str,
+    intents_json: str,
+    triggers_json: str,
+    allowed_actions_json: str,
+    workflow_json: str,
+    completion_contract_json: str,
+    custom_actions_json: str = "",
+    test_inputs_json: str = "",
+    fulfill_request: str = "",
+    fulfill_inputs_json: str = "",
+) -> Dict[str, Any]:
+    """Compile, test, register and optionally fulfill one complete executable Skill.
+
+    Args:
+        name: Kebab-case Skill name.
+        description: Precise selection description.
+        instructions: Complete SKILL.md playbook and safety boundaries.
+        session_scope: investment_research, portfolio_management, investment_execution, or system_admin.
+        side_effect_level: read_only, portfolio_write, investment_execution, or system_admin.
+        intents_json: JSON string array of stable intent labels.
+        triggers_json: JSON string array of representative Chinese and English trigger phrases.
+        allowed_actions_json: JSON string array of internal Action names.
+        workflow_json: JSON object with a steps array.
+        completion_contract_json: JSON object with required_steps and required_outputs.
+        custom_actions_json: Optional JSON array of read-only Action source definitions.
+        test_inputs_json: Optional JSON object used for a real completion-contract trial.
+        fulfill_request: Optional original user request to execute immediately after registration.
+        fulfill_inputs_json: Optional JSON object for immediate fulfillment.
+    """
+    from src.manager.skill_builder import SkillBuilder, parse_json_list, parse_json_object
+
+    def string_list(raw: str, label: str) -> List[str]:
+        value = json.loads(raw)
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ValueError(f"{label} 必须是 JSON string 数组")
+        return [item.strip() for item in value if item.strip()]
+
+    manifest = {
+        "name": name,
+        "description": description,
+        "version": "1.0.0",
+        "intents": string_list(intents_json, "intents_json"),
+        "triggers": string_list(triggers_json, "triggers_json"),
+        "session_scope": session_scope,
+        "side_effect_level": side_effect_level,
+        "allowed_actions": string_list(allowed_actions_json, "allowed_actions_json"),
+        "priority": 60,
+        "enabled": True,
+    }
+    test_inputs = parse_json_object(test_inputs_json, "test_inputs_json") if test_inputs_json.strip() else None
+    fulfill_inputs = (
+        parse_json_object(fulfill_inputs_json, "fulfill_inputs_json") if fulfill_inputs_json.strip() else None
+    )
+    result = await asyncio.to_thread(
+        SkillBuilder().create,
+        manifest=manifest,
+        instructions=instructions,
+        workflow=parse_json_object(workflow_json, "workflow_json"),
+        completion_contract=parse_json_object(completion_contract_json, "completion_contract_json"),
+        custom_actions=parse_json_list(custom_actions_json, "custom_actions_json"),
+        test_inputs=test_inputs,
+        fulfill_request=fulfill_request,
+        fulfill_inputs=fulfill_inputs,
+    )
+    fulfill_result = result.get("fulfill_result", {})
+    if isinstance(fulfill_result, dict) and fulfill_result:
+        ctx.deps.last_skill_result = fulfill_result
+        ctx.deps.verified = bool(fulfill_result.get("validation", {}).get("passed"))
+        if fulfill_result.get("user_report"):
+            ctx.deps.authoritative_report = str(fulfill_result["user_report"])
+    else:
+        ctx.deps.verified = result.get("status") == "created"
+    def compact_execution(value: Any) -> Dict[str, Any]:
+        if not isinstance(value, dict) or not value:
+            return {}
+        return {
+            "status": value.get("status"),
+            "skill": value.get("skill"),
+            "execution_id": value.get("execution_id"),
+            "user_report": value.get("user_report"),
+            "outputs_preview": _json_safe(value.get("outputs", {}), limit=12000),
+            "validation": value.get("validation"),
+            "error": value.get("error"),
+        }
+
+    return {
+        "status": result.get("status"),
+        "skill": result.get("skill"),
+        "custom_actions": [
+            {"status": item.get("status"), "name": item.get("name"), "steps": item.get("steps", [])}
+            for item in result.get("custom_actions", [])
+            if isinstance(item, dict)
+        ],
+        "test_result": compact_execution(result.get("test_result")),
+        "fulfill_result": compact_execution(result.get("fulfill_result")),
+    }
+
+
+def schedule_skill(
+    skill_name: str,
+    cron: str,
+    inputs_json: str,
+    schedule_id: str = "",
+    timezone: str = "",
+) -> Dict[str, Any]:
+    """Persist a direct Skill schedule; runtime execution never reinterprets natural language.
+
+    Args:
+        skill_name: An investment_execution Skill such as scheduled-market-cycle.
+        cron: Standard five-field cron expression.
+        inputs_json: Complete structured Skill inputs as a JSON object.
+        schedule_id: Optional stable kebab-case id.
+        timezone: Optional IANA timezone; defaults to project configuration.
+    """
+    from src.manager.skill_builder import parse_json_object
+    from src.manager.skill_scheduler import SkillScheduler
+
+    return SkillScheduler().create(
+        skill_name=skill_name,
+        cron=cron,
+        inputs=parse_json_object(inputs_json, "inputs_json"),
+        schedule_id=schedule_id,
+        timezone=timezone,
+    )
+
+
+def list_skill_schedules() -> Dict[str, Any]:
+    """List all persisted direct Skill schedules."""
+    from src.manager.skill_scheduler import SkillScheduler
+
+    return {"schedules": SkillScheduler().list()}
+
+
+async def manage_runtime(
+    ctx: RunContext[ChatAgentDeps],
+    action: str,
+    market: str = "",
+    value: str = "",
+    reason: str = "",
+) -> Dict[str, Any]:
+    """Run account-management through the Skill Runtime, never via a raw business Tool."""
+    from src.manager.skill_runtime import SkillRuntime
+
+    request = f"管理投资运行状态：{action} {market} {value} {reason}".strip()
+    result = await asyncio.to_thread(
+        SkillRuntime().run,
+        request,
+        skill_name="account-management",
+        inputs={"action": action, "market": market, "value": value, "reason": reason},
+        requested_by="conversation-manager",
+    )
+    ctx.deps.last_skill_result = result
+    ctx.deps.verified = bool(result.get("validation", {}).get("passed"))
+    return result
+
+
+SYSTEM_ADMIN_AGENT = Agent(
+    name="investment_auto_system_admin",
+    deps_type=ChatAgentDeps,
+    instructions=(
+        "你是 Investment-Auto 独立 system_admin 会话。只处理创建 Skill、配置模型、检查或修改项目代码和调度。"
+        "用户要求修复失败、数据缺口或自我修复时，优先调用 repair_incident：先读取失败轨迹与结构化诊断，"
+        "再 inspect 一个 suggested_files 内的文件并只提交一次精确 patch_find/patch_replace；禁止整文件重写。"
+        "补丁只有在安装版内置验证器通过、且原始请求在全新解释器中语义回放通过后才算成功。"
+        "外部余额、网络、权限或供应商状态必须标为 external_blocker，不得修改代码伪修复。"
+        "本会话最多 8 次模型请求、6 次工具调用和一个代码变更；连续检查后必须诊断或收尾。"
+        "创建新能力时优先复用 list_skills 中已有能力与现有内部 Actions；缺少只读数据/计算 Action 时，"
+        "在 create_skill 的 custom_actions_json 中同时生成经过测试的 Action。创建 Skill 必须给出完整 Workflow、"
+        "完成契约和测试输入，并把用户原始请求放入 fulfill_request 以便当轮完成。"
+        "修改已有文件必须先 inspect，再 modify；不得读取、写入或复述密钥原文。"
+    ),
+    tools=[
+        Tool(search_project, sequential=True, timeout=20),
+        Tool(inspect_investment_agent_code, sequential=True, timeout=20),
+        Tool(repair_incident, sequential=True, timeout=480),
+        Tool(modify_investment_agent_code, sequential=True, timeout=240),
+        Tool(configure_llm_api_key, sequential=True, timeout=20),
+        Tool(configure_openai_compatible_provider, sequential=True, timeout=80),
+        Tool(list_skills, sequential=True, timeout=10),
+        Tool(create_skill, sequential=True, timeout=480),
+        Tool(schedule_skill, sequential=True, timeout=20),
+        Tool(list_skill_schedules, sequential=True, timeout=10),
+    ],
+    retries=1,
+    capabilities=[_ToolExecutionGuard(scope="system_admin")],
+)
+
+
+async def handoff_session(ctx: RunContext[ChatAgentDeps], session: str, request: str) -> str:
+    """Hand off a system change to the persistent least-privilege admin profile.
+
+    Args:
+        session: Must be system_admin. Investment domains run through run_skill instead.
+        request: The user's complete current administration request.
+    """
+    if str(session).strip() != "system_admin":
+        raise ValueError("投资领域任务必须使用 run_skill；handoff_session 目前只接受 system_admin")
+    from src.manager.session_store import SessionStore
+    from src.manager.skill_registry import SkillRegistry
+
+    context = {
+        "skills": SkillRegistry().records(),
+        "session": SessionStore().load("system_admin"),
+    }
+    async def nested_event_handler(
+        _: RunContext[ChatAgentDeps], stream: AsyncIterable[Any]
+    ) -> None:
+        await _forward_tool_events(ctx.deps, stream, session="system_admin")
+
+    result = await SYSTEM_ADMIN_AGENT.run(
+        f"用户原始请求：\n{request}\n\n当前 Harness 上下文：\n{_json_safe(context, limit=30000)}",
+        model=ctx.model,
+        deps=ctx.deps,
+        usage=ctx.usage,
+        cancellation_token=ctx.deps.cancellation_token,
+        model_settings={"temperature": 0.1, "max_tokens": 5000},
+        usage_limits=UsageLimits(
+            request_limit=8,
+            tool_calls_limit=6,
+            total_tokens_limit=120_000,
+        ),
+        event_stream_handler=nested_event_handler,
+    )
+    output = str(result.output).strip()
+    SessionStore().record(
+        "system_admin",
+        request=request,
+        skill="system-admin-handoff",
+        execution_id="admin-" + hashlib.sha256(
+            f"{datetime.now().isoformat()}:{request}".encode("utf-8", errors="replace")
+        ).hexdigest()[:16],
+        status="responded",
+        summary=output,
+    )
+    return output
+
+
+LOOP_RECOVERY_AGENT = Agent(
+    name="investment_auto_loop_recovery",
+    instructions=(
+        "你是 Investment-Auto 管理 Agent 的无工具收尾器。上一个执行因为连续只读检查或重复调用被保护器停止。"
+        "只能根据提供的当前任务和已取得证据给出简洁、诚实的中文最终答复，不得调用工具，不得声称已经修改、"
+        "验证或完成未发生的操作。若证据表明是账户余额、权限、网络或其他外部状态，明确说明本地代码不能修复，"
+        "并给出用户需要采取的动作；若仍需要代码修改，明确指出尚未执行及最小下一步。"
+    ),
+    retries=1,
+)
+
+
 MANAGER_AGENT = Agent(
     name="investment_auto_manager",
     deps_type=ChatAgentDeps,
     instructions=(
-        "你是 Investment-Auto 的常驻中文管理 Agent，不是投资分析角色或普通聊天机器人。"
-        "你的唯一职责是使用、管理和修改独立运行的投资 Agent；不得在对话层自行执行另一套选股、研究、风控或下单流程。\n"
+        "你是 Investment-Auto Agent Harness 的常驻中文协调器。你不直接选择行情、基本面、选股、组合或交易函数；"
+        "所有投资领域任务必须进入持久会话并通过一个完整可执行 Skill 完成。\n"
         "规则：\n"
         "0. 当前用户问题是本轮唯一任务，优先于最近对话。上一轮失败的操作只能在用户明确要求继续或重试时恢复；"
         "用户只是寒暄、要求先正常回应且没有提出操作或事实查询时，直接回答，不得调用任何工具。\n"
-        "1. 用户要求开始、运行、执行或进行某个市场的一轮分析/投资/交易时，不要依赖固定口令，"
-        "要按语义调用 run_complete_investment_cycle，且每个请求只调用一次。该工具已经包含"
-        "全市场选股、候选与持仓分析、买入/观望/卖出决策、硬风控、模拟下单和最终报告；"
-        "不得先单独刷新选股，也不得要求用户逐步确认。缺少市场时优先从最近对话和长期记忆推断，仍无法确定才追问。\n"
-        "1a. 用户要求清空持仓、恢复初始资金或重置某个市场模拟账户时，只调用一次 reset_paper_account；"
-        "该工具自带 paper 模式校验、互斥锁、备份和结果验证，成功后立即回复，不得搜索文件、修改代码、运行筛选或再次读取状态。\n"
-        "2. 当前账户、报告、调度、风控问题必须调用相应 specialist；证券行情使用 search/security snapshot。\n"
-        "   选股、候选池和筛选分数必须调用 stock screening；用户明确要求立即刷新时设置 refresh=true。\n"
-        "3. 一般只调用一个 specialist；只有确实需要跨域综合时才调用多个。完整投资工具返回 user_report 后，"
-        "直接以该报告为最终依据，不要继续调用其他工具或声称只完成了筛选。\n"
-        "4. 当用户明确要求记住，或表达了稳定且未来有用的操作偏好时，调用 remember_user_preference；"
-        "不得保存密钥、令牌、密码、Webhook、数据库地址和一次性任务。\n"
-        "4a. 用户要求设置或更新已有模型供应商的 API Key 时，直接且只调用一次 configure_llm_api_key；"
-        "该工具会本机加密保存并返回脱敏结果。不得搜索源码、修改配置文件、创建新工具、把密钥写入记忆或在回复中复述密钥。\n"
-        "4b. 用户要求新增 OpenAI 兼容供应商并给出 API Base、模型和 Key 时，直接且只调用一次 "
-        "configure_openai_compatible_provider；它会添加供应商、加密保存 Key、刷新聊天与投资 Agent 共用配置并按需测试。"
-        "除非用户明确要求切换，否则 set_as_primary=false。不得先搜索源码或创建工具。\n"
-        "5. 使用 manage_investment_agent 管理暂停、恢复、运行模式、策略授权书和反思；写操作后再次读取状态验证。\n"
-        "6. 用户要求修改项目时，可以自由读取、新建或修改项目目录内任意文本文件，包括源代码、配置、提示词、"
-        "运行时文件、账户文件、管理模块和交易边界。已有文件必须先 inspect，再调用 modify；"
-        "新文件使用空 expected_sha256。修改会运行全量测试，失败自动回滚。不得操作项目目录以外的路径。\n"
-        "密钥原文是例外：不得通过文件工具读取、写入或复述，只能使用 configure_llm_api_key 或 "
-        "configure_openai_compatible_provider。\n"
-        "7. 每次任务结束都要检查用户目标是否完成、工具是否失败、外部状态是否验证。不要输出工具 JSON，"
-        "不猜测时间、日志、行情或进程状态；涉及投资判断要注明是模拟研究信息。"
-        "8. 不知道文件位置时必须先 search_project。需要可复用知识时可自动安装 Skill；缺少能力需要新工具时，"
-        "直接调用 create_manager_tool 一次性完成代码生成、测试、注册与试调用，不要再手动走多步流程；"
-        "当用户当前的需求本身就是这个新能力时，把用户原始需求的调用参数写入 fulfill_args_json，"
-        "创建后直接使用返回的 fulfill_result 回答用户，不要要求用户再发一次消息；"
-        "只有必须修改已有函数时才用文件工具加 install_manager_tool。"
-        "9. 当用户的需求无法用现有工具完成、且该需求是稳定可复用的能力时，必须调用 create_manager_tool "
-        "自行补足能力，不得直接回答「做不到」；创建失败时按返回的 error/problems 修正后重试一次。"
+        "1. 证券研究、比较、市场概览、选股、持仓、组合优化、完整投资周期等请求，只调用一次 run_skill。request 必须保留"
+        "用户原始目标；能确定市场或代码时填入 market/symbols，不能确定时交给 Skill 解析。低层数据补漏由 Skill Runtime"
+        "按错误分类最多进行两次有证据的恢复，顶层不得任意拼接第二个投资工具。\n"
+        "2. run_skill 返回 user_report 时以它为权威结果；完成契约 validation.passed=false 时明确说明未完成和缺失项，"
+        "不得把调用过 Skill 当作成功。\n"
+        "3. 暂停、恢复、紧急停止、模式、策略、状态和模拟账户重置使用 manage_runtime；写操作仍由 account-management "
+        "Skill 和投资命令总线执行。\n"
+        "4. 用户要求创建 Skill、补足可复用能力、修改代码、配置模型供应商或 API Key 时，只调用一次 "
+        "handoff_session(session='system_admin')，把用户原始请求完整交给独立管理会话；不得在顶层自行生成函数。\n"
+        "5. 用户要求创建定时执行时调用 schedule_skill，保存明确 Skill、版本、cron、时区和结构化 inputs；"
+        "不得把自然语言请求作为定时触发时的运行载荷。查询任务使用 list_skill_schedules。\n"
+        "6. 用户询问当前可用能力时调用 list_skills。内部 Actions 不是给用户或顶层模型选择的工具。\n"
+        "7. 不输出内部工具 JSON，不猜测行情、日志、时间或外部状态。涉及投资判断注明模拟研究边界。"
     ),
     tools=[
-        Tool(consult_portfolio_agent, sequential=True, timeout=80),
-        Tool(consult_risk_agent, sequential=True, timeout=80),
-        Tool(consult_report_agent, sequential=True, timeout=80),
-        Tool(consult_ops_agent, sequential=True, timeout=80),
-        Tool(search_security, sequential=True, timeout=50),
-        Tool(get_security_snapshot, sequential=True, timeout=50),
-        Tool(get_stock_screening, sequential=True, timeout=180),
-        Tool(run_complete_investment_cycle, sequential=True, timeout=420),
-        Tool(reset_paper_account, sequential=True, timeout=60),
-        Tool(manage_investment_agent, sequential=True, timeout=60),
-        Tool(run_portfolio_optimizer, sequential=True, timeout=240),
-        Tool(inspect_investment_agent_code, sequential=True, timeout=20),
-        Tool(modify_investment_agent_code, sequential=True, timeout=240),
-        Tool(remember_user_preference, sequential=True, timeout=10),
-        Tool(configure_llm_api_key, sequential=True, timeout=20),
-        Tool(configure_openai_compatible_provider, sequential=True, timeout=80),
-        Tool(search_project, sequential=True, timeout=20),
-        Tool(list_manager_capabilities, sequential=True, timeout=10),
-        Tool(get_cycle_evidence, sequential=True, timeout=20),
-        Tool(install_manager_skill, sequential=True, timeout=20),
-        Tool(load_manager_skill, sequential=True, timeout=10),
-        Tool(install_manager_tool, sequential=True, timeout=30),
-        Tool(create_manager_tool, sequential=True, timeout=420),
-        Tool(uninstall_manager_tool, sequential=True, timeout=20),
+        Tool(run_skill, sequential=True, timeout=1800),
+        Tool(list_skills, sequential=True, timeout=10),
+        Tool(schedule_skill, sequential=True, timeout=20),
+        Tool(list_skill_schedules, sequential=True, timeout=10),
+        Tool(manage_runtime, sequential=True, timeout=120),
+        Tool(handoff_session, sequential=True, timeout=1800),
     ],
     retries=1,
     tool_timeout=90,
@@ -957,12 +1421,14 @@ def _memory_instructions(memory: str) -> str:
         f"\n\n当前投资授权书：{mandate.get('display_name')}；目标：{mandate.get('objective')}；"
         f"版本：{mandate.get('risk_policy_version')}。该授权书是用户目标记忆，反思不能擅自切换风险档位。"
     )
-    from src.manager.capabilities import CapabilityRegistry
+    from src.manager.session_store import SessionStore
+    from src.manager.skill_registry import SkillRegistry
 
-    capabilities = "\n\n运行时扩展能力目录：\n" + CapabilityRegistry().catalog_prompt()
+    capabilities = "\n\n可执行 Skill 目录：\n" + SkillRegistry().catalog_prompt()
+    sessions = "\n\n持久领域会话摘要：\n" + (SessionStore().prompt() or "（暂无会话状态）")
     if not combined:
-        return prefix + " 当前没有其他长期记忆。" + goal + capabilities
-    return prefix + "\n\n当前管理长期记忆：\n" + combined[:10000] + goal + capabilities
+        return prefix + " 当前没有其他长期记忆。" + goal + capabilities + sessions
+    return prefix + "\n\n当前管理长期记忆：\n" + combined[:10000] + goal + capabilities + sessions
 
 
 def _redact_error(exc: BaseException) -> str:
@@ -990,21 +1456,7 @@ def run_agent_events(
     prompt = _conversation_prompt(message, history, memory)
 
     async def event_handler(_: RunContext[ChatAgentDeps], stream: AsyncIterable[Any]) -> None:
-        async for event in stream:
-            if isinstance(event, FunctionToolCallEvent):
-                try:
-                    arguments = event.part.args_as_dict()
-                except Exception:
-                    arguments = {"raw": event.part.args_as_json_str()}
-                from src.secret_store import redact_mapping
-
-                events.put({
-                    "type": "tool",
-                    "name": event.part.tool_name,
-                    "params": redact_mapping(arguments),
-                })
-            elif isinstance(event, FunctionToolResultEvent):
-                deps.completed_tool_calls.append(event.part.tool_name)
+        await _forward_tool_events(deps, stream, session="manager")
 
     async def run() -> None:
         settings: Dict[str, Any] = {
@@ -1026,9 +1478,6 @@ def run_agent_events(
             request_limit = bounded_limit("request_limit", _REQUEST_LIMIT, 8, 128)
             tool_call_limit = bounded_limit("tool_call_limit", _TOOL_CALL_LIMIT, 8, 256)
             total_token_limit = bounded_limit("total_token_limit", _TOTAL_TOKEN_LIMIT, 32_000, 1_000_000)
-            reserved = set(MANAGER_AGENT._function_toolset.tools)
-            from src.manager.capabilities import CapabilityRegistry
-
             result = await MANAGER_AGENT.run(
                 prompt,
                 model=model_instance,
@@ -1042,7 +1491,6 @@ def run_agent_events(
                 cancellation_token=cancellation_token,
                 event_stream_handler=event_handler,
                 instructions=_memory_instructions(memory),
-                toolsets=[CapabilityRegistry().toolset(reserved)],
             )
             output = deps.authoritative_report or str(result.output).strip()
             if not output:
@@ -1053,7 +1501,7 @@ def run_agent_events(
                 user_goal=message,
                 outcome=output,
                 tool_calls=deps.completed_tool_calls,
-                verified=bool(deps.completed_tool_calls),
+                verified=deps.verified,
             )
             logger.info("Agent run completed: usage=%s", result.usage)
             events.put({"type": "result", "content": output})
@@ -1063,7 +1511,36 @@ def run_agent_events(
             if deps.authoritative_report:
                 events.put({"type": "result", "content": deps.authoritative_report})
             else:
-                events.put({"type": "error", "content": str(exc)})
+                logger.warning(
+                    "Manager tool loop stopped; completed_tools=%s reason=%s",
+                    deps.completed_tool_calls[-16:],
+                    exc,
+                )
+                try:
+                    recovery = await LOOP_RECOVERY_AGENT.run(
+                        (
+                            "当前任务与最近上下文：\n"
+                            + prompt[-40_000:]
+                            + "\n\n循环保护原因：\n"
+                            + str(exc)
+                            + "\n\n已完成的只读工具证据（截断）：\n"
+                            + deps.tool_loop_detector.recovery_context()
+                        ),
+                        model=model_instance,
+                        model_settings={**settings, "max_tokens": 1600},
+                        usage_limits=UsageLimits(request_limit=3, total_tokens_limit=80_000),
+                        cancellation_token=cancellation_token,
+                    )
+                    recovered_output = str(recovery.output).strip()
+                    if not recovered_output:
+                        raise RuntimeError("无工具收尾器返回空响应")
+                    events.put({"type": "result", "content": recovered_output})
+                except Exception as recovery_exc:
+                    logger.exception("Manager loop recovery failed")
+                    events.put({
+                        "type": "error",
+                        "content": f"{exc}；无工具总结失败：{_redact_error(recovery_exc)}",
+                    })
         except UsageLimitExceeded:
             if deps.authoritative_report:
                 events.put({"type": "result", "content": deps.authoritative_report})

@@ -287,6 +287,7 @@ def _save_invalid_output(
     text: str,
     error: Exception,
     generated_at: str,
+    tool_diagnostic: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> str:
     """Persist malformed model output so the next failure is diagnosable."""
 
@@ -303,6 +304,8 @@ def _save_invalid_output(
         "raw_output": text[:24000],
         "truncated_for_diagnostic": len(text) > 24000,
     }
+    if tool_diagnostic:
+        payload["tool_diagnostic"] = [dict(item) for item in tool_diagnostic]
     try:
         with _failure_lock:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -327,6 +330,117 @@ def validate_portfolio_coverage(payload: Mapping[str, Any], required_symbols: Se
     missing = sorted(expected - actual)
     if missing:
         raise ValueError(f"投资组合决策缺少标的: {', '.join(missing)}")
+    unexpected = sorted(actual - expected)
+    if unexpected:
+        raise ValueError(f"投资组合决策包含允许池外标的: {', '.join(unexpected)}")
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _holding_symbols(context: Mapping[str, Any]) -> set[str]:
+    account = context.get("account", {})
+    if not isinstance(account, Mapping):
+        return set()
+    return {
+        str(item.get("code", "") or "").strip().upper()
+        for item in account.get("holdings", [])
+        if isinstance(item, Mapping)
+        and str(item.get("code", "") or "").strip()
+        and _safe_float(item.get("quantity", item.get("shares", 0)) or 0) > 0
+    }
+
+
+def _current_symbol_weight(context: Mapping[str, Any], symbol: str) -> float:
+    account = context.get("account", {})
+    if not isinstance(account, Mapping):
+        return 0.0
+    total = _safe_float(account.get("total_capital", 0) or 0)
+    if total <= 0:
+        return 0.0
+    quantity = 0.0
+    last_price = 0.0
+    for item in account.get("holdings", []):
+        if not isinstance(item, Mapping):
+            continue
+        if str(item.get("code", "") or "").strip().upper() != symbol:
+            continue
+        quantity = _safe_float(item.get("quantity", item.get("shares", 0)) or 0)
+        last_price = _safe_float(item.get("last_price", item.get("lastPrice", 0)) or 0)
+        break
+    snapshots = context.get("snapshots", {})
+    snapshot = snapshots.get(symbol, {}) if isinstance(snapshots, Mapping) else {}
+    realtime = snapshot.get("realtime", {}) if isinstance(snapshot, Mapping) else {}
+    if isinstance(realtime, Mapping):
+        last_price = _safe_float(
+            realtime.get("price", realtime.get("last", realtime.get("close", last_price)))
+            or last_price,
+            last_price,
+        )
+    return max(0.0, min(1.0, quantity * last_price / total))
+
+
+def _failed_holding_report(symbol: str, error: str) -> Dict[str, Any]:
+    """Create a deterministic, non-trading report for an unresearched holding."""
+
+    return {
+        "summary": f"{symbol} 逐标的研究失败；本轮禁止据此进行自主调仓，仅保持 HOLD。",
+        "findings": [{
+            "claim": "研究链不完整，不能形成新的自主买入或卖出判断；代码硬止损仍独立生效。",
+            "impact": "neutral",
+            "evidence_ids": ["ACCOUNT:SUMMARY"],
+        }],
+        "stance": "HOLD",
+        "confidence": 0.0,
+        "data_gaps": [str(error)[:500]],
+        "citations": ["ACCOUNT:SUMMARY"],
+        "memory_note": "研究失败时不以模型猜测替代证据，保留仓位并交由确定性保护规则处理。",
+        "role": "trader",
+        "role_name": ROLE_NAMES["trader"],
+        "stage": f"{symbol}:trade_proposal_safe_hold",
+        "safety_fallback": True,
+    }
+
+
+def _enforce_failed_holding_holds(
+    payload: Mapping[str, Any],
+    failed_holdings: Sequence[str],
+    context: Mapping[str, Any],
+) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """Prevent discretionary orders for holdings whose research failed."""
+
+    guarded = copy.deepcopy(dict(payload))
+    failed = {str(symbol).upper() for symbol in failed_holdings}
+    overrides: List[Dict[str, Any]] = []
+    decisions = guarded.get("decisions", [])
+    if not isinstance(decisions, list):
+        return guarded, overrides
+    for decision in decisions:
+        if not isinstance(decision, dict):
+            continue
+        symbol = str(decision.get("symbol", "") or "").strip().upper()
+        if symbol not in failed:
+            continue
+        previous_action = str(decision.get("action", "HOLD") or "HOLD").upper()
+        decision.update({
+            "action": "HOLD",
+            "target_weight": round(_current_symbol_weight(context, symbol), 6),
+            "confidence": 0.0,
+            "reason": "逐标的研究失败，禁止自主调仓；确定性止损、止盈和回撤熔断仍由代码风控执行。",
+            "evidence_ids": [f"AGENT:TRADER:{symbol}"],
+            "safety_override": "failed_research_hold",
+        })
+        overrides.append({
+            "symbol": symbol,
+            "from_action": previous_action,
+            "to_action": "HOLD",
+            "reason": "failed_symbol_research",
+        })
+    return guarded, overrides
 
 
 def _report_evidence_id(role: str, round_number: Optional[int] = None) -> str:
@@ -466,31 +580,37 @@ def _call_role(
         bool(_architecture_settings().get("tool_mediated", False))
         and role in set(str(item) for item in _architecture_settings().get("tool_mediated_roles", []))
     )
+    system_base = (
+        f"你是{ROLE_NAMES[role]}。{ROLE_INSTRUCTIONS[role]}"
+        "只允许依据本轮证据目录和明确列出的上游 Agent 报告作判断。"
+        "不得引用训练知识、猜测来源或制造事实。"
+    )
+    json_system = (
+        system_base
+        + "输出纯 JSON，不要 Markdown，不调用工具。"
+        "必须返回一个语法完整的 JSON 对象并以右花括号结束；字符串内部的双引号必须转义。"
+        "每个事实判断都要填写 evidence_ids；引用 ID 必须与目录完全一致。"
+    )
     if use_tools:
         system = (
-            f"你是{ROLE_NAMES[role]}。{ROLE_INSTRUCTIONS[role]}"
-            "只允许依据本轮证据目录和明确列出的上游 Agent 报告作判断。"
-            "不得引用训练知识、猜测来源或制造事实。"
-            "必须使用提供的工具：先用 list_evidence_ids 核对合法证据 ID，"
+            system_base
+            + "必须使用提供的工具：先用 list_evidence_ids 核对合法证据 ID，"
             "再调用 submit_analysis 提交结论；校验失败时按返回的错误修正后重新提交。"
             "每个事实判断都要填写 evidence_ids；引用 ID 必须与目录完全一致。"
         )
     else:
-        system = (
-            f"你是{ROLE_NAMES[role]}。{ROLE_INSTRUCTIONS[role]}"
-            "只允许依据本轮证据目录和明确列出的上游 Agent 报告作判断。"
-            "不得引用训练知识、猜测来源或制造事实。输出纯 JSON，不要 Markdown，不调用工具。"
-            "必须返回一个语法完整的 JSON 对象并以右花括号结束；字符串内部的双引号必须转义。"
-            "每个事实判断都要填写 evidence_ids；引用 ID 必须与目录完全一致。"
-        )
+        system = json_system
     mandate = context.get("investment_mandate", {})
     if isinstance(mandate, Mapping):
-        system += (
+        mandate_instruction = (
             f"本轮投资授权书为“{mandate.get('display_name', '中立策略')}”，"
             f"长期目标是：{mandate.get('objective', '')}。"
             f"决策倾向：{mandate.get('prompt', '')}"
             "投资授权书是用户目标，角色记忆和本轮反思都不能改变其风险档位或突破硬限制。"
         )
+        system += mandate_instruction
+        if use_tools:
+            json_system += mandate_instruction
     user = (
         f"阶段：{stage}\n市场：{market}\n允许交易池：{_json_text(context.get('allowed_symbols', []), 2000)}"
         f"\n角色独立记忆（只能使用自己的历史记忆，记忆不是本轮事实，不能作为引用）：\n{_memory_text(memories, memory_chars)}"
@@ -521,6 +641,10 @@ def _call_role(
     last_diagnostic = ""
     for attempt in range(retries + 1):
         text = ""
+        # A semantic tool-loop failure is different from a transport error.
+        # Retrying the identical auto-tool pattern reproduces the same stall,
+        # so the outer retry deliberately falls back to validated plain JSON.
+        attempt_uses_tools = use_tools and attempt == 0
         prompt = user
         if attempt:
             prompt += (
@@ -533,7 +657,7 @@ def _call_role(
             if attempt:
                 attempt_kwargs["temperature"] = 0
                 attempt_kwargs["max_tokens"] = 10000
-            if use_tools:
+            if attempt_uses_tools:
                 from src.trading import toolchain
 
                 payload, tool_repairs = toolchain.run_tool_mediated_chat(
@@ -557,7 +681,7 @@ def _call_role(
                 citation_repairs = tool_repairs
             else:
                 text = llm.chat(
-                [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+                [{"role": "system", "content": json_system}, {"role": "user", "content": prompt}],
                     **attempt_kwargs,
                 )
                 payload = _parse_json_object(text)
@@ -604,6 +728,12 @@ def _call_role(
             if portfolio:
                 validate_portfolio_coverage(payload, context.get("allowed_symbols", []))
             payload.update({"role": role, "role_name": ROLE_NAMES[role], "stage": stage, "citations": citations})
+            if attempt and use_tools:
+                payload["tool_recovery"] = {
+                    "mode": "validated_json_fallback",
+                    "previous_error": str(last_error)[:500],
+                    "diagnostic_file": last_diagnostic,
+                }
             if citation_repairs:
                 payload["citation_repairs"] = citation_repairs
             # Outcome-blind self summaries are not lessons.  Normal workflow
@@ -623,7 +753,8 @@ def _call_role(
             return payload
         except Exception as exc:
             last_error = exc
-            if text:
+            tool_diagnostic = getattr(exc, "diagnostic", None)
+            if text or tool_diagnostic:
                 last_diagnostic = _save_invalid_output(
                     role=role,
                     stage=stage,
@@ -631,6 +762,7 @@ def _call_role(
                     text=text,
                     error=exc,
                     generated_at=generated_at,
+                    tool_diagnostic=tool_diagnostic,
                 )
     diagnostic_note = f"；原始输出诊断: {last_diagnostic}" if last_diagnostic else ""
     raise RuntimeError(
@@ -917,22 +1049,99 @@ def run_analysis_workflow(
     )
     timings["symbol_research"] = round(time.monotonic() - started, 3)
     errors.update({f"symbol:{key}": value for key, value in symbol_errors.items()})
+    warnings: List[str] = []
+    excluded_symbols: List[str] = []
+    failed_holding_symbols: List[str] = []
+    safety_overrides: List[Dict[str, Any]] = []
     if symbol_errors:
-        raise RuntimeError("逐标的研究未完整完成: " + json.dumps(symbol_errors, ensure_ascii=False))
+        successful_symbols = [symbol for symbol in symbols if symbol in symbol_research]
+        success_ratio = len(successful_symbols) / len(symbols)
+        minimum_success_ratio = max(
+            0.0,
+            min(1.0, float(settings.get("minimum_symbol_research_success_ratio", 0.8))),
+        )
+        allow_partial = bool(settings.get("allow_partial_symbol_research", True))
+        if not allow_partial or not successful_symbols or success_ratio < minimum_success_ratio:
+            raise RuntimeError(
+                "逐标的研究未达到安全完成阈值"
+                f"（成功 {len(successful_symbols)}/{len(symbols)}，要求至少 {minimum_success_ratio:.0%}）: "
+                + json.dumps(symbol_errors, ensure_ascii=False)
+            )
+
+        holdings = _holding_symbols(context)
+        failed_holding_symbols = [symbol for symbol in symbols if symbol in symbol_errors and symbol in holdings]
+        excluded_symbols = [symbol for symbol in symbols if symbol in symbol_errors and symbol not in holdings]
+        for symbol in failed_holding_symbols:
+            safe_trader = _failed_holding_report(symbol, symbol_errors[symbol])
+            symbol_research[symbol] = {
+                "symbol": symbol,
+                "status": "safe_hold",
+                "evidence_ids": ["ACCOUNT:SUMMARY"],
+                "base_reports": {},
+                "research_debate": [],
+                "research_manager": {},
+                "trader": safe_trader,
+                "errors": {"research": symbol_errors[symbol]},
+                "timings_seconds": {},
+            }
+        warning = (
+            f"逐标的研究部分降级：成功 {len(successful_symbols)}/{len(symbols)}；"
+            f"排除候选 {', '.join(excluded_symbols) if excluded_symbols else '无'}；"
+            f"失败持仓强制 HOLD {', '.join(failed_holding_symbols) if failed_holding_symbols else '无'}。"
+        )
+        warnings.append(warning)
+        logger.warning("%s errors=%s", warning, json.dumps(symbol_errors, ensure_ascii=False))
+    else:
+        successful_symbols = list(symbols)
+
+    portfolio_symbols = [
+        symbol for symbol in symbols
+        if symbol in successful_symbols or symbol in failed_holding_symbols
+    ]
+    portfolio_context = dict(context)
+    portfolio_context["allowed_symbols"] = portfolio_symbols
     if progress_callback is not None:
-        progress_callback(f"逐标的研究已完成 {len(symbols)}/{len(symbols)}，正在生成组合草案…")
+        progress_callback(
+            f"逐标的研究可用 {len(successful_symbols)}/{len(symbols)}，"
+            f"组合评估覆盖 {len(portfolio_symbols)} 个标的，正在生成组合草案…"
+        )
 
     # The portfolio layer receives the final trader report for every security,
     # not the entire collection of intermediate prose.
-    portfolio_evidence = {
-        evidence_id: value for evidence_id, value in evidence.items()
-        if evidence_id in GLOBAL_EVIDENCE_IDS
-        or evidence_id.startswith("RULES:")
-        or evidence_id.startswith("MARKET:")
-        or evidence_id.startswith("SCREENING:")
-    }
+    portfolio_evidence: Dict[str, Any] = {}
+    original_symbol_set = set(symbols)
+    portfolio_symbol_set = set(portfolio_symbols)
+    for evidence_id, value in evidence.items():
+        eligible = (
+            evidence_id in GLOBAL_EVIDENCE_IDS
+            or evidence_id.startswith("RULES:")
+            or evidence_id.startswith("MARKET:")
+            or evidence_id.startswith("SCREENING:")
+        )
+        if not eligible:
+            continue
+        suffix = evidence_id.rsplit(":", 1)[-1]
+        if suffix in original_symbol_set and suffix not in portfolio_symbol_set:
+            continue
+        if evidence_id == "SCREENING:RUN" and isinstance(value, Mapping):
+            scoped_screening = dict(value)
+            for key in ("selected_symbols", "allowed_symbols"):
+                values = scoped_screening.get(key)
+                if isinstance(values, list):
+                    scoped_screening[key] = [
+                        item for item in values if str(item).upper() in portfolio_symbol_set
+                    ]
+            selected = scoped_screening.get("selected")
+            if isinstance(selected, list):
+                scoped_screening["selected"] = [
+                    item for item in selected
+                    if isinstance(item, Mapping)
+                    and str(item.get("symbol", "")).upper() in portfolio_symbol_set
+                ]
+            value = scoped_screening
+        portfolio_evidence[evidence_id] = value
     trader_prefixes: List[str] = []
-    for symbol in symbols:
+    for symbol in portfolio_symbols:
         evidence_id = f"AGENT:TRADER:{symbol}"
         portfolio_evidence[evidence_id] = symbol_research[symbol]["trader"]
         trader_prefixes.append(evidence_id)
@@ -940,7 +1149,7 @@ def run_analysis_workflow(
     def _run_proposal():
         started = time.monotonic()
         result = _call_role(
-            "portfolio_manager", stage="portfolio_proposal", context=context,
+            "portfolio_manager", stage="portfolio_proposal", context=portfolio_context,
             evidence=portfolio_evidence, allowed_evidence=portfolio_evidence,
             settings=settings, memory_store=store, generated_at=generated_at,
             required_upstream_prefixes=tuple(trader_prefixes), require_all_upstreams=True,
@@ -954,6 +1163,10 @@ def run_analysis_workflow(
 
     proposal_result, _proposal_resumed = _checkpointed(checkpoint, "portfolio_proposal", _run_proposal)
     proposal = dict(proposal_result.get("proposal", {}) or {})
+    proposal, proposal_overrides = _enforce_failed_holding_holds(
+        proposal, failed_holding_symbols, portfolio_context
+    )
+    safety_overrides.extend({"stage": "portfolio_proposal", **item} for item in proposal_overrides)
     timings["portfolio_proposal"] = proposal_result.get("timing", 0.0)
     portfolio_evidence["AGENT:PORTFOLIO_MANAGER:PROPOSAL"] = proposal
     if progress_callback is not None:
@@ -988,7 +1201,7 @@ def run_analysis_workflow(
                     )
                 allowed = _upstream_evidence(portfolio_evidence, discussion_prefixes)
                 report = _call_role(
-                    role, stage=f"risk_debate_{round_number}", context=context,
+                    role, stage=f"risk_debate_{round_number}", context=portfolio_context,
                     evidence=portfolio_evidence, allowed_evidence=allowed, settings=settings,
                     memory_store=store, generated_at=generated_at,
                     required_upstream_prefixes=(previous_id,),
@@ -1019,7 +1232,7 @@ def run_analysis_workflow(
         )
         risk_allowed = _upstream_evidence(portfolio_evidence, latest_risk_prefixes)
         result = _call_role(
-            "risk_manager", stage="risk_judgement", context=context,
+            "risk_manager", stage="risk_judgement", context=portfolio_context,
             evidence=portfolio_evidence, allowed_evidence=risk_allowed, settings=settings,
             memory_store=store, generated_at=generated_at,
             required_upstream_prefixes=latest_risk_prefixes, require_all_upstreams=True,
@@ -1041,7 +1254,7 @@ def run_analysis_workflow(
             ("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
         )
         result = _call_role(
-            "portfolio_manager", stage="portfolio_decision", context=context,
+            "portfolio_manager", stage="portfolio_decision", context=portfolio_context,
             evidence=portfolio_evidence, allowed_evidence=final_allowed,
             settings=settings, memory_store=store, generated_at=generated_at,
             required_upstream_prefixes=("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
@@ -1056,6 +1269,10 @@ def run_analysis_workflow(
 
     portfolio_result, _pm_resumed = _checkpointed(checkpoint, "portfolio_decision", _run_portfolio)
     portfolio = dict(portfolio_result.get("report", {}) or {})
+    portfolio, final_overrides = _enforce_failed_holding_holds(
+        portfolio, failed_holding_symbols, portfolio_context
+    )
+    safety_overrides.extend({"stage": "portfolio_decision", **item} for item in final_overrides)
     timings["portfolio_decision"] = portfolio_result.get("timing", 0.0)
     if progress_callback is not None:
         progress_callback("最终组合决策已完成，正在交回硬风控执行层…")
@@ -1072,7 +1289,7 @@ def run_analysis_workflow(
         except Exception:
             logger.warning("Could not mark checkpoint research completed", exc_info=True)
 
-    first_symbol = symbols[0]
+    first_symbol = successful_symbols[0]
     from src.trading import evidence_store
 
     archive_ref = ""
@@ -1129,6 +1346,11 @@ def run_analysis_workflow(
         "resumed_stages": resumed_stages,
         "symbol_research": compact_symbol_research,
         "symbol_errors": symbol_errors,
+        "portfolio_symbols": portfolio_symbols,
+        "excluded_symbols": excluded_symbols,
+        "warnings": warnings,
+        "degraded_mode": "partial_symbol_research" if symbol_errors else None,
+        "safety_overrides": safety_overrides,
         # Compatibility fields keep existing reports/tests readable while the
         # source of truth moves to symbol_research.
         "base_reports": compact_symbol_research[first_symbol]["base_reports"],

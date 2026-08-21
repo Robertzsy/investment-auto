@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -91,6 +92,7 @@ def test_tool_mediated_chat_queries_catalog_then_submits():
     assert payload["citations"] == ["AGENT:TECHNICAL_ANALYST"]
     assert repairs == []
     assert len(llm.calls) == 2
+    assert llm.calls[1]["kwargs"]["tool_choice"]["function"]["name"] == "submit_analysis"
     # The catalog result was fed back to the model as a tool message.
     second_call_messages = llm.calls[1]["messages"]
     tool_messages = [m for m in second_call_messages if m["role"] == "tool"]
@@ -157,11 +159,95 @@ def test_tool_mediated_chat_raises_when_rounds_exhausted():
         {"content": "", "tool_calls": _submit(["FAKE:1"])},
         {"content": "", "tool_calls": _submit(["FAKE:1"])},
     ])
-    with pytest.raises(ValueError, match="轮次用尽"):
+    with pytest.raises(toolchain.ToolMediatedError, match="轮次用尽") as caught:
         toolchain.run_tool_mediated_chat(
             llm, system="系统", user="任务", **_kwargs(tool_rounds=3)
         )
     assert len(llm.calls) == 3
+    assert caught.value.diagnostic[-1]["calls"][0]["result"]["accepted"] is False
+    assert "不存在" in caught.value.diagnostic[-1]["calls"][0]["result"]["error"]
+    assert llm.calls[-1]["kwargs"]["tool_choice"]["function"]["name"] == "submit_analysis"
+
+
+def test_call_role_uses_validated_json_after_tool_loop_exhaustion(monkeypatch, tmp_path):
+    from src.trading import agent_workflow
+
+    class LLM:
+        provider_name = "deepseek"
+
+        def __init__(self):
+            self.tool_calls = 0
+            self.json_calls = 0
+
+        def chat_tools(self, messages, tools, **kwargs):
+            self.tool_calls += 1
+            return {"content": "", "tool_calls": [{
+                "id": f"list-{self.tool_calls}",
+                "type": "function",
+                "function": {"name": "list_evidence_ids", "arguments": {"prefix": "AGENT:"}},
+            }]}
+
+        def chat(self, messages, **kwargs):
+            self.json_calls += 1
+            assert "不调用工具" in messages[0]["content"]
+            return json.dumps({
+                "summary": "JSON 降级成功",
+                "findings": [{
+                    "claim": "保持观望",
+                    "impact": "neutral",
+                    "evidence_ids": ["AGENT:RESEARCH_MANAGER"],
+                }],
+                "stance": "HOLD",
+                "confidence": 0.5,
+                "data_gaps": [],
+                "citations": ["AGENT:RESEARCH_MANAGER"],
+                "memory_note": "",
+            }, ensure_ascii=False)
+
+    llm = LLM()
+    monkeypatch.setattr(agent_workflow, "resolve_llm", lambda role: llm)
+    monkeypatch.setattr(agent_workflow, "AGENT_FAILURE_DIR", tmp_path / "failures")
+    monkeypatch.setattr(
+        agent_workflow,
+        "_architecture_settings",
+        lambda: {
+            "tool_mediated": True,
+            "tool_mediated_roles": ["trader"],
+            "tool_retries": 2,
+        },
+    )
+    context = {
+        "as_of": "2026-08-18T10:00:00+08:00",
+        "market": "us",
+        "allowed_symbols": ["WDC"],
+        "account": {"cash": 100000, "holdings": []},
+    }
+    result = agent_workflow._call_role(
+        "trader",
+        stage="WDC:trade_proposal",
+        context=context,
+        evidence={"AGENT:RESEARCH_MANAGER": {"summary": "HOLD"}},
+        allowed_evidence={"AGENT:RESEARCH_MANAGER": {"summary": "HOLD"}},
+        settings={
+            "json_retries": 1,
+            "require_citations": True,
+            "minimum_citations": 1,
+            "memory_enabled": False,
+        },
+        memory_store=agent_workflow.AgentMemoryStore(tmp_path / "memory"),
+        generated_at=context["as_of"],
+        required_upstream_prefixes=("AGENT:RESEARCH_MANAGER",),
+    )
+
+    assert result["summary"] == "JSON 降级成功"
+    assert result["tool_recovery"]["mode"] == "validated_json_fallback"
+    diagnostic = result["tool_recovery"]["diagnostic_file"]
+    assert diagnostic
+    saved = json.loads(Path(diagnostic).read_text(encoding="utf-8"))
+    assert len(saved["tool_diagnostic"]) == 3
+    assert saved["tool_diagnostic"][1]["forced_submit"] is True
+    assert llm.tool_calls == 3
+    assert llm.json_calls == 1
 
 
 def test_tool_mediated_portfolio_coverage_is_validated():

@@ -83,7 +83,9 @@ class InvestmentAgentClient:
         if timeout is None:
             configured = cfg.autonomous.get(
                 "command_hard_timeout_seconds",
-                1800 if normalized == InvestmentCommand.RUN_CYCLE else 480,
+                1800
+                if normalized in {InvestmentCommand.RUN_CYCLE, InvestmentCommand.RUN_SCHEDULED_CYCLE}
+                else 480,
             )
             hard_timeout = max(1.0, float(configured))
         else:

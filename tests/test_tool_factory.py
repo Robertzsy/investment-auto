@@ -170,12 +170,14 @@ def test_uninstall_removes_source_and_allows_recreation(monkeypatch, tmp_path):
 
 
 def test_chat_regression_catalog_updated_for_new_tools():
-    # The manager toolset grew by create_manager_tool / uninstall_manager_tool;
-    # both are management-plane tools, still no shell or execution.
+    # Dynamic function creation left the top-level model and is only available
+    # inside the least-privilege system_admin profile as complete Skill creation.
     from src.ui import agent_runtime
 
     tools = set(agent_runtime.MANAGER_AGENT._function_toolset.tools)
-    assert {"create_manager_tool", "uninstall_manager_tool"} <= tools
+    admin_tools = set(agent_runtime.SYSTEM_ADMIN_AGENT._function_toolset.tools)
+    assert "create_skill" not in tools
+    assert "create_skill" in admin_tools
     assert not ({"run_shell", "write_file", "execute_orders"} & tools)
 
 
@@ -379,14 +381,8 @@ def run(symbol: str) -> dict:
 
 
 
-def test_agent_level_creates_tool_and_answers_in_one_turn(monkeypatch, tmp_path):
-    """Execution-chain proof, not autonomy proof: the scripted fake model
-    unconditionally returns a create_manager_tool call, so this verifies the
-    real MANAGER_AGENT run loop executes the tool, registers it, and
-    round-trips the fulfill result in the same turn.  Whether the model
-    DECIDES to create a tool for a missing capability is governed by the
-    instructions and remains covered by the optional live-API eval script.
-    """
+def test_admin_agent_creates_skill_action_and_answers_in_one_turn(monkeypatch, tmp_path):
+    """The admin profile compiles a Skill plus missing Action and fulfills it."""
     import asyncio
     import queue as _queue
     from datetime import datetime
@@ -396,6 +392,7 @@ def test_agent_level_creates_tool_and_answers_in_one_turn(monkeypatch, tmp_path)
     from pydantic_ai.models import Model
 
     registry = _isolate(monkeypatch, tmp_path)
+    monkeypatch.setattr("src.manager.skill_registry.CUSTOM_SKILL_DIR", tmp_path / "skills")
 
     class ScriptedModel(Model):
         def __init__(self, responses):
@@ -427,50 +424,66 @@ def run(market: str) -> dict:
 """
     schema = {"type": "object", "properties": {"market": {"type": "string"}}, "required": ["market"]}
     create_args = {
-        "name": "amount_ranking",
-        "description": "查询市场成交额排名",
-        "code": tool_code,
-        "function_name": "run",
-        "parameters_schema_json": json.dumps(schema),
-        "test_args_json": json.dumps({"market": "cn"}),
-        "fulfill_args_json": json.dumps({"market": "cn"}),
+        "name": "amount-ranking",
+        "description": "查询市场成交额排名并返回可验证结果",
+        "instructions": "# Amount Ranking\n\nRun the verified read-only ranking Action.",
+        "session_scope": "investment_research",
+        "side_effect_level": "read_only",
+        "intents_json": json.dumps(["amount_ranking"]),
+        "triggers_json": json.dumps(["成交额排名"]),
+        "allowed_actions_json": json.dumps(["custom.amount_ranking"]),
+        "workflow_json": json.dumps({
+            "steps": [{"id": "run", "action": "custom.amount_ranking", "required": True}],
+        }),
+        "completion_contract_json": json.dumps({
+            "required_steps": ["run"], "required_outputs": ["run.rows"],
+        }),
+        "custom_actions_json": json.dumps([{
+            "name": "amount_ranking",
+            "description": "查询市场成交额排名",
+            "code": tool_code,
+            "function_name": "run",
+            "parameters_schema": schema,
+            "test_args": {"market": "cn"},
+        }]),
+        "test_inputs_json": json.dumps({"market": "cn"}),
+        "fulfill_request": "帮我查一下 A 股今天成交额排名",
+        "fulfill_inputs_json": json.dumps({"market": "cn"}),
     }
     model = ScriptedModel([
         ModelResponse(
-            parts=[ToolCallPart(tool_name="create_manager_tool", args=create_args)],
+            parts=[ToolCallPart(tool_name="create_skill", args=create_args)],
             timestamp=datetime.now(),
         ),
         ModelResponse(
-            parts=[TextPart(content="已创建工具并查询：600519 排名第一")],
+            parts=[TextPart(content="已创建 Skill 并查询：600519 排名第一")],
             timestamp=datetime.now(),
         ),
     ])
 
     async def scenario():
-        from src.manager.capabilities import CapabilityRegistry
         from src.ui import agent_runtime
 
         deps = agent_runtime.ChatAgentDeps(
             cancellation_token=CancellationToken(),
             event_queue=_queue.Queue(),
         )
-        reserved = set(agent_runtime.MANAGER_AGENT._function_toolset.tools)
-        result = await agent_runtime.MANAGER_AGENT.run(
+        result = await agent_runtime.SYSTEM_ADMIN_AGENT.run(
             "帮我查一下 A 股今天成交额排名",
             model=model,
             deps=deps,
             usage_limits=UsageLimits(request_limit=8, tool_calls_limit=16, total_tokens_limit=50000),
-            toolsets=[CapabilityRegistry().toolset(reserved)],
         )
         return str(result.output)
 
     output = asyncio.run(scenario())
 
     assert "600519" in output
-    # The tool really got created through the Agent call, with source+manifest.
+    # The Action and complete Skill package were both committed.
     manifests = registry.catalog()["tools"]
     assert [item["name"] for item in manifests] == ["amount_ranking"]
     assert (tmp_path / "tools" / "amount_ranking.py").is_file()
+    assert (tmp_path / "skills" / "amount-ranking" / "workflow.json").is_file()
     # The same-turn fulfill result reached the model as a tool return message.
     all_parts = [
         part for messages in model.seen_messages for message in messages for part in message.parts

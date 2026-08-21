@@ -159,6 +159,15 @@ def test_portfolio_decision_must_cover_every_candidate_and_holding():
         ]},
         ["000001", "600519"],
     )
+    with pytest.raises(ValueError, match="允许池外"):
+        agent_workflow.validate_portfolio_coverage(
+            {"decisions": [
+                {"symbol": "000001", "action": "HOLD"},
+                {"symbol": "600519", "action": "HOLD"},
+                {"symbol": "SPCX", "action": "BUY"},
+            ]},
+            ["000001", "600519"],
+        )
 
 
 def test_staged_workflow_orders_roles_and_builds_portfolio(monkeypatch, tmp_path):
@@ -211,6 +220,125 @@ def test_staged_workflow_orders_roles_and_builds_portfolio(monkeypatch, tmp_path
     assert "AGENT:RISK_MANAGER" in final_portfolio_call[1]
     assert any("1/1" in item and "600519" in item for item in progress)
     assert progress[-1] == "最终组合决策已完成，正在交回硬风控执行层…"
+
+
+def test_partial_symbol_failures_exclude_candidates_and_safe_hold_positions(monkeypatch, tmp_path):
+    context = _context()
+    successful = ["600519", "000002", "000003", "000004", "000005", "000006", "000007", "000008"]
+    context["allowed_symbols"] = [*successful, "000009", "000010"]
+    context["account"] = {
+        "total_capital": 100000,
+        "cash": 90000,
+        "holdings": [{"code": "000010", "quantity": 100, "last_price": 100}],
+    }
+    for symbol in context["allowed_symbols"]:
+        context["snapshots"].setdefault(symbol, {"realtime": {"price": 100}})
+
+    def completed(symbol):
+        trader = {
+            "role": "trader",
+            "summary": "完成",
+            "findings": [{"claim": "完成", "evidence_ids": ["AGENT:RESEARCH_MANAGER"]}],
+            "stance": "HOLD",
+            "confidence": 0.6,
+            "citations": ["AGENT:RESEARCH_MANAGER"],
+        }
+        return {
+            "symbol": symbol,
+            "status": "completed",
+            "evidence_ids": ["AGENT:RESEARCH_MANAGER"],
+            "base_reports": {},
+            "research_debate": [],
+            "research_manager": {"summary": "完成"},
+            "trader": trader,
+            "errors": {},
+            "timings_seconds": {},
+        }
+
+    monkeypatch.setattr(
+        agent_workflow,
+        "_parallel_symbol_research",
+        lambda symbols, **kwargs: (
+            {symbol: completed(symbol) for symbol in successful},
+            {"000009": "交易员工具循环失败", "000010": "交易员工具循环失败"},
+        ),
+    )
+
+    def fake_call(role, **kwargs):
+        evidence = kwargs["evidence"]
+        citation = next(iter(evidence))
+        if kwargs.get("portfolio"):
+            assert "MARKET:000009" not in evidence
+            allowed = kwargs["context"]["allowed_symbols"]
+            return {
+                "role": role,
+                "thesis": "test",
+                "decisions": [{
+                    "decision_id": f"p-{symbol}",
+                    "symbol": symbol,
+                    "action": "SELL",
+                    "target_weight": 0,
+                    "confidence": 0.8,
+                    "reason": "test",
+                    "evidence_ids": [citation],
+                } for symbol in allowed],
+                "citations": [citation],
+            }
+        return {
+            "role": role,
+            "summary": "test",
+            "findings": [{"claim": "test", "evidence_ids": [citation]}],
+            "citations": [citation],
+        }
+
+    monkeypatch.setattr(agent_workflow, "_call_role", fake_call)
+    monkeypatch.setattr(agent_workflow, "_architecture_settings", lambda: {"evidence_store": False})
+    config = _config()
+    config["agent_workflow"].update({
+        "allow_partial_symbol_research": True,
+        "minimum_symbol_research_success_ratio": 0.8,
+    })
+
+    result = agent_workflow.run_analysis_workflow(
+        context,
+        config,
+        memory_store=agent_workflow.AgentMemoryStore(tmp_path),
+    )
+
+    assert result["degraded_mode"] == "partial_symbol_research"
+    assert result["excluded_symbols"] == ["000009"]
+    assert result["portfolio_symbols"] == [*successful, "000010"]
+    assert result["symbol_research"]["000010"]["status"] == "safe_hold"
+    decisions = {
+        item["symbol"]: item for item in result["portfolio_manager"]["decisions"]
+    }
+    assert "000009" not in decisions
+    assert decisions["000010"]["action"] == "HOLD"
+    assert decisions["000010"]["confidence"] == 0.0
+    assert any(item["symbol"] == "000010" for item in result["safety_overrides"])
+    assert "成功 8/10" in result["warnings"][0]
+
+
+def test_partial_symbol_failures_abort_below_safety_threshold(monkeypatch, tmp_path):
+    context = _context()
+    context["allowed_symbols"] = ["600519", "000001"]
+    monkeypatch.setattr(
+        agent_workflow,
+        "_parallel_symbol_research",
+        lambda symbols, **kwargs: ({}, {symbol: "失败" for symbol in symbols}),
+    )
+    config = _config()
+    config["agent_workflow"].update({
+        "allow_partial_symbol_research": True,
+        "minimum_symbol_research_success_ratio": 0.8,
+    })
+
+    with pytest.raises(RuntimeError, match="安全完成阈值"):
+        agent_workflow.run_analysis_workflow(
+            context,
+            config,
+            memory_store=agent_workflow.AgentMemoryStore(tmp_path),
+        )
 
 
 def test_call_role_retries_truncated_json_and_persists_own_memory(monkeypatch, tmp_path):

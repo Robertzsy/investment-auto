@@ -77,13 +77,17 @@ class GenericOpenAILLM(BaseLLM):
     ) -> Dict[str, Any]:
         """Return content plus normalized tool_calls from one completion."""
         extra_body = kwargs.pop("extra_body", None) or None
+        # Callers may force the final step of a bounded tool loop to submit a
+        # specific function.  Keep ``auto`` as the transport default while
+        # allowing the workflow to tighten it after a read-only catalog call.
+        tool_choice = kwargs.pop("tool_choice", "auto")
         params: Dict[str, Any] = dict(
             model=self._model,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             tools=tools,
-            tool_choice="auto",
+            tool_choice=tool_choice,
             **kwargs,
         )
         if extra_body:
