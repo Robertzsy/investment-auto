@@ -34,3 +34,29 @@
       name: '@investment-auto/dsh-investment-tools'
       config:
         engineUrl: 'http://127.0.0.1:8790'
+
+# ── autonomous-round agent surface ─────────────────────────────────────────
+#
+# The headless agent is host-plane composed (no preset). Shut the coding
+# surface the base enables: no shells, no filesystem tools, no code editor.
+# Skills, web search, goals, subagents and workflows stay available — the
+# round task loads the complete-investment-cycle skill through them.
+- id: tool-bash
+  disabled: true
+
+- id: tool-pwsh
+  disabled: true
+
+- id: tool-fs
+  disabled: true
+
+- id: tool-fs-search
+  disabled: true
+
+- id: tool-str-replace-editor
+  disabled: true
+
+# Autonomous rounds execute an already-approved cycle; plan mode would gate
+# every submission behind an approval channel that has no user attached.
+- id: plan-mode
+  disabled: true

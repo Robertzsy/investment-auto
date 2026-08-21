@@ -222,9 +222,11 @@ def main() -> None:
 
     if args.command == "run":
         logger.info("Starting investment engine + scheduler...")
+        from engine.dsh_bridge import install_dsh_runner
         from engine.scheduler import start
         from engine.investment.command_bus import InvestmentCommandWorker
 
+        install_dsh_runner()
         command_worker = InvestmentCommandWorker().start()
         scheduler = start(catch_up=True)
         try:

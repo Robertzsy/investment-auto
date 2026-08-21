@@ -41,6 +41,11 @@ autonomous:
   command_hard_timeout_seconds: 1800
   command_heartbeat_seconds: 10
   command_idle_timeout_seconds: 300
+  # Investment Auto 2.0: 自主轮次的 AI 决策由 DSH headless 会话完成。
+  dsh_bridge:
+    enabled: true
+    app_dir: app                 # 相对仓库/安装根目录；或设 INVESTMENT_AUTO_APP_DIR
+    node_timeout_seconds: 1800   # 单轮 headless 会话硬上限
   agent_workflow:
     allow_partial_symbol_research: true
     enabled: true
