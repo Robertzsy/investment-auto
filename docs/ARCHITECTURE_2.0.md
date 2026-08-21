@@ -171,8 +171,10 @@ MongoDB/自建）从 .env 提取进 DPAPI 库且回读字节一致，源目录�
   安装版 API Key 后走一轮人工验收（DPAPI overlay 已在 headless 同款
   路径上验证）。
 - **正式 Release**：VM 全流程验收（安装 → 向导 → 对话 → 轮次 → 托盘 →
-  重启恢复 → 卸载保数据）后发布 2.0 安装包；发行门禁
-  `scripts/release-check.ps1` 已切到 2.0 全部测试面。
+  重启恢复 → 卸载保数据）后发布 2.0 安装包。本机已完成发行预检：
+  `scripts/release-manifest-check.ps1`（dotnet publish + 安装器 12 个
+  source 全量校验通过）；构建机按脚本输出的清单执行
+  fetch/bundle-runtime → ISCC → verify-upgrade → VM 验收即可。
 
 ## 7. 扩展方法
 
