@@ -70,6 +70,31 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _complete_setup(self, payload: Dict[str, Any]) -> None:
+        """First-run setup: initialize the paper account, optionally import
+        legacy data, then write the setup marker that releases the desktop
+        shell to start the autonomous engine."""
+        from engine.paths import runtime_dir
+        from engine.portfolio import account
+
+        if not account.exists():
+            account.save({"version": 2, "multiMarket": True, "accounts": {
+                market: {"totalCapital": 500000, "cash": 500000, "holdings": [], "tradeHistory": []}
+                for market in ["cn", "hk", "us", "etf"]
+            }, "fxRates": {"USD_CNY": 7.2, "HKD_CNY": 0.92}})
+            logger.info("setup: initialized paper account")
+        source = str(payload.get("import_from", "")).strip()
+        if source:
+            from engine.migration import plan_migration, run_migration
+
+            items = [item.strip() for item in str(payload.get("items", "")).split(",") if item.strip()] or None
+            logger.info("setup: importing legacy data from %s (items=%s)", source, items or "all")
+            plan_migration(source)
+            run_migration(source, items)
+        marker = runtime_dir() / "setup.complete"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("completed", encoding="utf-8")
+
     def _authorized(self) -> bool:
         token = _api_token()
         if not token:
@@ -208,11 +233,89 @@ class _Handler(BaseHTTPRequestHandler):
 
             self._send(200, {"ok": True, "mandate": get_mandate()})
             return
+        if path == "/api/credentials/resolve":
+            ref = _query(self).get("ref", "").strip()
+            if not ref:
+                self._send(400, {"ok": False, "error": "missing ref"})
+                return
+            from engine.secret_store import load_secret
+
+            value = load_secret(ref)
+            self._send(200, {"ok": True, "ref": ref, "configured": value is not None, "value": value or ""})
+            return
+        if path == "/setup":
+            from engine.api.setup_page import SETUP_PAGE_HTML
+            from engine.migration import detect_sources
+
+            suggested = ""
+            try:
+                sources = detect_sources()
+                if sources:
+                    suggested = str(sources[0]["path"])
+            except Exception:
+                pass
+            page = SETUP_PAGE_HTML.replace(
+                '<div class="hint">检测到旧版项目时会自动填入；数据只复制、不删除。</div>',
+                '<div class="hint">' + (
+                    f"检测到旧版项目：<code>{suggested}</code>（数据只复制、不删除）"
+                    if suggested else "未检测到旧版项目；数据只复制、不删除。"
+                ) + '</div>',
+            )
+            body = page.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path == "/api/setup/status":
+            from engine.paths import runtime_dir
+
+            self._send(200, {"ok": True, "first_run": not (runtime_dir() / "setup.complete").exists()})
+            return
         self._send(404, {"ok": False, "error": "not found", "path": path})
 
     def do_POST(self) -> None:  # noqa: N802
         if not self._authorized():
             self._send(403, {"ok": False, "error": "invalid access token"})
+            return
+        if self.path == "/api/credentials/set":
+            payload = _read_json(self)
+            if payload is None:
+                self._send(400, {"ok": False, "error": "invalid JSON body"})
+                return
+            ref = str(payload.get("ref", "")).strip()
+            if not ref:
+                self._send(400, {"ok": False, "error": "missing ref"})
+                return
+            try:
+                from engine.secret_store import save_secret
+
+                save_secret(ref, str(payload.get("value", "")))
+                self._send(200, {"ok": True, "ref": ref, "configured": bool(str(payload.get("value", "")).strip())})
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("credential set failed")
+                self._send(500, {"ok": False, "error": str(exc)[:500]})
+            return
+        if self.path == "/api/credentials/unset":
+            payload = _read_json(self)
+            if payload is None:
+                self._send(400, {"ok": False, "error": "invalid JSON body"})
+                return
+            ref = str(payload.get("ref", "")).strip()
+            from engine.secret_store import delete_secret
+
+            delete_secret(ref)
+            self._send(200, {"ok": True, "ref": ref, "configured": False})
+            return
+        if self.path == "/api/setup/complete":
+            payload = _read_json(self) or {}
+            try:
+                self._complete_setup(payload)
+                self._send(200, {"ok": True, "setup": "complete"})
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("setup complete failed")
+                self._send(500, {"ok": False, "error": str(exc)[:1000]})
             return
         if self.path != "/api/commands/issue":
             self._send(404, {"ok": False, "error": "not found", "path": self.path})

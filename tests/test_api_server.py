@@ -87,3 +87,52 @@ def test_authorized_mode_rejects_missing_token(monkeypatch, api):
     monkeypatch.setenv("IA_ACCESS_TOKEN", "secret-token")
     status, payload = _post(api, "/api/commands/issue", {"command": "status", "payload": {}})
     assert status == 403
+
+
+def test_credentials_roundtrip(monkeypatch, api):
+    stored = {}
+
+    def fake_save(key, value):
+        stored[key] = value
+
+    def fake_load(key):
+        return stored.get(key)
+
+    def fake_delete(key):
+        stored.pop(key, None)
+
+    monkeypatch.setattr("engine.secret_store.save_secret", fake_save)
+    monkeypatch.setattr("engine.secret_store.load_secret", fake_load)
+    monkeypatch.setattr("engine.secret_store.delete_secret", fake_delete)
+
+    assert _get(api, "/api/credentials/resolve?ref=DEEPSEEK_API_KEY")["configured"] is False
+    status, payload = _post(api, "/api/credentials/set", {"ref": "DEEPSEEK_API_KEY", "value": "sk-test"})
+    assert status == 200 and payload["configured"] is True
+    resolved = _get(api, "/api/credentials/resolve?ref=DEEPSEEK_API_KEY")
+    assert resolved["configured"] is True and resolved["value"] == "sk-test"
+    _post(api, "/api/credentials/unset", {"ref": "DEEPSEEK_API_KEY"})
+    assert _get(api, "/api/credentials/resolve?ref=DEEPSEEK_API_KEY")["configured"] is False
+
+
+def test_setup_status_and_complete(monkeypatch, api, tmp_path):
+    from engine import paths
+
+    marker_dir = tmp_path / "runtime"
+    marker_dir.mkdir()
+    monkeypatch.setattr(paths, "runtime_dir", lambda: marker_dir)
+    from engine.portfolio import account as account_module
+
+    portfolio = tmp_path / "portfolio.json"
+    monkeypatch.setattr(account_module, "_path", lambda: portfolio)
+    monkeypatch.setattr(account_module, "exists", lambda: False)
+    monkeypatch.setattr(
+        "engine.portfolio.account.save",
+        lambda data: portfolio.write_text(json.dumps(data), encoding="utf-8"),
+    )
+
+    assert _get(api, "/api/setup/status")["first_run"] is True
+    status, payload = _post(api, "/api/setup/complete", {"import_from": ""})
+    assert status == 200
+    assert (marker_dir / "setup.complete").exists()
+    assert _get(api, "/api/setup/status")["first_run"] is False
+    assert portfolio.exists()

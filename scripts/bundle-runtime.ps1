@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$Downloads = "",
     [string]$Output = ""
 )
@@ -42,14 +42,19 @@ foreach ($entry in $zip.Entries) {
 }
 $zip.Dispose()
 
-# 2) Node zip
+# 2) Node zip (flattened: build/runtime/node/node.exe for the installer)
 $nodeZip = Get-ChildItem $Downloads -Filter "node-*-win-x64.zip" | Select-Object -First 1
 if (-not $nodeZip) { throw "未找到 node zip，请先运行 fetch-runtime.ps1" }
 $nodeDir = Join-Path $Output "node"
 if (Test-Path $nodeDir) { Remove-Item $nodeDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $nodeDir | Out-Null
-[System.IO.Compression.ZipFile]::ExtractToDirectory($nodeZip.FullName, $nodeDir)
-$nodeRoot = Join-Path $nodeDir (Get-ChildItem $nodeDir -Directory | Select-Object -First 1).Name
+$nodeStage = Join-Path $Output "node-stage"
+if (Test-Path $nodeStage) { Remove-Item $nodeStage -Recurse -Force }
+[System.IO.Compression.ZipFile]::ExtractToDirectory($nodeZip.FullName, $nodeStage)
+$nodeVersionDir = Join-Path $nodeStage (Get-ChildItem $nodeStage -Directory | Select-Object -First 1).Name
+Get-ChildItem (Join-Path $nodeStage $nodeVersionDir) | ForEach-Object { Move-Item $_.FullName $nodeDir }
+Remove-Item $nodeStage -Recurse -Force
+$nodeRoot = $nodeDir
 
 # 3) WebView2 bootstrapper stays in downloads; installer copies it.
 

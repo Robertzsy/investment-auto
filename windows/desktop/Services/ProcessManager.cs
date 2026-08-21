@@ -1,24 +1,38 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace InvestmentAuto.Desktop.Services;
 
 /// <summary>
-/// Owns the background Python services (investment agent + chat) and their
-/// lifecycle.  A Windows Job Object with KILL_ON_JOB_CLOSE guarantees no
-/// orphan python/node process survives the desktop shell exit.
+/// Owns the 2.0 background processes and their lifecycle:
+///   - the investment ENGINE (pythonw -s -m engine.main serve | run), and
+///   - the DSH web app (node dsh --profile investment-web), the conversation
+///     and decision plane.
+/// A Windows Job Object with KILL_ON_JOB_CLOSE guarantees no orphan
+/// python/node process survives the desktop shell exit.
 /// </summary>
 internal sealed class ProcessManager : IDisposable
 {
+    private static readonly Regex WebUrlLine = new(
+        @"dsh web:\s*https?://(127\.0\.0\.1|localhost):(\d+)", RegexOptions.Compiled);
+
     private readonly string _appRoot;
     private readonly string _dataRoot;
     private readonly string _pythonW;
+    private readonly string _node;
     private readonly string _token;
+    private int _enginePort;
+    private int _webPort;
+    private Process? _webProcess;
     private IntPtr _jobHandle;
     private bool _disposed;
 
@@ -29,15 +43,22 @@ internal sealed class ProcessManager : IDisposable
             ?? Environment.GetEnvironmentVariable("INVESTMENT_AUTO_DATA_DIR")
             ?? _appRoot;
         _pythonW = LocatePythonW(_appRoot);
+        _node = LocateNode(_appRoot);
         _token = Environment.GetEnvironmentVariable("IA_ACCESS_TOKEN")
             ?? Convert.ToBase64String(Guid.NewGuid().ToByteArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
         Environment.SetEnvironmentVariable("IA_ACCESS_TOKEN", _token);
-        Log($"init: appRoot={_appRoot} dataRoot={_dataRoot} python={_pythonW}");
+        Log($"init: appRoot={_appRoot} dataRoot={_dataRoot} python={_pythonW} node={_node}");
     }
 
     public string AppRoot => _appRoot;
     public string DataRoot => _dataRoot;
     public string AccessToken => _token;
+
+    /// <summary>Loopback URL of the DSH web app (conversation plane).</summary>
+    public string WebUrl => "http://127.0.0.1:" + _webPort;
+
+    /// <summary>Loopback URL of the engine command API.</summary>
+    public string EngineUrl => "http://127.0.0.1:" + _enginePort;
 
     /// <summary>True when the desktop wizard has never completed.</summary>
     public bool IsFirstRun =>
@@ -64,6 +85,34 @@ internal sealed class ProcessManager : IDisposable
         throw new FileNotFoundException("未找到 pythonw.exe。请先完成安装或初始化。");
     }
 
+    internal static string LocateNode(string appRoot)
+    {
+        var candidates = new[]
+        {
+            Path.Combine(appRoot, "node", "node.exe"),
+            Path.Combine(appRoot, "nodejs", "node.exe"),
+        };
+        foreach (var candidate in candidates)
+            if (File.Exists(candidate)) return candidate;
+
+        var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var dir in path.Split(Path.PathSeparator))
+        {
+            var candidate = Path.Combine(dir, "node.exe");
+            if (File.Exists(candidate)) return candidate;
+        }
+        throw new FileNotFoundException("未找到 node.exe（需要 Node.js 22+）。请先完成安装或初始化。");
+    }
+
+    internal static int PickFreePort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
+    }
+
     public async Task<ChatReady> EnsureRunningAsync(CancellationToken cancellationToken)
     {
         var ready = ReadReadyFile();
@@ -81,24 +130,29 @@ internal sealed class ProcessManager : IDisposable
 
     public void StartPublicServices()
     {
-        // The agent side is idempotent (scheduler lock + worker heartbeat);
-        // the chat side binds a fresh dynamic port and rewrites the ready file.
-        //
-        // First run: only the chat service starts. The autonomous agent must
-        // NOT begin trading before the user finished the wizard (no models,
-        // strategy or mode selected yet). StartAgent() is called after the
-        // setup marker appears.
+        // Idempotent per instance: ports are picked once, the engine is
+        // guarded by its own locks, and the web app binds its fixed port.
         CreateJobObject();
-        if (!IsFirstRun) StartPython("run");
-        StartPython("chat");
+        if (_enginePort == 0) _enginePort = PickFreePort();
+        if (_webPort == 0) _webPort = PickFreePort();
+
+        // The API-only engine always serves the command API (bridge tools +
+        // setup page); the autonomous scheduler must NOT start trading
+        // before the wizard finished. Post-setup, StartAgent() brings up
+        // `run` on top.
+        StartEngine("serve");
+        if (!IsFirstRun) StartEngine("run");
+
+        if (_webProcess == null || _webProcess.HasExited) StartWeb();
     }
 
-    /// <summary>Starts the autonomous agent process (post-setup).</summary>
+    /// <summary>Starts the autonomous engine process (post-setup, idempotent).</summary>
     public void StartAgent()
     {
         if (IsFirstRun) return; // wizard not finished; never start trading
+        if (IsAgentAlive()) return;
         CreateJobObject();
-        StartPython("run");
+        StartEngine("run");
     }
 
     private void Log(string message)
@@ -114,45 +168,160 @@ internal sealed class ProcessManager : IDisposable
         catch { }
     }
 
-    private void StartPython(string command)
+    private Dictionary<string, string> BaseEngineEnv()
     {
+        var env = new Dictionary<string, string>
+        {
+            ["PYTHONUTF8"] = "1",
+            ["PYTHONNOUSERSITE"] = "1",
+            ["INVESTMENT_AUTO_DATA_DIR"] = _dataRoot,
+            ["INVESTMENT_AUTO_APP_DIR"] = Path.Combine(_appRoot, "app"),
+            ["INVESTMENT_API_PORT"] = _enginePort.ToString(),
+            ["IA_ACCESS_TOKEN"] = _token,
+            ["DSH_HOME"] = _dataRoot,
+        };
+        var nodeDir = Path.GetDirectoryName(_node);
+        if (!string.IsNullOrEmpty(nodeDir))
+            env["PATH"] = nodeDir + ";" + (Environment.GetEnvironmentVariable("PATH") ?? "");
+        return env;
+    }
+
+    private void StartEngine(string command)
+    {
+        if (_enginePort == 0) _enginePort = PickFreePort();
         var info = new ProcessStartInfo
         {
             FileName = _pythonW,
             // -s: never load the user's Python user-site packages; the
             // bundled runtime must be able to run entirely on its own.
-            Arguments = "-s -m src.main " + command,
+            Arguments = "-s -m engine.main " + command,
             WorkingDirectory = _appRoot,
             UseShellExecute = false,
             CreateNoWindow = true,
             WindowStyle = ProcessWindowStyle.Hidden,
         };
-        info.Environment["PYTHONUTF8"] = "1";
-        info.Environment["PYTHONNOUSERSITE"] = "1";
-        info.Environment["INVESTMENT_AUTO_DATA_DIR"] = _dataRoot;
-        info.Environment["IA_ACCESS_TOKEN"] = _token;
-        info.Environment["CHAT_OPEN_BROWSER"] = "false";
-        info.Environment["CHAT_PORT"] = "0";
-        // The bundled Node.js must be on PATH for stock-fetcher/macro jobs.
-        var nodeDir = Path.Combine(_appRoot, "node");
-        if (Directory.Exists(nodeDir))
-            info.Environment["PATH"] = nodeDir + ";" + (info.Environment["PATH"] ?? "");
+        foreach (var pair in BaseEngineEnv()) info.Environment[pair.Key] = pair.Value;
         try
         {
             var process = Process.Start(info);
-            Log($"started {command}: {_pythonW} (pid={process?.Id})");
+            Log($"started engine {command}: pid={process?.Id} (api={EngineUrl})");
             if (process != null) AssignToJob(process.Handle);
         }
         catch (Exception ex)
         {
-            Log($"FAILED to start {command}: {ex.Message}");
+            Log($"FAILED to start engine {command}: {ex.Message}");
             throw;
+        }
+    }
+
+    private string WebReadyPath => Path.Combine(_dataRoot, "runtime", "web.ready.json");
+    private string DshPatchPath => Path.Combine(_appRoot, "app", "profiles", "patches", "dpapi-credentials.yml");
+    private string DshBinPath => Path.Combine(_appRoot, "app", "node_modules", "@deepseek-ai", "dsh", "lib", "bin.js");
+
+    private void StartWeb()
+    {
+        if (_webPort == 0) _webPort = PickFreePort();
+        if (!File.Exists(DshBinPath))
+            throw new FileNotFoundException("未找到 DSH 应用（app/node_modules/@deepseek-ai/dsh）。请先完成安装。");
+        var info = new ProcessStartInfo
+        {
+            FileName = _node,
+            // Launcher flags (--profile/--patch) must precede the first app
+            // flag (--port): everything after it is passed through verbatim.
+            Arguments = "\"" + DshBinPath + "\" --profile investment-web"
+                + (File.Exists(DshPatchPath) ? " --patch \"" + DshPatchPath + "\"" : "")
+                + " --port " + _webPort,
+            WorkingDirectory = _appRoot,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
+        };
+        info.Environment["DSH_HOME"] = _dataRoot;
+        info.Environment["DSH_TELEMETRY_DISABLED"] = "1";
+        info.Environment["IA_ACCESS_TOKEN"] = _token;
+        info.Environment["INVESTMENT_ENGINE_URL"] = EngineUrl;
+        info.Environment["INVESTMENT_ENGINE_APP_DIR"] = Path.Combine(_appRoot, "app");
+        var nodeDir = Path.GetDirectoryName(_node);
+        if (!string.IsNullOrEmpty(nodeDir))
+            info.Environment["PATH"] = nodeDir + ";" + (Environment.GetEnvironmentVariable("PATH") ?? "");
+        try
+        {
+            var process = Process.Start(info);
+            _webProcess = process;
+            Log($"started web: pid={process?.Id} (port={_webPort})");
+            if (process != null)
+            {
+                AssignToJob(process.Handle);
+                // Drain output streams (avoids pipe buffer deadlock) and
+                // publish the ready file the moment the URL line appears.
+                _ = Task.Run(() => ObserveWebOutputAsync(process));
+            }
+        }
+        catch (Exception ex)
+        {
+            _webProcess = null;
+            Log($"FAILED to start web: {ex.Message}");
+            throw;
+        }
+    }
+
+    private async Task ObserveWebOutputAsync(Process process)
+    {
+        var errorTask = Task.Run(() => process.StandardError.ReadToEndAsync());
+        try
+        {
+            while (true)
+            {
+                var line = await process.StandardOutput.ReadLineAsync();
+                if (line == null) break;
+                Log("web: " + line);
+                var match = WebUrlLine.Match(line);
+                if (match.Success && int.TryParse(match.Groups[2].Value, out var port))
+                {
+                    PublishReady(port, process.Id);
+                }
+            }
+        }
+        catch (IOException) { /* stream closed on exit */ }
+        catch (Exception ex)
+        {
+            Log("web: output observer failed: " + ex.Message);
+        }
+        try { await errorTask.WaitAsync(TimeSpan.FromSeconds(5)); } catch { }
+        Log("web: process exited rc=" + (process.HasExited ? process.ExitCode : -1));
+    }
+
+    private void PublishReady(int port, int pid)
+    {
+        try
+        {
+            var payload = new ChatReady
+            {
+                Host = "127.0.0.1",
+                Port = port,
+                Token = _token,
+                Url = "http://127.0.0.1:" + port,
+                Pid = pid,
+                StartedAt = DateTime.Now.ToString("o"),
+            };
+            var path = WebReadyPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var temp = path + ".tmp";
+            File.WriteAllText(temp, JsonSerializer.Serialize(payload));
+            File.Move(temp, path, overwrite: true);
+            Log("web: ready file published at " + payload.Url);
+        }
+        catch (Exception ex)
+        {
+            Log("web: FAILED to publish ready file: " + ex.Message);
         }
     }
 
     private ChatReady? ReadReadyFile()
     {
-        var path = Path.Combine(_dataRoot, "runtime", "chat.ready.json");
+        var path = WebReadyPath;
         if (!File.Exists(path)) return null;
         try
         {
@@ -165,11 +334,9 @@ internal sealed class ProcessManager : IDisposable
     {
         try
         {
-            using var client = new System.Net.Http.HttpClient();
+            using var client = new HttpClient();
             client.Timeout = TimeSpan.FromSeconds(2);
-            using var request = new System.Net.Http.HttpRequestMessage(
-                System.Net.Http.HttpMethod.Get, ready.Url + "/api/history");
-            request.Headers.Add("X-IA-Token", ready.Token);
+            using var request = new HttpRequestMessage(HttpMethod.Get, ready.Url + "/");
             var response = await client.SendAsync(request, cancellationToken);
             return (int)response.StatusCode is >= 200 and < 500;
         }
@@ -179,46 +346,31 @@ internal sealed class ProcessManager : IDisposable
     public async Task<RuntimeStatus> FetchStatusAsync(ChatReady ready)
     {
         var status = new RuntimeStatus();
+        status.WebRunning = await IsHealthyAsync(ready, CancellationToken.None);
         try
         {
-            using var client = new System.Net.Http.HttpClient();
-            client.Timeout = TimeSpan.FromSeconds(3);
-            using var request = new System.Net.Http.HttpRequestMessage(
-                System.Net.Http.HttpMethod.Get, ready.Url + "/api/autonomy");
-            request.Headers.Add("X-IA-Token", ready.Token);
-            var response = await client.SendAsync(request);
-            status.ChatRunning = (int)response.StatusCode is >= 200 and < 500;
-            var body = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(body);
-            var root = doc.RootElement;
-            if (root.TryGetProperty("operation_mode", out var mode))
-                status.OperationMode = mode.GetString() ?? "-";
-            if (root.TryGetProperty("mandate", out var mandate) && mandate.TryGetProperty("profile", out var profile))
-                status.Mandate = profile.GetString() ?? "-";
-        }
-        catch { status.ChatRunning = false; }
-
-        try
-        {
-            using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-            using var request = new System.Net.Http.HttpRequestMessage(
-                System.Net.Http.HttpMethod.Get, ready.Url + "/api/harness?limit=1");
-            request.Headers.Add("X-IA-Token", ready.Token);
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+            using var request = new HttpRequestMessage(HttpMethod.Get, EngineUrl + "/api/status");
+            request.Headers.Add("X-IA-Token", _token);
             var response = await client.SendAsync(request);
             if (response.IsSuccessStatusCode)
             {
                 using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
                 var root = doc.RootElement;
-                if (root.TryGetProperty("summary", out var summary)
-                    && summary.TryGetProperty("skills", out var skills))
-                    status.HarnessSkills = skills.GetInt32();
-                if (root.TryGetProperty("executions", out var executions)
-                    && executions.ValueKind == JsonValueKind.Array && executions.GetArrayLength() > 0
-                    && executions[0].TryGetProperty("status", out var latestStatus))
-                    status.HarnessLastStatus = latestStatus.GetString() ?? "就绪";
+                if (root.TryGetProperty("operation_mode", out var mode))
+                    status.OperationMode = mode.GetString() ?? "-";
+                if (root.TryGetProperty("mandate", out var mandate) && mandate.TryGetProperty("profile", out var profile))
+                    status.Mandate = profile.GetString() ?? "-";
+                if (root.TryGetProperty("control", out var control))
+                {
+                    if (control.TryGetProperty("paused", out var paused) && paused.GetBoolean())
+                        status.ControlNote = "已暂停";
+                    if (control.TryGetProperty("kill_switch", out var killed) && killed.GetBoolean())
+                        status.ControlNote = "紧急停止";
+                }
             }
         }
-        catch { /* Harness status is additive; chat health remains authoritative. */ }
+        catch { /* engine down; web health remains authoritative */ }
 
         status.AgentRunning = IsAgentAlive();
         status.LastRound = ReadLastRoundTime();
@@ -356,9 +508,9 @@ internal sealed class ChatReady
     [System.Text.Json.Serialization.JsonPropertyName("started_at")]
     public string StartedAt { get; set; } = "";
 
-    /// <summary>Parses a chat.ready.json payload; null when missing/invalid/portless.
-    /// The ready file is written by Python with lowercase keys (host/port/token/url/
-    /// pid/started_at), so binding must be case-insensitive.</summary>
+    /// <summary>Parses a web.ready.json payload; null when missing/invalid/portless.
+    /// Binding is case-insensitive, and "localhost" is normalized to the IPv4
+    /// loopback WebView2 can actually reach.</summary>
     internal static ChatReady? TryParse(string json)
     {
         try
@@ -366,9 +518,6 @@ internal sealed class ChatReady
             var payload = JsonSerializer.Deserialize<ChatReady>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             if (payload == null || payload.Port <= 0) return null;
-            // Older ready files (and any future writer) may emit "localhost";
-            // WebView2 can resolve that to IPv6 ::1 and hang in SYN_SENT when
-            // the Python server only bound IPv4 loopback. Always use IPv4.
             payload.Url = payload.Url.Replace("://localhost:", "://127.0.0.1:");
             return payload;
         }
@@ -379,10 +528,9 @@ internal sealed class ChatReady
 internal sealed class RuntimeStatus
 {
     public bool AgentRunning { get; set; }
-    public bool ChatRunning { get; set; }
+    public bool WebRunning { get; set; }
     public string OperationMode { get; set; } = "-";
     public string Mandate { get; set; } = "-";
+    public string ControlNote { get; set; } = "";
     public string LastRound { get; set; } = "-";
-    public int HarnessSkills { get; set; }
-    public string HarnessLastStatus { get; set; } = "就绪";
 }

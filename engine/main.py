@@ -142,6 +142,16 @@ def main() -> None:
     _ensure_data_layout(logger)
     from engine.config import cfg
 
+    # Desktop deployments: seed the DSH home (profiles/presets/skills/plugins)
+    # from the installed app/ before the web app or the bridge need them.
+    try:
+        from engine.dsh_home import seed_from_env
+
+        if seed_from_env():
+            logger.info("DSH home seeded from %s", os.getenv("INVESTMENT_AUTO_APP_DIR", ""))
+    except Exception:
+        logger.debug("DSH home seeding skipped", exc_info=True)
+
     if args.command == "init":
         from engine.portfolio import account
 

@@ -1,0 +1,11 @@
+{
+  "name": "@investment-auto/dsh-dpapi-credentials",
+  "version": "2.0.0-p4",
+  "description": "DPAPI-backed credential provider for DeepSeek Harness (Investment Auto 2.0 desktop): secrets live encrypted in the user data root via the engine",
+  "type": "module",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  }
+}

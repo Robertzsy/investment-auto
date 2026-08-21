@@ -83,19 +83,19 @@ public partial class MainWindow : Window
         LogLine("start: core webview2 ready");
 
         // Inject the per-launch token ONLY on requests to our own loopback
-        // service - never on external domains. Also never log the tokenized
-        // URL: the query string carries the secret.
+        // ENGINE API - never on the DSH web origin or external domains. The
+        // DSH web app itself is token-free (loopback-only binding).
         WebView.CoreWebView2.WebResourceRequested += (_, args) =>
         {
             args.Request.Headers.SetHeader("X-IA-Token", ready.Token);
         };
-        // Only OUR service origin (this launch's dynamic port) - not every
-        // loopback port and never external domains.
-        WebView.CoreWebView2.AddWebResourceRequestedFilter(ready.Url + "/*", CoreWebView2WebResourceContext.All);
+        WebView.CoreWebView2.AddWebResourceRequestedFilter(_processManager.EngineUrl + "/*", CoreWebView2WebResourceContext.All);
 
-        var startPage = _processManager.IsFirstRun ? "/setup" : "/";
-        var startUrl = ready.Url + startPage + "?token=" + Uri.EscapeDataString(ready.Token);
-        LogLine("start: navigating to " + ready.Url + startPage + "?token=<redacted>");
+        var firstRun = _processManager.IsFirstRun;
+        var startUrl = firstRun
+            ? _processManager.EngineUrl + "/setup?token=" + Uri.EscapeDataString(ready.Token)
+            : ready.Url + "/";
+        LogLine("start: navigating to " + (firstRun ? "setup page" : ready.Url));
         WebView.CoreWebView2.Navigate(startUrl);
         LogLine("start: navigation issued");
 
@@ -118,36 +118,45 @@ public partial class MainWindow : Window
         {
             if (_ready == null) return;
             var status = await _processManager.FetchStatusAsync(_ready);
-            AgentStatusText.Text = status.AgentRunning ? "投资 Agent: ● 运行中" : "投资 Agent: 未运行";
-            ChatStatusText.Text = status.ChatRunning ? "对话服务: ● 运行中" : "对话服务: 未运行";
-            HarnessText.Text = status.HarnessSkills > 0
-                ? $"Harness: ● {status.HarnessSkills} Skills · {status.HarnessLastStatus}"
-                : "Harness: 未就绪";
+            AgentStatusText.Text = status.AgentRunning ? "投资引擎: ● 运行中" : "投资引擎: 未运行";
+            ChatStatusText.Text = status.WebRunning ? "对话服务: ● 运行中" : "对话服务: 未运行";
             ModeText.Text = "模式: " + status.OperationMode;
             MandateText.Text = "策略: " + status.Mandate;
             RoundText.Text = "轮次: " + status.LastRound;
+            HarnessText.Text = status.ControlNote.Length > 0
+                ? "风控: " + status.ControlNote
+                : "风控: 正常";
 
-            // The wizard just completed: bring the autonomous agent up now.
+            // The wizard just completed: bring the autonomous engine up now
+            // and switch the WebView from the setup page to the assistant.
             // One attempt per launch avoids a pythonw spawn storm.
-            if (!_processManager.IsFirstRun && !status.AgentRunning
-                && status.ChatRunning && !_agentStartAttempted)
+            if (!_processManager.IsFirstRun && !_agentStartAttempted)
             {
                 _agentStartAttempted = true;
                 try
                 {
                     _processManager.StartAgent();
-                    LogLine("status: setup complete, starting investment agent");
+                    LogLine("status: setup complete, starting investment engine");
                 }
                 catch (Exception ex)
                 {
-                    LogLine("status: FAILED to start investment agent: " + ex.Message);
+                    LogLine("status: FAILED to start investment engine: " + ex.Message);
+                }
+                if (_ready != null && WebView.CoreWebView2 != null)
+                {
+                    var current = WebView.Source?.ToString() ?? "";
+                    if (!current.StartsWith(_ready.Url, StringComparison.OrdinalIgnoreCase))
+                    {
+                        LogLine("status: setup done, navigating to " + _ready.Url);
+                        WebView.CoreWebView2.Navigate(_ready.Url + "/");
+                    }
                 }
             }
         }
         catch
         {
             ChatStatusText.Text = "对话服务: 未连接";
-            HarnessText.Text = "Harness: 未连接";
+            HarnessText.Text = "风控: 未知";
         }
     }
 
@@ -221,15 +230,15 @@ public partial class MainWindow : Window
 
     private async Task PauseInvestmentAsync()
     {
-        if (_ready == null) return;
         try
         {
             using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             using var request = new System.Net.Http.HttpRequestMessage(
-                System.Net.Http.HttpMethod.Post, _ready.Url + "/api/autonomy/pause");
-            request.Headers.Add("X-IA-Token", _ready.Token);
+                System.Net.Http.HttpMethod.Post, _processManager.EngineUrl + "/api/commands/issue");
+            request.Headers.Add("X-IA-Token", _processManager.AccessToken);
             request.Content = new System.Net.Http.StringContent(
-                "{}", System.Text.Encoding.UTF8, "application/json");
+                "{\"command\":\"pause\",\"payload\":{\"reason\":\"托盘暂停\"},\"requested_by\":\"desktop\"}",
+                System.Text.Encoding.UTF8, "application/json");
             await client.SendAsync(request);
         }
         catch { }

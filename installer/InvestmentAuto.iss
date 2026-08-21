@@ -1,8 +1,8 @@
-; Investment Auto desktop installer (per-user, no admin, no PowerShell at runtime)
+; Investment Auto 2.0 desktop installer (per-user, no admin, no PowerShell at runtime)
 ; Build: ISCC.exe installer\InvestmentAuto.iss
 
 #define MyAppName "Investment Auto"
-#define MyAppVersion "0.9.1"
+#define MyAppVersion "2.0.0"
 #define MyAppExeName "InvestmentAuto.Desktop.exe"
 #define MyAppPublisher "Investment Auto Contributors"
 
@@ -37,10 +37,12 @@ Name: "chinesesimplified"; MessagesFile: "ChineseSimplified.isl"
 Source: "..\windows\desktop\bin\Release\net8.0-windows\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 ; bundled relocatable Python (with offline-installed dependencies)
 Source: "..\build\runtime\python\*"; DestDir: "{app}\python"; Flags: ignoreversion recursesubdirs
-; portable Node.js
-Source: "..\build\runtime\node\node-v20.18.1-win-x64\*"; DestDir: "{app}\node"; Flags: ignoreversion recursesubdirs
-; application code and static UI
-Source: "..\src\*"; DestDir: "{app}\src"; Flags: ignoreversion recursesubdirs
+; portable Node.js 22 (flattened by bundle-runtime.ps1)
+Source: "..\build\runtime\node\*"; DestDir: "{app}\node"; Flags: ignoreversion recursesubdirs
+; investment engine (Python)
+Source: "..\engine\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs
+; DSH application shell (profiles, presets, skills, plugins, pinned node_modules)
+Source: "..\app\*"; DestDir: "{app}\app"; Flags: ignoreversion recursesubdirs
 Source: "..\scripts\*"; DestDir: "{app}\scripts"; Flags: ignoreversion recursesubdirs
 Source: "..\config\config.yaml"; DestDir: "{app}\config"; Flags: ignoreversion
 Source: "..\config\market\*"; DestDir: "{app}\config\market"; Flags: ignoreversion recursesubdirs

@@ -84,6 +84,12 @@ def test_runner_folds_engine_audit_into_result(monkeypatch, tmp_path):
     }
     audit_path = tmp_path / "audit" / "20260812-100001-cn-auto-101500.json"
     audit_path.write_text(json.dumps(audit_payload, ensure_ascii=False), encoding="utf-8")
+    # Deterministically "written during the run": the runner filters audits by
+    # mtime >= call start.
+    import os
+    import time
+
+    os.utime(audit_path, (time.time() + 5, time.time() + 5))
 
     def fake_run(command, **kwargs):
         return subprocess.CompletedProcess(command, 0, stdout="ok".encode("utf-8"), stderr=b"")
