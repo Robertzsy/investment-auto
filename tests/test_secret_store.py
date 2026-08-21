@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from src import paths, secret_store
+from engine import paths, secret_store
 
 
 @pytest.fixture

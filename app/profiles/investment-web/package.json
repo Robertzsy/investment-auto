@@ -1,0 +1,13 @@
+{
+  "name": "investment-web-profile",
+  "private": true,
+  "version": "2.0.0-p0",
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app"
+      ]
+    }
+  }
+}

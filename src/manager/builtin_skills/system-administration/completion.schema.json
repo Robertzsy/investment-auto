@@ -1,1 +1,0 @@
-{"required_steps": ["catalog", "report"], "required_outputs": ["catalog.skills", "catalog.actions", "report.user_report"]}

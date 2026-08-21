@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from src import migration, paths
+from engine import migration, paths
 
 
 def _legacy_tree(tmp_path: Path) -> Path:
@@ -90,7 +90,7 @@ def test_env_secrets_move_to_dpapi_and_plaintext_removed(monkeypatch, tmp_path):
     result = migration.run_migration(str(root), ["env"])
 
     assert "DEEPSEEK_API_KEY" in result["secrets_migrated"]
-    from src import secret_store
+    from engine import secret_store
 
     assert secret_store.load_secret("DEEPSEEK_API_KEY") == "sk-legacy-secret"
     copied_env = (data_root / ".env").read_text(encoding="utf-8")

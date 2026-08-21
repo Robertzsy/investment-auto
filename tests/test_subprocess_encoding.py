@@ -4,11 +4,11 @@ from __future__ import annotations
 import subprocess
 from types import SimpleNamespace
 
-from src.data import fetcher
-from src import main as main_module
-from src import subprocess_utils
-from src.subprocess_utils import decode_subprocess_output, hidden_subprocess_kwargs
-from src.platform import market_tools
+from engine.data import fetcher
+from engine import main as main_module
+from engine import subprocess_utils
+from engine.subprocess_utils import decode_subprocess_output, hidden_subprocess_kwargs
+from engine.platform import market_tools
 
 
 def test_windows_stdio_is_reconfigured_to_utf8(monkeypatch):

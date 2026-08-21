@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from src import paths
+from engine import paths
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -41,8 +41,8 @@ def test_module_constants_follow_data_root_in_fresh_process(monkeypatch, tmp_pat
     A fresh interpreter with the env set must bind constants to the data root."""
     data = tmp_path / "fresh-data"
     code = (
-        "from src.portfolio import account as a\n"
-        "from src import scheduler as s\n"
+        "from engine.portfolio import account as a\n"
+        "from engine import scheduler as s\n"
         "print(a.RUNTIME)\n"
         "print(s.SCHEDULER_LOCK)\n"
     )

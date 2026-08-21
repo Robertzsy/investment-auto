@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from src.investment import command_bus
+from engine.investment import command_bus
 
 
 @pytest.fixture
@@ -28,12 +28,6 @@ def isolated_bus(monkeypatch, tmp_path):
 
 
 def test_running_command_heartbeat_prevents_idle_timeout(monkeypatch, isolated_bus):
-    acknowledged = []
-    monkeypatch.setattr(
-        "src.manager.report_inbox.acknowledge_event",
-        lambda event_id: acknowledged.append(event_id) or True,
-    )
-
     def fake_execute(self, envelope, *, progress_callback=None, write_audit=True):
         assert progress_callback is not None
         progress_callback("研究开始")
@@ -42,11 +36,10 @@ def test_running_command_heartbeat_prevents_idle_timeout(monkeypatch, isolated_b
             "ok": True,
             "status": "generated",
             "market": "cn",
-            "chat_delivery": {"status": "queued_for_chat", "event_id": "a" * 32},
         }
 
     monkeypatch.setattr(
-        "src.investment.service.InvestmentAgentService.execute_envelope",
+        "engine.investment.service.InvestmentAgentService.execute_envelope",
         fake_execute,
     )
     worker = command_bus.InvestmentCommandWorker(poll_seconds=0.01).start()
@@ -63,7 +56,6 @@ def test_running_command_heartbeat_prevents_idle_timeout(monkeypatch, isolated_b
 
     assert result["status"] == "generated"
     assert updates == ["研究开始"]
-    assert acknowledged == ["a" * 32]
 
 
 def test_command_without_progress_or_activity_hits_idle_timeout(isolated_bus):

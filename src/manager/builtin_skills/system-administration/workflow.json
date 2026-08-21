@@ -1,1 +1,0 @@
-{"steps": [{"id": "catalog", "action": "system.capabilities", "required": true, "retries": 0}, {"id": "report", "action": "report.system", "required": true, "retries": 0}]}

@@ -47,9 +47,9 @@ tools/webview2-diag/obj/
 # bundled runtimes and downloads (build artifacts, large binaries)
 build/
 
-# runtime-installed manager tools (created via create_manager_tool)
-src/manager/tools/*
-!src/manager/tools/__init__.py
+# DSH app (2.0)
+app/node_modules/
+app/dev-home/
 
 # python
 __pycache__/

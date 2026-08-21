@@ -1,1 +1,0 @@
-{"steps": [{"id": "portfolio", "action": "portfolio.snapshot", "required": true, "retries": 0}, {"id": "report", "action": "report.portfolio", "required": true, "retries": 0}]}

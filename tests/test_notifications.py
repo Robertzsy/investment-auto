@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src import notifications
+from engine import notifications
 
 
 def test_notifications_are_non_blocking_when_disabled(monkeypatch):

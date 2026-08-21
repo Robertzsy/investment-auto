@@ -1,0 +1,40 @@
+# Investment Auto 2.0 — web profile patch layer.
+#
+# Applied over the bundle layers (dsh-base then dsh-web-app), before the
+# home-level $DSH_HOME/cordis.patch.yml and any --patch overlays.
+# A patch replaces the targeted row's whole `config` — restate fields you keep.
+# This file is seeded into $DSH_HOME/profiles/investment-web/ by
+# app/scripts/seed.ps1 (dev) and by the desktop installer (production).
+
+# Deployment persona for preset-less agents. The investment agent preset
+# carries its own persona and shadows this one per session.
+- id: system-prompt
+  config:
+    persona: >-
+      You are Investment Auto 2.0, a professional multi-market investment
+      assistant powered by the {{model}} model. Your working directory is
+      {{cwd}}.
+
+# The investment preset is the default for new sessions. roots is owned by
+# the boot overlay (shipped system presets only); the harness-home user root
+# ($DSH_HOME/.agent-presets) is appended by the package and carries our
+# seeded `investment` preset.
+- id: agent-presets
+  config:
+    default: investment
+    includeUserRoot: true
+
+# Keep telemetry off for this product regardless of environment.
+- id: session-telemetry-otel
+  config:
+    mode: DISABLED
+    shutdownTimeoutMillis: 3000
+    exporter:
+      url: !!js process.env.DSH_TELEMETRY_OTLP_URL ?? 'https://harness-telemetry.deepseeksvc.com/v1/logs'
+      compression: gzip
+      timeoutMillis: 1000
+    processor:
+      scheduledDelayMillis: 10000
+      maxQueueSize: 2048
+      maxExportBatchSize: 2048
+      exportTimeoutMillis: 1500

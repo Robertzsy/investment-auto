@@ -1,8 +1,0 @@
-{
-  "required_steps": ["incident", "replay", "report"],
-  "required_outputs": ["incident.diagnosis.category", "replay.status", "report.user_report", "report.sources"],
-  "quality_gates": [
-    {"path": "replay.semantic_validation_passed", "operator": "equals", "value": true, "message": "原始用户请求必须在补丁后重新执行并通过语义完成契约"},
-    {"path": "report.semantic_validation_passed", "operator": "equals", "value": true, "message": "报告不得把未经回放验证的变更称为修复完成"}
-  ]
-}

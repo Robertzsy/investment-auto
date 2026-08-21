@@ -1,1 +1,0 @@
-{"steps": [{"id": "screen", "action": "market.screen", "required": true, "retries": 1}, {"id": "report", "action": "report.screening", "required": true, "retries": 0}]}

@@ -1,0 +1,13 @@
+{
+  "name": "investment-auto-app",
+  "private": true,
+  "version": "2.0.0-p0",
+  "description": "Investment Auto 2.0 — DeepSeek Harness application shell (custom profiles, investment agent preset, skills)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.1.0-rc.6"
+  }
+}

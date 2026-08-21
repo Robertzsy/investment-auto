@@ -1,1 +1,0 @@
-{"steps": [{"id": "cycle", "action": "investment.run_scheduled_cycle", "required": true, "retries": 0, "input_defaults": {"label": "scheduled-skill", "cycle_type": "intraday"}}]}

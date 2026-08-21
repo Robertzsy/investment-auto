@@ -1,7 +1,0 @@
-{
-  "steps": [
-    {"id": "incident", "action": "incident.inspect", "required": true, "retries": 0},
-    {"id": "replay", "action": "incident.replay", "required": true, "retries": 0},
-    {"id": "report", "action": "report.incident", "required": true, "retries": 0}
-  ]
-}

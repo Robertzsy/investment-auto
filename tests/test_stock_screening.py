@@ -5,10 +5,10 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src import screening
-from src.optimizer import runner
-from src.screening import engine
-from src.screening import storage
+from engine import screening
+from engine.optimizer import runner
+from engine.screening import engine
+from engine.screening import storage
 
 
 NOW = datetime(2026, 8, 12, 10, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
