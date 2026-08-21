@@ -1,6 +1,6 @@
 # 更新日志
 
-## 2.0.0-preview — DeepSeek Harness 底座重构（2026-08-21，分支 `dsch/2.0`）
+## 2.0.0 — DeepSeek Harness 底座重构（2026-08-22，分支 `dsch/2.0`）
 
 Investment Auto 2.0 以 DeepSeek Harness（DSH）为运行底座全面重建：对话、会话、
 模型调用、工具、Skills、plan/goal/子代理/工作流全部来自 DSH；1.x 的业务能力收敛为
@@ -13,8 +13,7 @@ Investment Auto 2.0 以 DeepSeek Harness（DSH）为运行底座全面重建：�
 - **P1 对话+桥**：引擎只读 API（状态/行情/选股/组合/报告/宏观/授权书）+ 17 个
   `investment_*` 工具（`ctx.tools.register` 原生插件）+ 投资 persona。
 - **P2 投资 Skills**：`submit_decisions` 执行链（引擎自行取价 → 授权书硬边界 →
-  `build_orders` 风控 → 纸面撮合 → 审计/报告/反思）+ 7 个 DSH `SKILL.md`
-  （证券分析/市场概览/选股/组合检查/组合优化/完整投资周期/账户管理）+
+  `build_orders` 风控 → 纸面撮合 → 审计/报告/反思）+ 7 个 DSH `SKILL.md` +
   技能-工具一致性校验。
 - **P3 自主轮次**：`engine/dsh_bridge.py` 在调度时刻 spawn DSH headless 会话
   （同一套工具与 Skills；shell/文件/编辑/ralph/plan 模式关闭），runner 以引擎审计
@@ -23,12 +22,21 @@ Investment Auto 2.0 以 DeepSeek Harness（DSH）为运行底座全面重建：�
   `--patch` overlay、就绪解析、Job Object）；DPAPI 凭据 provider（密钥不落明文）；
   `/setup` 首次向导（导入旧数据 + 初始化 + 完成前不启动自动投资）；引擎启动自动播种
   DSH home（安装版零 PowerShell）；Node 22 运行时与安装器脚本。
-- **P5 门禁与实测**：发行门禁覆盖 Python/C#/插件/技能全测试面；自主轮次真实模型
-  端到端实测（真实行情研究 → 3 决策 → 纸面成交 → 审计/报告/反思）；真实 1.x 数据
-  迁移实测（15 项数据 + 4 密钥 DPAPI 无损导入）。
-- **实测修复**：工具 render 契约（内容块而非裸字符串）、桥进程环境
-  （INVESTMENT_ENGINE_URL 派生）、runner 注册范围（serve 进程同样执行轮次）。
-- **测试基线**：Python 121 项 + C# 桌面 20 项 + Node 插件 6 项 + 技能结构校验。
+- **P5 UI 扩展与发布**：客户端投资工具卡片（`tool.call.toolview` 键控视图：
+  status/portfolio/mandate）；发行门禁覆盖 Python/C#/插件/技能/插件契约 +
+  捆绑运行时全量测试；自主轮次真实模型 E2E（真实行情研究 → 决策 → 纸面成交 →
+  审计/报告/反思）；真实 1.x 数据迁移实测（15 项数据 + 4 密钥 DPAPI 无损导入）；
+  web 对话面自动化验证（浏览器 wire 协议驱动，preset 挂载 + 工具调用）。
+- **安装版实测（本机全流程）**：静默安装 → 首次向导 → DPAPI 密钥 → 完成初始化 →
+  自动启动投资引擎 → 安装版对话 PASS → 静默升级 63 个数据文件字节级一致。
+- **实测修复**：工具 render 契约（内容块而非裸字符串）、桥进程环境、runner 注册
+  范围、DSH patch 不可改行 `name`（凭据 overlay 改为禁用+insert）、
+  PowerShell 脚本 BOM（5.1 兼容）、Node 运行时版本选择。
+- **测试基线**：Python 121 项（含捆绑运行时）+ C# 桌面 20 项 + Node 插件 6 项 +
+  技能/插件契约检查，发行门禁全绿。
+
+安装包：`release/InvestmentAuto-Setup-x64.exe`（184.8 MB）
+SHA-256：`EE1C2A53266F0C41C07F346434B880E931DF4179DE15341A1F843BB6FF452451`
 
 详细架构见 `docs/ARCHITECTURE_2.0.md`、`docs/ENGINE_API.md`；1.x 保留在 `master`。
 

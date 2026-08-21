@@ -92,6 +92,9 @@ skills/plugins 到用户数据目录（已存在不覆盖）；安装版全程�
 
 模型与密钥：DSH「设置 → 模型」页配置；桌面 overlay 把凭据存储换成引擎
 DPAPI store（`app/plugins/dsh-dpapi-credentials`），密钥不落明文文件。
+注意：DSH patch 不允许修改行的 `name`（name mismatch 直接跳过），因此
+overlay 采用「禁用原 credentials 行 + insert 新 credentials-dpapi 行」的
+形式（该缺陷在安装版实测中发现并修复）。
 
 ## 4. 安全边界（铁律）
 
@@ -172,11 +175,14 @@ MongoDB/自建）从 .env 提取进 DPAPI 库且回读字节一致，源目录�
   investment`（对话 preset 在真实 web 会话中挂载），真实模型调用
   `investment_status` 并经引擎返回正确回答（operation_mode + kill_switch），
   `turn/end: completed`。人工体验确认（视觉/交互）仍建议在安装版走一轮。
-- **正式 Release**：VM 全流程验收（安装 → 向导 → 对话 → 轮次 → 托盘 →
-  重启恢复 → 卸载保数据）后发布 2.0 安装包。本机已完成发行预检：
-  `scripts/release-manifest-check.ps1`（dotnet publish + 安装器 12 个
-  source 全量校验通过）；构建机按脚本输出的清单执行
-  fetch/bundle-runtime → ISCC → verify-upgrade → VM 验收即可。
+- **正式 Release**：✅ 已产出 —— `release/InvestmentAuto-Setup-x64.exe`
+  （184.8 MB，SHA-256 `EE1C2A53266F0C41C07F346434B880E931DF4179DE15341A1F843BB6FF452451`，
+  Inno Setup 6.7.3 编译）。本机安装版实测：静默安装 → 首次向导 →
+  DPAPI 密钥配置 → 完成初始化 → 自动启动投资引擎（17 个调度任务）→
+  安装版 web 对话（preset 挂载 + 真实模型 + investment_status 工具，
+  驱动脚本 PASS）→ 静默升级 63 个数据文件字节级一致（missing/changed
+  = 0）→ 完整发行门禁（含捆绑运行时 Python 121 项）全绿。按你的要求
+  以本机实测替代干净 VM 验收。
 
 ## 7. 扩展方法
 

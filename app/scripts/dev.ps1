@@ -1,4 +1,4 @@
-# Investment Auto 2.0 — development launcher for the DSH web app.
+﻿# Investment Auto 2.0 — development launcher for the DSH web app.
 #
 # Usage:
 #   .\app\scripts\dev.ps1 [-Port 4567] [-Install] [-ForceSeed]

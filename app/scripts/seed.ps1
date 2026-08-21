@@ -1,4 +1,4 @@
-# Investment Auto 2.0 — seed DSH home from the repo-owned sources.
+﻿# Investment Auto 2.0 — seed DSH home from the repo-owned sources.
 #
 # Copies (dev) or refreshes (production first-run / upgrade):
 #   app/profiles/*            -> $DSH_HOME/profiles/*
