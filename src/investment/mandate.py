@@ -11,7 +11,8 @@ from zoneinfo import ZoneInfo
 
 
 ROOT = Path(__file__).resolve().parents[2]
-MANDATE_FILE = ROOT / "runtime" / "investment" / "mandate.json"
+from src.paths import runtime_dir
+MANDATE_FILE = runtime_dir() / "investment" / "mandate.json"
 _lock = threading.RLock()
 
 

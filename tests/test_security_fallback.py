@@ -10,9 +10,17 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-from src.llm import registry
+from src.llm import agent_model, registry
 from src.llm.adapter import GenericOpenAILLM
 from src.ui import server
+
+
+@pytest.fixture(autouse=True)
+def isolated_investment_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from src.investment import service
+
+    monkeypatch.setenv("INVESTMENT_AGENT_TRANSPORT", "local")
+    monkeypatch.setattr(service, "COMMAND_DIR", tmp_path / "investment_commands")
 
 
 class _FakeHandler:
@@ -31,7 +39,9 @@ def test_env_endpoint_masks_sensitive_values(monkeypatch: pytest.MonkeyPatch, tm
         f"OPENAI_API_KEY={secret}\nPUBLIC_REGION=cn-east\nEMPTY_TOKEN=\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.setattr(server, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
     handler = _FakeHandler()
 
     server.ChatHandler._handle_get_env(handler)  # type: ignore[arg-type]
@@ -48,7 +58,9 @@ def test_env_save_validates_and_updates_running_environment(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     (tmp_path / ".env").write_text("EXISTING_API_KEY=keep-me\n", encoding="utf-8")
-    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.setattr(server, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
     monkeypatch.delenv("NEW_API_KEY", raising=False)
     handler = _FakeHandler(b'{"EXISTING_API_KEY":"","NEW_API_KEY":"fresh"}')
 
@@ -70,13 +82,32 @@ def test_env_save_validates_and_updates_running_environment(
     assert "BAD\nKEY=value" not in (tmp_path / ".env").read_text(encoding="utf-8")
 
 
+def test_save_secrets_updates_dpapi_and_current_process_without_plaintext_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    saved = {}
+    monkeypatch.setattr("src.secret_store.save_secret", lambda name, value: saved.update({name: value}))
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    handler = _FakeHandler(b'{"DEEPSEEK_API_KEY":"dpapi-test-secret"}')
+
+    server.ChatHandler._handle_save_secrets(handler)  # type: ignore[arg-type]
+
+    assert handler.responses[-1] == (200, {"ok": True})
+    assert saved == {"DEEPSEEK_API_KEY": "dpapi-test-secret"}
+    assert os.environ["DEEPSEEK_API_KEY"] == "dpapi-test-secret"
+    assert not (tmp_path / ".env").exists()
+
+
 def test_operation_mode_api_enables_complete_cycle_execution(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("INVESTMENT_AGENT_TRANSPORT", "local")
     config_dir = tmp_path / "config"
     config_dir.mkdir()
     config_path = config_dir / "config.yaml"
     config_path.write_text("autonomous:\n  enabled: false\n  auto_execute: false\n", encoding="utf-8")
-    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.setattr(server, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
     monkeypatch.setattr("src.config.cfg._path", config_path)
     monkeypatch.setattr("src.config.cfg.reload", lambda: None)
 
@@ -99,9 +130,19 @@ def test_operation_mode_api_enables_complete_cycle_execution(monkeypatch: pytest
 
 
 def test_autonomy_status_api_exposes_operation_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    from src.trading import controller
-
-    monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
+    monkeypatch.setattr(
+        "src.investment.status.runtime_status",
+        lambda: {
+            "operation_mode": "automatic",
+            "auto_execute": True,
+            "control": {},
+            "mandate": {"profile": "neutral"},
+        },
+    )
+    monkeypatch.setattr(
+        "src.investment.command_bus.InvestmentAgentClient.issue",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("status must not enter command queue")),
+    )
     handler = _FakeHandler()
 
     server.ChatHandler._handle_autonomy_status(handler)  # type: ignore[arg-type]
@@ -145,7 +186,9 @@ def test_market_config_api_exposes_rules_and_updates_only_risk_controls(
             yaml.safe_dump(base, allow_unicode=True, sort_keys=False),
             encoding="utf-8",
         )
-    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.setattr(server, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
 
     get_handler = _FakeHandler()
     server.ChatHandler._handle_get_market_configs(get_handler)  # type: ignore[arg-type]
@@ -182,7 +225,9 @@ def test_market_config_api_exposes_rules_and_updates_only_risk_controls(
 def test_market_config_api_rejects_unexposed_or_invalid_controls(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(server, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(server, "data_root", lambda: tmp_path)
+    monkeypatch.setattr(server, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(server, "runtime_dir", lambda: tmp_path / "runtime")
     unknown = _FakeHandler(b'{"cn":{"risk":{"commission_rate":0}}}')
     server.ChatHandler._handle_save_market_configs(unknown)  # type: ignore[arg-type]
     assert unknown.responses[-1][0] == 400
@@ -363,6 +408,45 @@ def test_provider_never_reuses_openai_key_for_another_vendor(monkeypatch: pytest
                 "model": "deepseek-v4-pro",
             }
         )
+
+
+def test_legacy_adapter_uses_shared_dpapi_aware_key_resolver(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured = {}
+    monkeypatch.delenv("TEST_API_KEY", raising=False)
+    monkeypatch.setattr("src.llm.adapter.cfg.llm_api_key", lambda provider, provider_config=None: "dpapi-value")
+    monkeypatch.setattr(
+        "src.llm.adapter.OpenAI",
+        lambda **kwargs: captured.update(kwargs) or SimpleNamespace(),
+    )
+
+    GenericOpenAILLM({
+        "provider_name": "test", "api_key_env": "TEST_API_KEY",
+        "api_base": "https://example.invalid/v1", "model": "test-model",
+    })
+    assert captured["api_key"] == "dpapi-value"
+
+
+def test_pydantic_agent_model_uses_shared_dpapi_aware_key_resolver(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured = {}
+    provider_config = {
+        "provider_name": "test", "api_key_env": "TEST_API_KEY",
+        "api_base": "https://example.invalid/v1", "model": "test-model",
+    }
+    monkeypatch.delenv("TEST_API_KEY", raising=False)
+    monkeypatch.setattr(agent_model.cfg, "llm_model_config", lambda provider: provider_config)
+    monkeypatch.setattr(agent_model.cfg, "llm_api_key", lambda provider, config=None: "dpapi-value")
+    monkeypatch.setattr(agent_model, "OpenAIProvider", lambda **kwargs: captured.update(kwargs) or "provider")
+    monkeypatch.setattr(agent_model, "OpenAIChatModel", lambda name, provider: (name, provider))
+
+    assert agent_model._configured_model("test") == ("test-model", "provider")
+    assert captured["api_key"] == "dpapi-value"
+
+
+def test_settings_page_saves_llm_keys_to_secret_api():
+    html = (Path(__file__).parents[1] / "src" / "ui" / "settings.html").read_text(encoding="utf-8")
+    assert "fetch('/api/secrets')" in html
+    assert "secretKeys.has(envKey)" in html
+    assert "body: JSON.stringify(newSecrets)" in html
 
 
 def test_llm_client_uses_bounded_configurable_request_timeout(

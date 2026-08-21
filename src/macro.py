@@ -12,10 +12,11 @@ from zoneinfo import ZoneInfo
 
 from src.config import cfg
 from src.runtime_lock import atomic_claim
-from src.subprocess_utils import decode_subprocess_output
+from src.subprocess_utils import decode_subprocess_output, hidden_subprocess_kwargs
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA_ROOT = ROOT / "runtime" / "macro"
+from src.paths import runtime_dir
+DATA_ROOT = runtime_dir() / "macro"
 SCRIPT = ROOT / "scripts" / "macro-environment" / "run.js"
 logger = logging.getLogger("investment-auto.macro")
 
@@ -164,6 +165,7 @@ def run_daily(*, force: bool = False, now: Optional[datetime] = None, data_root:
             env=env,
             capture_output=True,
             timeout=int(cfg.schedule.get("macro_timeout_seconds", 240)),
+            **hidden_subprocess_kwargs(),
         )
         stdout = decode_subprocess_output(process.stdout)
         stderr = decode_subprocess_output(process.stderr)

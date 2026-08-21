@@ -22,7 +22,7 @@ def test_chat_ui_sanitizes_all_markdown_before_inner_html():
     assert "return sanitizeHtml(rendered);" in html
     assert "body.innerHTML = sanitizeHtml(html);" in html
     assert "appendMessage('user', renderMarkdown(displayText, true));" in html
-    assert "appendMessage(m.role, renderMarkdown(m.content || ''));" in html
+    assert "appendMessage(m.role, renderMarkdown(m.content || ''), false, m.time);" in html
 
     marked_lines = [line.strip() for line in html.splitlines() if "marked.parse" in line]
     assert marked_lines == [
@@ -33,8 +33,13 @@ def test_chat_ui_sanitizes_all_markdown_before_inner_html():
 
 @pytest.fixture(autouse=True)
 def isolated_chat_state(monkeypatch, tmp_path):
+    from src.investment import service
+    from src.manager import report_inbox
+
     monkeypatch.setattr(chat_server, "HISTORY_FILE", tmp_path / "chat_history.json")
     monkeypatch.setattr(chat_server, "MEMORY_FILE", tmp_path / "chat_memory.md")
+    monkeypatch.setattr(service, "COMMAND_DIR", tmp_path / "investment_commands")
+    monkeypatch.setattr(report_inbox, "INBOX_DIR", tmp_path / "report_inbox")
     with chat_server._cancel_lock:
         chat_server._cancel_events.clear()
         chat_server._active_request_ids.clear()
@@ -155,27 +160,30 @@ def test_typed_manager_catalog_exposes_versioned_management_not_shell_or_executi
     tool_names = set(agent_runtime.MANAGER_AGENT._function_toolset.tools)
 
     assert tool_names == {
-        "consult_portfolio_agent",
-        "consult_risk_agent",
-        "consult_report_agent",
-        "consult_ops_agent",
-        "search_security",
-        "get_security_snapshot",
-        "get_stock_screening",
-        "run_complete_investment_cycle",
-        "manage_investment_agent",
-        "run_portfolio_optimizer",
-        "inspect_investment_agent_code",
-        "modify_investment_agent_code",
-        "remember_user_preference",
-        "search_project",
-        "list_manager_capabilities",
-        "get_cycle_evidence",
-        "install_manager_skill",
-        "load_manager_skill",
-        "install_manager_tool",
+        "run_skill",
+        "list_skills",
+        "schedule_skill",
+        "list_skill_schedules",
+        "manage_runtime",
+        "handoff_session",
     }
     assert not ({"run_shell", "write_file", "execute_orders"} & tool_names)
+
+
+def test_chat_history_redacts_api_keys_on_write_and_migrates_existing_plaintext():
+    secret = "sk-" + "history-secret-1234567890"
+    chat_server.append_history("user", f"请配置 {secret}")
+    raw = chat_server.HISTORY_FILE.read_text(encoding="utf-8")
+    assert secret not in raw
+    assert "********" in raw
+
+    chat_server.HISTORY_FILE.write_text(
+        '[{"role":"user","content":"API_KEY=' + secret + '","time":"now"}]',
+        encoding="utf-8",
+    )
+    loaded = chat_server.load_history(10)
+    assert secret not in loaded[0]["content"]
+    assert secret not in chat_server.HISTORY_FILE.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize(
@@ -211,7 +219,11 @@ def test_button_cycle_stream_runs_directly_without_llm(monkeypatch):
 
     events = list(chat_server.handle_investment_cycle_stream("us", request_id="button-cycle"))
 
-    assert events[0] == {"type": "tool", "name": "run_complete_investment_cycle", "params": {"market": "us"}}
+    assert events[0] == {
+        "type": "tool",
+        "name": "run_skill",
+        "params": {"skill_name": "complete-investment-cycle", "market": "us"},
+    }
     assert "美股完整投资轮次" in events[-1]["content"]
 
 
@@ -316,6 +328,28 @@ def test_full_cycle_result_does_not_report_paused_round_as_success():
     assert "人工暂停" in answer
 
 
+def test_full_cycle_result_surfaces_partial_research_degradation():
+    from src.investment.reporting import format_cycle_result
+
+    answer = format_cycle_result({
+        "status": "generated",
+        "market": "us",
+        "report": "",
+        "notification": {"status": "skipped"},
+        "autonomous": {
+            "status": "no_trade",
+            "degraded_mode": "partial_symbol_research",
+            "warnings": ["逐标的研究部分降级：成功 18/20；排除候选 SPCX、WDC。"],
+            "fills": [],
+        },
+    })
+
+    assert "⚠️" in answer
+    assert "已完成分析与风控" in answer
+    assert "降级说明" in answer
+    assert "SPCX、WDC" in answer
+
+
 def test_explicit_global_resume_command_is_delegated_to_manager(monkeypatch, tmp_path):
     from src.trading import control
 
@@ -405,6 +439,25 @@ class _FakeCompletions:
     def create(self, **params):
         self.params = params
         return self.stream
+
+
+def test_generic_openai_tools_accept_forced_tool_choice():
+    message = SimpleNamespace(content="", tool_calls=[])
+    response = SimpleNamespace(choices=[SimpleNamespace(message=message)])
+    completions = _FakeCompletions(response)
+    llm = GenericOpenAILLM.__new__(GenericOpenAILLM)
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+    llm._model = "test-model"
+    llm._provider_name = "test"
+    forced = {"type": "function", "function": {"name": "submit_analysis"}}
+
+    llm.chat_tools(
+        [{"role": "user", "content": "hi"}],
+        tools=[],
+        tool_choice=forced,
+    )
+
+    assert completions.params["tool_choice"] == forced
 
 
 def test_generic_openai_stream_closes_inflight_http_read_on_cancel():

@@ -8,6 +8,7 @@ config/secrets/
 config.local.yaml
 
 # runtime data (never commit user trading data)
+/runtime/
 runtime/data/
 runtime/logs/
 runtime/reports/
@@ -17,14 +18,38 @@ runtime/macro/
 runtime/trading/
 runtime/investment/
 runtime/memory/
+runtime/deploy-backups/
+runtime/launcher/
+runtime/manager/
+runtime/research/
 /runtime/*.lock
 /runtime/chat_*
+
+# release artifacts
+release/
+dist/
+InvestmentAuto.exe
 /data/*
 !/data/macro/
 *.db
 *.sqlite
 portfolio.json
 watchlist.json
+
+# desktop build outputs
+windows/desktop/bin/
+windows/desktop/obj/
+windows/desktop/**/bin/
+windows/desktop/**/obj/
+tools/webview2-diag/bin/
+tools/webview2-diag/obj/
+
+# bundled runtimes and downloads (build artifacts, large binaries)
+build/
+
+# runtime-installed manager tools (created via create_manager_tool)
+src/manager/tools/*
+!src/manager/tools/__init__.py
 
 # python
 __pycache__/
@@ -35,7 +60,6 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-dist/
 
 # os/editor
 .DS_Store

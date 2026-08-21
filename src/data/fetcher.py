@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from src.subprocess_utils import decode_subprocess_output
+from src.subprocess_utils import decode_subprocess_output, hidden_subprocess_kwargs
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 FETCHER_JS = ROOT / "scripts" / "stock-fetcher.js"
@@ -17,6 +17,7 @@ def _run_node(args: List[str], *, timeout: int = 50) -> Any:
         cwd=str(ROOT),
         capture_output=True,
         timeout=timeout,
+        **hidden_subprocess_kwargs(),
     )
     stdout = decode_subprocess_output(p.stdout)
     stderr = decode_subprocess_output(p.stderr)

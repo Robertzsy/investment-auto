@@ -8,15 +8,17 @@ from typing import Any, Dict, List, Optional
 import yaml
 from dotenv import load_dotenv
 
-# ── project root ──────────────────────────────────────
+from src.paths import config_dir, data_root, market_config_dir
+
+# ── project root (code root) ──────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
 
 def _default_config_path() -> Path:
     p = os.getenv("CONFIG_PATH")
-    return Path(p) if p else ROOT / "config" / "config.yaml"
+    return Path(p) if p else config_dir() / "config.yaml"
 
 # ── load env ────────────────────────────────────────
-loaded = load_dotenv(ROOT / ".env") or load_dotenv(ROOT / ".env.example") or None
+loaded = load_dotenv(data_root() / ".env") or load_dotenv(ROOT / ".env.example") or None
 
 # ── config singleton ─────────────────────────────
 class AppConfig:
@@ -38,7 +40,7 @@ class AppConfig:
         return self._data.get("markets", {}).get("enable", ["cn"])
 
     def market_config(self, market: str) -> Dict[str, Any]:
-        p = ROOT / "config" / "market" / f"{market}.yaml"
+        p = market_config_dir() / f"{market}.yaml"
         if p.exists():
             return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
         return {}
@@ -69,9 +71,21 @@ class AppConfig:
     def llm_model(self, provider: str) -> str:
         return self.llm_model_config(provider).get("model", "")
 
-    def llm_api_key(self, provider: str) -> str:
-        env_key = self.llm_model_config(provider).get("api_key_env", "")
-        return os.getenv(env_key, "")
+    def llm_api_key(self, provider: str, provider_config: Optional[Dict[str, Any]] = None) -> str:
+        model_config = provider_config or self.llm_model_config(provider)
+        env_key = str(model_config.get("api_key_env", "")).strip()
+        if not env_key:
+            return ""
+        value = os.getenv(env_key, "")
+        if not value:
+            # Desktop app: secrets live in the DPAPI store, not .env or logs.
+            try:
+                from src.secret_store import load_secret
+
+                value = load_secret(env_key) or ""
+            except Exception:
+                value = ""
+        return value
 
     def llm_role_model(self, role: str) -> str:
         mapping = self._data.get("llm", {}).get("role_model_override", {})

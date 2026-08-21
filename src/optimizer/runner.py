@@ -30,7 +30,8 @@ from src.portfolio import account
 from src.runtime_lock import atomic_claim
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT_DIR = ROOT / "runtime" / "optimizer"
+from src.paths import runtime_dir
+OUTPUT_DIR = runtime_dir() / "optimizer"
 MIN_OBSERVATIONS = 30
 MAX_SYMBOLS = 12
 _SUPPORTED_MARKETS = {"cn", "hk", "us", "etf"}

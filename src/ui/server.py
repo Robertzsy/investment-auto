@@ -10,11 +10,13 @@ import logging
 import os
 import re
 import sys
+from datetime import datetime
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+from src.paths import config_dir, data_root, runtime_dir
 UI_DIR = Path(__file__).resolve().parent
 
 logger = logging.getLogger("investment-auto.http")
@@ -55,6 +57,55 @@ _SENSITIVE_ENV_MARKERS = (
     "MONGODB_URI",
 )
 
+# Role -> model tier mapping used by the first-run wizard. Analysts and
+# researchers do cheap high-volume work (quick model); managers, judges and
+# risk roles make decisions (deep model). Unknown roles default to deep.
+_QUICK_ROLES = {
+    "aggressive_analyst", "analyst", "bear_researcher", "bull_researcher",
+    "conservative_analyst", "fundamentals_analyst", "neutral_analyst",
+    "news_analyst", "researcher", "sentiment_analyst",
+    "technical_analyst", "trader",
+}
+_DEEP_ROLES = {
+    "investment_advisor", "judge", "portfolio_manager", "quant_analyst",
+    "research_manager", "risk_chairman", "risk_manager",
+}
+
+
+def _deep_merge(base: dict, overlay: dict) -> dict:
+    """Recursively merge overlay into base; lists/scalars are replaced."""
+    merged = dict(base or {})
+    for key, value in (overlay or {}).items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _write_config_merged(patch: dict) -> dict:
+    """Apply a patch to config.yaml via deep merge (never clobbers other
+    sections such as llm/schedule/autonomous/trading) and reload."""
+    import yaml
+
+    from src.config import cfg
+
+    config_path = config_dir() / "config.yaml"
+    existing: dict = {}
+    if config_path.exists():
+        try:
+            existing = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            existing = {}
+    merged = _deep_merge(existing, patch)
+    temporary = config_path.with_suffix(config_path.suffix + ".tmp")
+    temporary.write_text(
+        yaml.safe_dump(merged, allow_unicode=True, sort_keys=False), encoding="utf-8",
+    )
+    temporary.replace(config_path)
+    cfg.reload()
+    return merged
+
 
 def _is_sensitive_env_key(key: str) -> bool:
     normalized = key.upper()
@@ -68,13 +119,87 @@ def _optimizer_files(directory: Path, market: str = "all") -> list[Path]:
     return sorted(directory.glob(pattern), key=lambda path: path.stat().st_mtime, reverse=True)
 
 
+def _harness_snapshot(limit: int = 30) -> dict:
+    """Build the redacted desktop control-plane snapshot."""
+    from src.manager.execution_trace import ExecutionTrace
+    from src.manager.session_store import SessionStore
+    from src.manager.skill_registry import SkillRegistry
+    from src.manager.skill_scheduler import SkillScheduler
+    from src.platform.memory_store import StructuredMemoryStore
+    from src.version import __version__
+
+    packages = SkillRegistry().catalog()
+    skills = []
+    for package in packages:
+        skills.append({
+            **package.manifest.to_dict(),
+            "source": package.source,
+            "workflow": [step.to_dict() for step in package.steps],
+            "completion_contract": package.completion_contract,
+        })
+    sessions = SessionStore().records()
+    schedules = SkillScheduler().list()
+    executions = ExecutionTrace.recent(limit=limit)
+    repairs = StructuredMemoryStore().recent("incident_repairs", limit=min(limit, 50))
+    completed = sum(1 for item in executions if item.get("status") == "completed")
+    degraded = sum(1 for item in executions if item.get("status") == "degraded")
+    failed = sum(1 for item in executions if item.get("status") not in {"completed", "running"})
+    return {
+        "ok": True,
+        "runtime": "skill-runtime",
+        "version": __version__,
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "summary": {
+            "skills": len(skills),
+            "builtin_skills": sum(1 for item in skills if item.get("source") == "builtin"),
+            "custom_skills": sum(1 for item in skills if item.get("source") == "runtime"),
+            "active_sessions": sum(1 for item in sessions if item.get("last_request")),
+            "schedules": len(schedules),
+            "enabled_schedules": sum(1 for item in schedules if item.get("enabled", True)),
+            "recent_completed": completed,
+            "recent_degraded": degraded,
+            "recent_failed": failed,
+            "recent_repairs": len(repairs),
+            "verified_repairs": sum(1 for item in repairs if item.get("status") == "verified_repair"),
+        },
+        "skills": skills,
+        "sessions": sessions,
+        "schedules": schedules,
+        "executions": executions,
+        "repairs": repairs,
+    }
+
+
+ACCESS_TOKEN = os.getenv("IA_ACCESS_TOKEN", "").strip()
+
+
 class ChatHandler(SimpleHTTPRequestHandler):
     """Serves static files from src/ui/ and handles API routes."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, directory=str(UI_DIR), **kwargs)
 
+    def _authorized(self) -> bool:
+        if not ACCESS_TOKEN:
+            return True
+        query_token = parse_qs(urlparse(self.path).query).get("token", [""])[0]
+        if query_token == ACCESS_TOKEN:
+            return True
+        header = self.headers.get("X-IA-Token", "")
+        authorization = self.headers.get("Authorization", "")
+        if header == ACCESS_TOKEN or authorization in (ACCESS_TOKEN, "Bearer " + ACCESS_TOKEN):
+            return True
+        return False
+
+    def _unauthorized(self) -> None:
+        self.send_response(401)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b'{"error":"unauthorized"}')
+
     def do_GET(self):
+        if not self._authorized():
+            return self._unauthorized()
         path = urlparse(self.path).path
         query = parse_qs(urlparse(self.path).query)
 
@@ -103,6 +228,18 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_autonomy_status()
         if path == "/api/investment/mandate":
             return self._handle_investment_mandate()
+        if path == "/api/secrets":
+            return self._handle_get_secrets()
+        if path == "/api/migrate":
+            return self._handle_migrate_detect()
+        if path == "/api/harness":
+            try:
+                limit = int(query.get("limit", ["30"])[0])
+            except (TypeError, ValueError):
+                return self._json_response(400, {"error": "limit must be an integer"})
+            return self._handle_harness(limit)
+        if path == "/api/harness/trace":
+            return self._handle_harness_trace(query.get("execution_id", [""])[0])
 
         # Static files
         if path == "/" or path == "":
@@ -113,11 +250,19 @@ class ChatHandler(SimpleHTTPRequestHandler):
             self.path = "/dashboard.html"
         elif path == "/macro":
             self.path = "/macro.html"
+        elif path == "/setup":
+            self.path = "/setup.html"
+        elif path == "/harness":
+            self.path = "/harness.html"
         return super().do_GET()
 
     def do_POST(self):
+        if not self._authorized():
+            return self._unauthorized()
         path = urlparse(self.path).path
 
+        if path == "/api/models/test":
+            return self._handle_models_test()
         if path == "/api/chat":
             return self._handle_chat()
         if path == "/api/investment-cycle":
@@ -134,8 +279,26 @@ class ChatHandler(SimpleHTTPRequestHandler):
             return self._handle_save_market_configs()
         if path == "/api/env":
             return self._handle_save_env()
+        if path == "/api/secrets":
+            return self._handle_save_secrets()
+        if path == "/api/migrate":
+            return self._handle_migrate_run()
+        if path == "/api/setup/models":
+            return self._handle_setup_models()
+        if path == "/api/setup/mode":
+            return self._handle_setup_mode()
+        if path == "/api/setup/mandate":
+            return self._handle_setup_mandate()
+        if path == "/api/setup/init":
+            return self._handle_setup_init()
+        if path == "/api/setup/complete":
+            return self._handle_setup_complete()
         if path.startswith("/api/autonomy/"):
             return self._handle_autonomy_control(path.rsplit("/", 1)[-1])
+        if path == "/api/harness/schedules":
+            return self._handle_harness_schedule_create()
+        if path == "/api/harness/schedules/control":
+            return self._handle_harness_schedule_control()
 
         self.send_response(404)
         self.end_headers()
@@ -255,6 +418,91 @@ class ChatHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._json_response(500, {"error": str(e)})
 
+    def _handle_harness(self, limit: int = 30):
+        try:
+            self._json_response(200, _harness_snapshot(limit=max(1, min(200, limit))))
+        except Exception as exc:
+            logger.exception("harness snapshot error")
+            self._json_response(500, {"error": str(exc)})
+
+    def _handle_harness_trace(self, execution_id: str):
+        try:
+            from src.manager.execution_trace import ExecutionTrace
+
+            self._json_response(200, {"trace": ExecutionTrace.load(execution_id)})
+        except ValueError as exc:
+            self._json_response(400, {"error": str(exc)})
+        except FileNotFoundError as exc:
+            self._json_response(404, {"error": str(exc)})
+        except Exception as exc:
+            logger.exception("harness trace error")
+            self._json_response(500, {"error": str(exc)})
+
+    def _handle_harness_schedule_create(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict) or not isinstance(data.get("inputs", {}), dict):
+            return self._json_response(400, {"error": "payload and inputs must be JSON objects"})
+        try:
+            from src.manager.skill_scheduler import SkillScheduler
+
+            result = SkillScheduler().create(
+                skill_name=str(data.get("skill_name", "")),
+                cron=str(data.get("cron", "")),
+                inputs=data.get("inputs", {}),
+                schedule_id=str(data.get("schedule_id", "")),
+                timezone=str(data.get("timezone", "")),
+                enabled=bool(data.get("enabled", True)),
+            )
+            self._json_response(201, result)
+        except (TypeError, ValueError, KeyError) as exc:
+            self._json_response(400, {"error": str(exc)})
+        except PermissionError as exc:
+            self._json_response(403, {"error": str(exc)})
+        except FileExistsError as exc:
+            self._json_response(409, {"error": str(exc)})
+        except Exception as exc:
+            logger.exception("harness schedule create error")
+            self._json_response(500, {"error": str(exc)})
+
+    def _handle_harness_schedule_control(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"error": "payload must be a JSON object"})
+        schedule_id = str(data.get("schedule_id", ""))
+        action = str(data.get("action", "")).strip().lower()
+        try:
+            from src.manager.skill_scheduler import SkillScheduler
+
+            scheduler = SkillScheduler()
+            if action == "enable":
+                result = scheduler.set_enabled(schedule_id, True)
+            elif action == "disable":
+                result = scheduler.set_enabled(schedule_id, False)
+            elif action == "delete":
+                result = scheduler.delete(schedule_id)
+            elif action == "run":
+                result = scheduler.execute(schedule_id)
+            else:
+                return self._json_response(400, {"error": "action must be enable, disable, delete, or run"})
+            self._json_response(200, result)
+        except ValueError as exc:
+            self._json_response(400, {"error": str(exc)})
+        except FileNotFoundError as exc:
+            self._json_response(404, {"error": str(exc)})
+        except RuntimeError as exc:
+            self._json_response(409, {"error": str(exc)})
+        except Exception as exc:
+            logger.exception("harness schedule control error")
+            self._json_response(500, {"error": str(exc)})
+
     def _handle_get_history(self):
         try:
             from .chat_server import load_history, load_memory
@@ -304,7 +552,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
             import yaml
 
             payload = {}
-            base = PROJECT_ROOT / "config" / "market"
+            base = config_dir() / "market"
             for market, filename in _MARKET_CONFIG_FILES.items():
                 data = yaml.safe_load((base / filename).read_text(encoding="utf-8")) or {}
                 risk = data.get("risk", {})
@@ -374,7 +622,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
         try:
             import yaml
 
-            base = PROJECT_ROOT / "config" / "market"
+            base = config_dir() / "market"
             prepared = []
             for market, risk_updates in normalized.items():
                 path = base / _MARKET_CONFIG_FILES[market]
@@ -394,9 +642,12 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
     def _handle_autonomy_status(self):
         try:
-            from src.investment.command_bus import InvestmentAgentClient
+            from src.investment.status import runtime_status
 
-            self._json_response(200, InvestmentAgentClient().issue("status", requested_by="chat-ui", timeout=30))
+            # Status is a read-only shared-state snapshot.  Sending it through
+            # the single-threaded investment queue would enqueue a new job
+            # every five seconds while a long research cycle owns the worker.
+            self._json_response(200, {"ok": True, **runtime_status()})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
 
@@ -432,14 +683,21 @@ class ChatHandler(SimpleHTTPRequestHandler):
         if not isinstance(data, dict):
             return self._json_response(400, {"error": "payload must be a JSON object"})
         try:
-            from src.investment.command_bus import InvestmentAgentClient
+            from src.manager.skill_runtime import SkillRuntime
 
-            result = InvestmentAgentClient().issue(
-                "set_strategy",
-                {"profile": data.get("profile")},
+            execution = SkillRuntime().run(
+                "更新投资策略授权书",
+                skill_name="account-management",
+                inputs={"action": "set_strategy", "value": data.get("profile")},
                 requested_by="chat-ui",
-                timeout=30,
             )
+            if execution.get("status") != "completed":
+                raise RuntimeError(str(execution.get("error") or execution.get("validation")))
+            result = dict(execution.get("outputs", {}).get("control", {}))
+            result["skill_execution"] = {
+                "execution_id": execution.get("execution_id"),
+                "validation": execution.get("validation"),
+            }
             self._json_response(200, result)
         except ValueError as e:
             self._json_response(400, {"error": str(e)})
@@ -462,21 +720,41 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 mode = str(data.get("mode", "")).lower()
                 if mode not in {"manual", "automatic"}:
                     return self._json_response(400, {"error": "mode must be manual or automatic"})
-                from src.investment.command_bus import InvestmentAgentClient
+                from src.manager.skill_runtime import SkillRuntime
 
-                result = InvestmentAgentClient().issue(
-                    "set_mode", {"mode": mode}, requested_by="chat-ui", timeout=30,
+                execution = SkillRuntime().run(
+                    "更新投资运行模式",
+                    skill_name="account-management",
+                    inputs={"action": "set_mode", "value": mode},
+                    requested_by="chat-ui",
                 )
+                if execution.get("status") != "completed":
+                    raise RuntimeError(str(execution.get("error") or execution.get("validation")))
+                result = dict(execution.get("outputs", {}).get("control", {}))
+                result["skill_execution"] = {
+                    "execution_id": execution.get("execution_id"),
+                    "validation": execution.get("validation"),
+                }
                 return self._json_response(200, result)
 
             command = {"pause": "pause", "resume": "resume", "kill": "kill", "reset-kill": "reset_kill"}.get(action)
             if command is None:
                 return self._json_response(404, {"error": "unknown autonomy action"})
-            from src.investment.command_bus import InvestmentAgentClient
+            from src.manager.skill_runtime import SkillRuntime
 
-            result = InvestmentAgentClient().issue(
-                command, {"reason": reason}, requested_by="chat-ui", timeout=30,
+            execution = SkillRuntime().run(
+                f"投资运行控制：{command}",
+                skill_name="account-management",
+                inputs={"action": command, "reason": reason},
+                requested_by="chat-ui",
             )
+            if execution.get("status") != "completed":
+                raise RuntimeError(str(execution.get("error") or execution.get("validation")))
+            result = dict(execution.get("outputs", {}).get("control", {}))
+            result["skill_execution"] = {
+                "execution_id": execution.get("execution_id"),
+                "validation": execution.get("validation"),
+            }
             self._json_response(200, result)
         except RuntimeError as e:
             self._json_response(409, {"error": str(e)})
@@ -490,17 +768,218 @@ class ChatHandler(SimpleHTTPRequestHandler):
             data = json.loads(body)
         except json.JSONDecodeError:
             return self._json_response(400, {"error": "invalid json"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"error": "payload must be a JSON object"})
 
         try:
-            import yaml
-            config_path = PROJECT_ROOT / "config" / "config.yaml"
-            config_path.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False), encoding="utf-8")
-            # Reload config
-            from src.config import cfg
-            cfg.reload()
+            # Deep merge so partial saves (e.g. only markets.enable) never
+            # wipe llm/schedule/autonomous/trading sections.
+            _write_config_merged(data)
             self._json_response(200, {"ok": True})
         except Exception as e:
             self._json_response(500, {"error": str(e)})
+
+    def _handle_models_test(self):
+        """Actually call the provider with the saved key (wizard '保存并测试')."""
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"ok": False, "error": "JSON 无效"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"ok": False, "error": "payload 必须是对象"})
+        provider = str(data.get("provider", "") or "").strip().lower()
+        model = str(data.get("model", "") or "").strip()
+        try:
+            from src.llm.registry import resolve_llm
+
+            llm = resolve_llm(provider=provider or None, model=model or None)
+            reply = llm.chat(
+                [{"role": "user", "content": "ping，只回复 pong。"}],
+                temperature=0.0,
+                max_tokens=8,
+            )
+            if not reply or not reply.strip():
+                return self._json_response(200, {"ok": False, "error": "服务商返回了空响应"})
+            self._json_response(200, {"ok": True, "reply": reply[:50]})
+        except Exception as exc:
+            logger.warning("Model test failed for provider=%s: %s", provider, exc)
+            self._json_response(200, {"ok": False, "error": str(exc)[:300]})
+
+    def _handle_setup_models(self):
+        """Wizard step 2: persist provider + quick/deep model selection."""
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"ok": False, "error": "JSON 无效"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"ok": False, "error": "payload 必须是对象"})
+        provider = str(data.get("provider", "") or "").strip().lower()
+        quick = str(data.get("quick_model", "") or "").strip()
+        deep = str(data.get("deep_model", "") or "").strip()
+        try:
+            from src.config import cfg
+
+            models = cfg.raw.get("llm", {}).get("models", {})
+            variants = models.get(provider, {}).get("variants", []) or []
+            if provider not in models:
+                return self._json_response(400, {"ok": False, "error": f"未知服务商: {provider}"})
+            if quick not in variants or deep not in variants:
+                return self._json_response(400, {"ok": False, "error": "模型不在该服务商的可选列表中"})
+
+            role_override: dict = {}
+            for role in set(_QUICK_ROLES) | set(_DEEP_ROLES):
+                role_override[role] = quick if role in _QUICK_ROLES else deep
+
+            patch = {
+                "llm": {
+                    "provider": provider,
+                    "quick_model": quick,
+                    "deep_model": deep,
+                    "models": {provider: {"model": deep}},
+                    "role_model_override": role_override,
+                },
+            }
+            _write_config_merged(patch)
+            self._json_response(200, {"ok": True})
+        except Exception as exc:
+            logger.warning("setup models save failed: %s", exc)
+            self._json_response(500, {"ok": False, "error": str(exc)[:300]})
+
+    def _handle_setup_mode(self):
+        """Wizard step 4: persist autonomous mode directly (no agent yet)."""
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"ok": False, "error": "JSON 无效"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"ok": False, "error": "payload 必须是对象"})
+        mode = str(data.get("mode", "") or "").strip().lower()
+        if mode not in {"manual", "automatic"}:
+            return self._json_response(400, {"ok": False, "error": "mode 必须是 manual 或 automatic"})
+        try:
+            from src.investment.service import _save_operation_mode
+
+            result = _save_operation_mode(mode)
+            self._json_response(200, {"ok": True, **result})
+        except Exception as exc:
+            logger.warning("setup mode save failed: %s", exc)
+            self._json_response(500, {"ok": False, "error": str(exc)[:300]})
+
+    def _handle_setup_mandate(self):
+        """Wizard step 3: persist strategy profile directly (no agent yet)."""
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except json.JSONDecodeError:
+            return self._json_response(400, {"ok": False, "error": "JSON 无效"})
+        if not isinstance(data, dict):
+            return self._json_response(400, {"ok": False, "error": "payload 必须是对象"})
+        profile = str(data.get("profile", "") or "").strip().lower()
+        try:
+            from src.investment.mandate import set_mandate
+
+            payload = set_mandate(profile, selected_by="setup-wizard")
+            self._json_response(200, {"ok": True, "profile": payload.get("profile")})
+        except ValueError as exc:
+            self._json_response(400, {"ok": False, "error": str(exc)})
+        except Exception as exc:
+            logger.warning("setup mandate save failed: %s", exc)
+            self._json_response(500, {"ok": False, "error": str(exc)[:300]})
+
+    def _handle_get_secrets(self):
+        from src.secret_store import list_keys
+
+        try:
+            keys = list_keys()
+        except Exception:
+            keys = []
+        # Never return secret values - only which keys are configured.
+        self._json_response(200, {"keys": keys})
+
+    def _handle_save_secrets(self):
+        from src.secret_store import save_secret
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            self._json_response(400, {"ok": False, "error": "JSON 无效"})
+            return
+        if not isinstance(data, dict):
+            self._json_response(400, {"ok": False, "error": "payload 必须是对象"})
+            return
+        try:
+            for key, value in data.items():
+                name = str(key)
+                secret = str(value or "")
+                save_secret(name, secret)
+                # Keep adapters created later in this chat process in sync.
+                # The standalone investment process reads the same DPAPI store.
+                if secret.strip():
+                    os.environ[name] = secret
+                else:
+                    os.environ.pop(name, None)
+        except Exception as exc:
+            logger.warning("Secret save failed: %s", exc)
+            self._json_response(500, {"ok": False, "error": str(exc)[:300]})
+            return
+        self._json_response(200, {"ok": True})
+
+    def _handle_migrate_detect(self):
+        from src.migration import detect_sources, plan_migration
+
+        sources = detect_sources()
+        self._json_response(200, {
+            "sources": sources,
+            "plan": plan_migration(sources[0]["path"]) if sources else None,
+        })
+
+    def _handle_migrate_run(self):
+        from src.migration import run_migration
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            self._json_response(400, {"ok": False, "error": "JSON 无效"})
+            return
+        source = str((data or {}).get("source", ""))
+        items = (data or {}).get("items") or None
+        if not source:
+            self._json_response(400, {"ok": False, "error": "source 不能为空"})
+            return
+        try:
+            result = run_migration(source, items)
+        except Exception as exc:
+            self._json_response(500, {"ok": False, "error": str(exc)[:400]})
+            return
+        self._json_response(200, {"ok": True, **result})
+
+    def _handle_setup_init(self):
+        from src.portfolio import account
+
+        try:
+            # Persist the normalized representation even when the file already
+            # exists.  A previous migration may have copied an empty accounts
+            # object, which is not a valid initialized paper portfolio.
+            already = account.exists()
+            account.save(account.load())
+            self._json_response(200, {"ok": True, "created": not already, "initialized": already})
+        except Exception as exc:
+            self._json_response(500, {"ok": False, "error": str(exc)[:300]})
+
+    def _handle_setup_complete(self):
+        from src.paths import runtime_dir
+
+        marker = runtime_dir() / "setup.complete"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(datetime.now().astimezone().isoformat(timespec="seconds"), encoding="utf-8")
+        self._json_response(200, {"ok": True})
 
     def _handle_dashboard(self, market: str):
         try:
@@ -513,7 +992,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
     def _handle_get_env(self):
         """Read .env file and return as dict (mask sensitive values for display)."""
         try:
-            env_path = PROJECT_ROOT / ".env"
+            env_path = data_root() / ".env"
             env_vars = {}
             if env_path.exists():
                 for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -551,7 +1030,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
                 updates[key] = value
 
         try:
-            env_path = PROJECT_ROOT / ".env"
+            env_path = data_root() / ".env"
             # Read existing
             existing = {}
             if env_path.exists():
@@ -640,7 +1119,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
     def _handle_optimizer(self, market: str = "all"):
         try:
-            opt_dir = PROJECT_ROOT / "runtime" / "optimizer"
+            opt_dir = runtime_dir() / "optimizer"
             files = _optimizer_files(opt_dir, market)
             if not files:
                 return self._json_response(200, {"available": False})
@@ -737,7 +1216,7 @@ class ChatHandler(SimpleHTTPRequestHandler):
         # Optimizer comparison
         opt_comparison = []
         optimizer_schemes = {}
-        opt_dir = PROJECT_ROOT / "runtime" / "optimizer"
+        opt_dir = runtime_dir() / "optimizer"
         if opt_dir.exists():
             files = _optimizer_files(opt_dir, market)
             if files:
@@ -824,14 +1303,48 @@ class ChatHandler(SimpleHTTPRequestHandler):
         pass
 
 
-def start_server(host: str = "localhost", port: int = 8080, open_browser: bool = True):
+def _format_url(host: str, port: int) -> str:
+    """Render a URL from the actual bound host/port (IPv6 gets brackets).
+
+    Never rewrites the host to "localhost": the desktop WebView2 may resolve
+    localhost to IPv6 ::1 first and hang in SYN_SENT when the server only
+    bound IPv4 loopback.
+    """
+    rendered = f"[{host}]" if ":" in host and not host.startswith("[") else host
+    return f"http://{rendered}:{port}"
+
+
+def _write_ready_file(host: str, port: int, token: str) -> None:
+    """Publish the actual bound port and token for the desktop shell."""
+    try:
+        payload = {
+            "host": host,
+            "port": int(port),
+            "token": token,
+            "url": _format_url(host, port),
+            "pid": os.getpid(),
+            "started_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        }
+        ready_path = runtime_dir() / "chat.ready.json"
+        ready_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = ready_path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary.replace(ready_path)
+    except Exception:
+        logger.debug("Could not write chat ready file", exc_info=True)
+
+
+def start_server(host: str = "localhost", port: int = 8080, open_browser: bool = True, token: str = ""):
+    global ACCESS_TOKEN
+    ACCESS_TOKEN = (token or os.getenv("IA_ACCESS_TOKEN", "")).strip()
     try:
         server = ThreadingHTTPServer((host, port), ChatHandler)
     except OSError as exc:
         raise RuntimeError(f"Cannot bind to {host}:{port}: {exc}") from exc
 
-    url_host = "localhost" if host in {"localhost", "127.0.0.1", "::1"} else host
-    url = f"http://{url_host}:{port}"
+    actual_host, actual_port = server.server_address[:2]
+    _write_ready_file(actual_host, actual_port, ACCESS_TOKEN)
+    url = _format_url(actual_host, actual_port)
     logger.info(f"AI Chat Panel running at {url}")
 
     # Auto-open browser for interactive local use only.
@@ -849,4 +1362,7 @@ def start_server(host: str = "localhost", port: int = 8080, open_browser: bool =
         server.serve_forever()
     except KeyboardInterrupt:
         logger.info("Chat server stopped")
-        server.shutdown()
+    finally:
+        # ``shutdown()`` must be called from a different thread than
+        # ``serve_forever()``; calling it here deadlocks Ctrl+C/dev shutdown.
+        server.server_close()

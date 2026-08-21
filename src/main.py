@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+from src.paths import runtime_dir
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -45,8 +46,38 @@ def _configure_stdio() -> None:
                 pass
 
 
+def _ensure_data_layout(logger: logging.Logger) -> None:
+    """Copy missing config templates from the app root on first launch.
+
+    The installer never touches user data; the first run seeds the data
+    directory (config.yaml, market rules) from the installed templates.
+    In development data root == app root, so this is a no-op.
+    """
+    try:
+        import shutil
+
+        from src.paths import APP_ROOT, config_dir, market_config_dir
+
+        target = config_dir() / "config.yaml"
+        if not target.exists():
+            source = APP_ROOT / "config" / "config.yaml"
+            if source.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+                logger.info("Seeded data config.yaml from template")
+        market_source = APP_ROOT / "config" / "market"
+        market_target = market_config_dir()
+        if market_source.exists():
+            market_target.mkdir(parents=True, exist_ok=True)
+            for template in market_source.glob("*.yaml"):
+                if not (market_target / template.name).exists():
+                    shutil.copy2(template, market_target / template.name)
+    except Exception:
+        logger.debug("Config template seeding skipped", exc_info=True)
+
+
 def _configure_logging() -> logging.Logger:
-    log_dir = ROOT / "runtime" / "logs"
+    log_dir = runtime_dir() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
     file_handler = logging.FileHandler(log_dir / "investment-auto.log", encoding="utf-8")
@@ -69,7 +100,7 @@ def _parser() -> argparse.ArgumentParser:
         choices=[
             "run", "once", "catchup", "macro", "optimizer", "screen", "autonomous",
             "pause", "resume", "kill", "reset-kill", "status",
-            "init", "version", "chat",
+            "init", "version", "chat", "research", "migrate",
         ],
     )
     parser.add_argument("--market", "-m", default="cn")
@@ -78,6 +109,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true", help="Run autonomous decision and risk checks without fills")
     parser.add_argument("--reason", default="", help="Reason recorded for pause/resume/kill controls")
     parser.add_argument("--config", default=None)
+    parser.add_argument("--task", default="backtest", choices=["backtest", "strategy_experiment", "bugfix"],
+                        help="Research task type (research command)")
+    parser.add_argument("--objective", default="", help="Immutable research objective")
+    parser.add_argument("--from", dest="from_path", default=None, help="Legacy project root to migrate from")
+    parser.add_argument("--items", default="", help="Comma-separated migration items; empty = all")
+    parser.add_argument("--max-rounds", type=int, default=None, help="Fresh-agent round cap (config default when empty)")
     return parser
 
 
@@ -89,12 +126,15 @@ def main() -> None:
     logger = _configure_logging()
 
     if args.command == "version":
-        print("investment-auto 0.4.0")
+        from src.version import __version__
+
+        print(f"investment-auto {__version__}")
         return
 
-    if args.command in {"run", "once", "catchup", "macro", "optimizer", "screen", "autonomous", "chat"} and not shutil.which("node"):
+    if args.command in {"run", "once", "catchup", "macro", "optimizer", "screen", "autonomous", "chat", "research"} and not shutil.which("node"):
         raise SystemExit("未找到 Node.js。行情、优化器和宏观日报需要 Node.js 18+，请安装后重试。")
 
+    _ensure_data_layout(logger)
     from src.config import cfg
 
     if args.command == "init":
@@ -168,13 +208,31 @@ def main() -> None:
     if args.command == "catchup":
         from src.scheduler import run_catch_up
 
-        print(json.dumps(run_catch_up(markets=[args.market]), ensure_ascii=False, indent=2))
+        previous_transport = os.environ.get("INVESTMENT_AGENT_TRANSPORT")
+        os.environ["INVESTMENT_AGENT_TRANSPORT"] = "local"
+        try:
+            result = run_catch_up(markets=[args.market])
+        finally:
+            if previous_transport is None:
+                os.environ.pop("INVESTMENT_AGENT_TRANSPORT", None)
+            else:
+                os.environ["INVESTMENT_AGENT_TRANSPORT"] = previous_transport
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 
     if args.command == "once":
         from src.scheduler import run_once
 
-        print(run_once(args.market))
+        previous_transport = os.environ.get("INVESTMENT_AGENT_TRANSPORT")
+        os.environ["INVESTMENT_AGENT_TRANSPORT"] = "local"
+        try:
+            result = run_once(args.market)
+        finally:
+            if previous_transport is None:
+                os.environ.pop("INVESTMENT_AGENT_TRANSPORT", None)
+            else:
+                os.environ["INVESTMENT_AGENT_TRANSPORT"] = previous_transport
+        print(result)
         return
 
     if args.command == "run":
@@ -187,7 +245,7 @@ def main() -> None:
         try:
             import time
 
-            restart_request = ROOT / "runtime" / "investment" / "restart_requested.json"
+            restart_request = runtime_dir() / "investment" / "restart_requested.json"
             while True:
                 time.sleep(1)
                 if restart_request.exists():
@@ -202,14 +260,67 @@ def main() -> None:
             command_worker.stop()
             return
 
+    if args.command == "research":
+        from dataclasses import asdict
+        from pathlib import Path
+
+        from src.research.loop import run_research_loop
+        from src.research.tasks import task_tools
+
+        research_settings = cfg.raw.get("architecture", {}).get("research", {}) or {}
+        if not bool(research_settings.get("enabled", True)):
+            raise SystemExit("离线研究循环未启用（architecture.research.enabled=false）")
+        max_rounds = args.max_rounds or int(research_settings.get("max_rounds", 6))
+        shell_mode = str(research_settings.get("shell", "restricted")).strip().lower()
+        include_shell_tools = shell_mode != "none"
+        shell_timeout_seconds = int(research_settings.get("shell_timeout_seconds", 60))
+        request_limit = int(research_settings.get("request_limit", 32))
+        workspace_value = str(research_settings.get("workspace", "")).strip()
+        workspace_root = Path(workspace_value) if workspace_value else None
+        if workspace_root is not None and not workspace_root.is_absolute():
+            workspace_root = ROOT / workspace_root
+        outcome = run_research_loop(
+            args.objective,
+            args.task,
+            market=args.market,
+            max_rounds=max_rounds,
+            workspace_root=workspace_root,
+            include_shell_tools=include_shell_tools,
+            shell_timeout_seconds=shell_timeout_seconds,
+            request_limit=request_limit,
+            extra_tools=task_tools(args.task),
+            on_progress=lambda message: logger.info(message),
+        )
+        print(json.dumps(asdict(outcome), ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "migrate":
+        from src.migration import detect_sources, plan_migration, run_migration
+
+        source = args.from_path or os.getenv("INVESTMENT_AUTO_HOME", "")
+        if not source:
+            sources = detect_sources()
+            if not sources:
+                print(json.dumps({"status": "no_source", "reason": "未检测到 D:\investment-auto 或 INVESTMENT_AUTO_HOME"}, ensure_ascii=False, indent=2))
+                return
+            source = sources[0]["path"]
+        items = [item.strip() for item in args.items.split(",") if item.strip()] or None
+        plan = plan_migration(source)
+        result = run_migration(source, items)
+        print(json.dumps({**plan, **result}, ensure_ascii=False, indent=2, default=str))
+        return
+
     if args.command == "chat":
-        host = os.getenv("CHAT_HOST", "localhost")
+        # Bind 127.0.0.1 explicitly: "localhost" may resolve to IPv6 ::1 first
+        # in WebView2/browsers on some machines, and a pure-IPv4 listener
+        # leaves those connections stuck in SYN_SENT forever.
+        host = os.getenv("CHAT_HOST", "127.0.0.1")
         try:
             port = int(os.getenv("CHAT_PORT", "8080"))
         except ValueError as exc:
             raise SystemExit("CHAT_PORT must be an integer") from exc
-        if not 1 <= port <= 65535:
-            raise SystemExit("CHAT_PORT must be between 1 and 65535")
+        if not 0 <= port <= 65535:
+            raise SystemExit("CHAT_PORT must be between 0 and 65535 (0 = dynamic)")
         try:
             open_browser = _env_bool("CHAT_OPEN_BROWSER", True)
             scheduler_default = False
@@ -222,9 +333,15 @@ def main() -> None:
         logger.info("Scheduler and investment worker are isolated from the chat process")
 
         logger.info("Starting AI Chat Panel on %s:%s ...", host, port)
+        import secrets
+
         from src.ui.server import start_server
 
-        start_server(host=host, port=port, open_browser=open_browser)
+        # A fresh per-launch token guards the loopback service; the desktop
+        # shell injects it as X-IA-Token on every WebView2 request.  Empty
+        # token (plain dev browser) keeps open localhost access.
+        token = os.getenv("IA_ACCESS_TOKEN", "") or secrets.token_urlsafe(24)
+        start_server(host=host, port=port, open_browser=open_browser, token=token)
         return
 
 

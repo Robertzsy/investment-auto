@@ -16,10 +16,12 @@ from src.investment.contracts import CommandEnvelope, InvestmentCommand
 
 
 ROOT = Path(__file__).resolve().parents[2]
-BUS_DIR = ROOT / "runtime" / "investment" / "bus"
+from src.paths import runtime_dir
+BUS_DIR = runtime_dir() / "investment" / "bus"
 INBOX = BUS_DIR / "inbox"
 OUTBOX = BUS_DIR / "outbox"
 PROGRESS = BUS_DIR / "progress"
+ACTIVE = BUS_DIR / "active"
 HEARTBEAT = BUS_DIR / "worker.json"
 logger = logging.getLogger(__name__)
 
@@ -45,7 +47,7 @@ class InvestmentAgentClient:
         *,
         requested_by: str = "manager",
         progress_callback: Optional[Callable[[str], None]] = None,
-        timeout: float = 480,
+        timeout: Optional[float] = None,
     ) -> Dict[str, Any]:
         transport = os.getenv("INVESTMENT_AGENT_TRANSPORT", "queue").strip().lower()
         if transport != "queue":
@@ -78,18 +80,47 @@ class InvestmentAgentClient:
         if not self.worker_alive():
             raise RuntimeError("投资 Agent 独立进程未运行，请启动 python -m src.main run")
         _atomic_json(INBOX / f"{envelope.command_id}.json", envelope.to_dict())
-        deadline = time.monotonic() + max(1.0, timeout)
+        if timeout is None:
+            configured = cfg.autonomous.get(
+                "command_hard_timeout_seconds",
+                1800
+                if normalized in {InvestmentCommand.RUN_CYCLE, InvestmentCommand.RUN_SCHEDULED_CYCLE}
+                else 480,
+            )
+            hard_timeout = max(1.0, float(configured))
+        else:
+            hard_timeout = max(1.0, float(timeout))
+        idle_timeout = max(0.1, float(cfg.autonomous.get("command_idle_timeout_seconds", 300)))
+        deadline = time.monotonic() + hard_timeout
+        last_activity = time.monotonic()
+        active_token = ""
         delivered_progress = 0
         response_path = OUTBOX / f"{envelope.command_id}.json"
         progress_path = PROGRESS / f"{envelope.command_id}.json"
+        active_path = ACTIVE / f"{envelope.command_id}.json"
         while time.monotonic() < deadline:
-            if progress_callback and progress_path.exists():
+            if progress_path.exists():
                 try:
                     values = json.loads(progress_path.read_text(encoding="utf-8"))
-                    for value in values[delivered_progress:]:
-                        progress_callback(str(value))
-                    delivered_progress = len(values)
+                    if isinstance(values, list) and len(values) > delivered_progress:
+                        if progress_callback:
+                            for value in values[delivered_progress:]:
+                                progress_callback(str(value))
+                        delivered_progress = len(values)
+                        last_activity = time.monotonic()
                 except (OSError, json.JSONDecodeError, TypeError):
+                    pass
+            if active_path.exists():
+                try:
+                    active = json.loads(active_path.read_text(encoding="utf-8"))
+                    token = (
+                        f"{active.get('updated_at', '')}:{active.get('progress_seq', '')}:"
+                        f"{active.get('heartbeat_seq', '')}"
+                    )
+                    if token and token != active_token:
+                        active_token = token
+                        last_activity = time.monotonic()
+                except (OSError, json.JSONDecodeError, TypeError, AttributeError):
                     pass
             if response_path.exists():
                 result = json.loads(response_path.read_text(encoding="utf-8"))
@@ -101,9 +132,18 @@ class InvestmentAgentClient:
                     pass
                 if not result.get("ok", False) and result.get("error"):
                     raise RuntimeError(str(result["error"]))
+                delivery = result.get("chat_delivery")
+                if isinstance(delivery, Mapping) and delivery.get("event_id"):
+                    from src.manager.report_inbox import acknowledge_event
+
+                    acknowledge_event(str(delivery["event_id"]))
                 return result
+            if time.monotonic() - last_activity >= idle_timeout:
+                raise TimeoutError(
+                    f"投资 Agent 命令无有效进度或任务心跳，已等待 {int(idle_timeout)} 秒: {normalized.value}"
+                )
             time.sleep(0.1)
-        raise TimeoutError(f"投资 Agent 命令超时: {normalized.value}")
+        raise TimeoutError(f"投资 Agent 命令达到 {int(hard_timeout)} 秒硬上限: {normalized.value}")
 
     @staticmethod
     def worker_alive(max_age_seconds: float = 5.0) -> bool:
@@ -155,7 +195,7 @@ class InvestmentCommandWorker:
     def run(self) -> None:
         from src.investment.service import InvestmentAgentService
 
-        for path in (INBOX, OUTBOX, PROGRESS):
+        for path in (INBOX, OUTBOX, PROGRESS, ACTIVE):
             path.mkdir(parents=True, exist_ok=True)
         service = InvestmentAgentService()
         while not self.stop_event.is_set():
@@ -172,18 +212,62 @@ class InvestmentCommandWorker:
                     continue
                 command_id = processing.stem
                 progress_path = PROGRESS / f"{command_id}.json"
+                active_path = ACTIVE / f"{command_id}.json"
                 progress_values: list[str] = []
+                activity_lock = threading.Lock()
+                activity_stop = threading.Event()
+                activity_state: Dict[str, Any] = {
+                    "command_id": command_id,
+                    "status": "running",
+                    "progress_seq": 0,
+                    "heartbeat_seq": 0,
+                    "last_progress": "",
+                }
+
+                def write_activity() -> None:
+                    with activity_lock:
+                        activity_state["heartbeat_seq"] = int(activity_state["heartbeat_seq"]) + 1
+                        activity_state["updated_at"] = _now()
+                        _atomic_json(active_path, activity_state)
+
+                def activity_loop() -> None:
+                    interval = max(0.05, float(cfg.autonomous.get("command_heartbeat_seconds", 10)))
+                    while not activity_stop.wait(interval):
+                        try:
+                            write_activity()
+                        except Exception:
+                            logger.exception("Investment command activity heartbeat failed")
 
                 def progress(value: str) -> None:
                     progress_values.append(str(value)[:1000])
                     progress_path.write_text(json.dumps(progress_values, ensure_ascii=False), encoding="utf-8")
+                    with activity_lock:
+                        activity_state["progress_seq"] = len(progress_values)
+                        activity_state["heartbeat_seq"] = int(activity_state["heartbeat_seq"]) + 1
+                        activity_state["last_progress"] = progress_values[-1]
+                        activity_state["updated_at"] = _now()
+                        _atomic_json(active_path, activity_state)
 
+                write_activity()
+                activity_thread = threading.Thread(
+                    target=activity_loop,
+                    name=f"investment-command-activity-{command_id[:8]}",
+                    daemon=True,
+                )
+                activity_thread.start()
                 try:
                     envelope = CommandEnvelope.from_mapping(json.loads(processing.read_text(encoding="utf-8")))
                     result = service.execute_envelope(envelope, progress_callback=progress)
                 except Exception as exc:
                     result = {"ok": False, "status": "error", "error": str(exc), "command_id": command_id}
+                finally:
+                    activity_stop.set()
+                    activity_thread.join(timeout=1)
                 _atomic_json(OUTBOX / f"{command_id}.json", result)
+                try:
+                    active_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
                 try:
                     processing.unlink()
                 except OSError:

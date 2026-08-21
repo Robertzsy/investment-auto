@@ -9,7 +9,7 @@ import pytest
 
 from src.trading.broker import execute_orders
 from src.trading.control import activate_kill_switch, load_state, reset_kill_switch, set_paused
-from src.trading import controller
+from src.trading import agent_workflow, controller
 from src.trading.controller import _account_for_agents, _normalize_decisions, _parse_json_object
 from src.trading.risk import build_orders
 
@@ -255,6 +255,24 @@ def test_paper_broker_persists_and_backfills_security_names(tmp_path):
     assert repaired["accounts"]["cn"]["holdings"][0]["name"] == "药明康德"
 
 
+def test_paper_broker_initializes_missing_market_with_default_capital(tmp_path):
+    portfolio = tmp_path / "portfolio.json"
+    portfolio.write_text(
+        json.dumps({"version": 2, "multiMarket": True, "accounts": {}, "fxRates": {}}),
+        encoding="utf-8",
+    )
+
+    result = execute_orders(
+        "us", [], market_config=CN_CONFIG, trading_mode="paper", now=NOW,
+        portfolio_path=portfolio,
+    )
+
+    saved = json.loads(portfolio.read_text(encoding="utf-8"))
+    assert result["cash_after"] == 500000
+    assert saved["accounts"]["us"]["totalCapital"] == 500000
+    assert saved["accounts"]["us"]["cash"] == 500000
+
+
 def test_broker_refuses_non_paper_mode(tmp_path):
     portfolio = tmp_path / "portfolio.json"
     _portfolio(portfolio)
@@ -327,6 +345,10 @@ def test_autonomous_cycle_runs_committee_risk_and_execution(monkeypatch, tmp_pat
     monkeypatch.setattr(controller, "load_state", lambda: {"paused": False, "kill_switch": False})
     monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
     monkeypatch.setattr(controller, "CYCLE_LOCK_DIR", tmp_path / "locks")
+    # The cycle overlays the persisted user mandate on runtime limits.  Point
+    # the mandate store at a missing file so this test exercises the limits
+    # given by its own autonomous config, not the host's mandate.json.
+    monkeypatch.setattr("src.investment.mandate.MANDATE_FILE", tmp_path / "no-mandate.json")
     monkeypatch.setattr(controller.account_store, "account", lambda market: {
         "cash": 100_000,
         "holdings": [],
@@ -389,7 +411,7 @@ def test_autonomous_cycle_uses_staged_workflow_portfolio_decisions(monkeypatch, 
         "600519": {"realtime": {"price": 100}, "history": [], "indicators": {}},
     }, {}))
     from src.trading import agent_workflow
-    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", lambda context, config: {
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", lambda context, config, **kwargs: {
         "workflow": "tradingagents_staged_v1",
         "portfolio_manager": {
             "thesis": "test",
@@ -417,3 +439,214 @@ def test_catch_up_never_replays_trades_by_default(monkeypatch):
     })
     result = controller.run_autonomous_cycle("cn", label="0930", now=NOW, catch_up=True)
     assert result["status"] == "skipped"
+
+
+def _staged_autonomous_setup(monkeypatch, tmp_path):
+    """Common wiring: real staged-workflow path with a fake workflow that
+    still drives the checkpoint state machine exactly like the real one."""
+    from types import SimpleNamespace
+
+    from src.trading import checkpoints
+
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
+    autonomous = {
+        **AUTO_CONFIG,
+        "enabled": True,
+        "auto_execute": True,
+        "minimum_priced_symbols": 1,
+        "max_universe_size": 2,
+        "agent_workflow": {"enabled": True},
+    }
+    monkeypatch.setitem(controller.cfg.raw, "autonomous", autonomous)
+    monkeypatch.setitem(
+        controller.cfg.raw, "architecture",
+        {"checkpoint_cycles": True, "resume_stale_minutes": 90},
+    )
+    monkeypatch.setenv("AUTONOMOUS_TRADING_ENABLED", "true")
+    monkeypatch.setattr(controller, "load_state", lambda: {"paused": False, "kill_switch": False})
+    monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
+    monkeypatch.setattr(controller, "CYCLE_LOCK_DIR", tmp_path / "locks")
+    monkeypatch.setattr("src.investment.mandate.MANDATE_FILE", tmp_path / "no-mandate.json")
+    monkeypatch.setattr(controller.account_store, "account", lambda market: {
+        "cash": 100_000, "holdings": [], "tradeHistory": [],
+    })
+    screening = SimpleNamespace(
+        symbols=["600519"],
+        snapshots={"600519": {"realtime": {"price": 100, "name": "测试"}, "history": [], "indicators": {}}},
+        market_data_errors={},
+        audit={"status": "ok", "selected": [{"symbol": "600519", "name": "测试"}]},
+    )
+    monkeypatch.setattr(controller, "_screening_outcome", lambda *a, **kw: screening)
+    monkeypatch.setattr(controller, "_cycle_input_hash", lambda *a, **kw: "fixed-hash")
+    return checkpoints
+
+
+def _fake_staged_workflow(context, config, checkpoint=None, progress_callback=None):
+    if progress_callback is not None:
+        progress_callback("逐标的研究已完成 1/1")
+    from src.trading import checkpoints
+
+    if checkpoint and checkpoint.get("cycle_id"):
+        checkpoints.mark_research_completed(checkpoint["cycle_id"])
+    return {
+        "workflow": "fake_staged",
+        "portfolio_manager": {"decisions": [{
+            "decision_id": "p1", "symbol": "600519", "action": "BUY",
+            "target_weight": 0.1, "confidence": 0.9, "reason": "x",
+        }]},
+        "evidence_ref": "",
+    }
+
+
+def test_normal_staged_cycle_walks_the_state_machine(monkeypatch, tmp_path):
+    checkpoints = _staged_autonomous_setup(monkeypatch, tmp_path)
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", _fake_staged_workflow)
+    captured = {}
+
+    def fake_execute(market, orders, **kwargs):
+        captured["orders"] = orders
+        return {"fills": [{"code": "600519", "action": "BUY", "shares": 100}], "rejected": []}
+
+    monkeypatch.setattr(controller, "execute_orders", fake_execute)
+    result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
+
+    assert result["status"] == "executed"
+    assert captured["orders"], "broker must receive the order"
+    cycle_id = result["checkpoint"]["cycle_id"]
+    state = checkpoints.load_checkpoint(cycle_id)
+    assert state["status"] == "completed"
+    assert state["execution_completed"] is True
+
+
+def test_pending_checkpoint_freezes_whole_cycle(monkeypatch, tmp_path):
+    # Crash window B/C: research done, execution pending, fills unconfirmed.
+    checkpoints = _staged_autonomous_setup(monkeypatch, tmp_path)
+    checkpoints.init_checkpoint("pending-cycle", "cn", ["600519"], input_hash="fixed-hash")
+    checkpoints.mark_execution_pending("pending-cycle")
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", _fake_staged_workflow)
+    broker_called = []
+
+    def fake_execute(market, orders, **kwargs):
+        broker_called.append(orders)
+        return {"fills": [], "rejected": []}
+
+    monkeypatch.setattr(controller, "execute_orders", fake_execute)
+    result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
+
+    assert result["status"] == "blocked"
+    assert broker_called == [], "broker must never run against unconfirmed fills"
+    notes = result.get("checkpoint", {}).get("notes", [])
+    assert any("frozen" in note for note in notes)
+    # The unconfirmable checkpoint is gone; next round starts fresh.
+    assert checkpoints.load_checkpoint("pending-cycle") is None
+
+
+def test_research_completed_checkpoint_resumes_and_executes(monkeypatch, tmp_path):
+    # Crash window A: research finished, execution never started.  A resume
+    # with matching inputs may safely continue into a fresh execution.
+    checkpoints = _staged_autonomous_setup(monkeypatch, tmp_path)
+    checkpoints.init_checkpoint("research-cycle", "cn", ["600519"], input_hash="fixed-hash")
+    checkpoints.mark_research_completed("research-cycle")
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", _fake_staged_workflow)
+    captured = {}
+
+    def fake_execute(market, orders, **kwargs):
+        captured["orders"] = orders
+        return {"fills": [{"code": "600519", "action": "BUY", "shares": 100}], "rejected": []}
+
+    monkeypatch.setattr(controller, "execute_orders", fake_execute)
+    result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
+
+    assert result["status"] == "executed"
+    assert result["checkpoint"]["resumed"] is True
+    assert captured["orders"], "resumed research may still execute fresh orders"
+    state = checkpoints.load_checkpoint("research-cycle")
+    assert state["status"] == "completed"
+
+
+def test_normal_cycle_marks_execution_pending_and_completed(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from src.trading import checkpoints
+
+    monkeypatch.setattr(checkpoints, "CHECKPOINT_DIR", tmp_path / "checkpoints")
+    autonomous = {
+        **AUTO_CONFIG,
+        "enabled": True,
+        "auto_execute": True,
+        "committee_roles": ["analyst", "risk_chairman"],
+        "minimum_agent_responses": 2,
+        "minimum_priced_symbols": 1,
+        "max_universe_size": 2,
+    }
+    monkeypatch.setitem(controller.cfg.raw, "autonomous", autonomous)
+    monkeypatch.setitem(
+        controller.cfg.raw, "architecture",
+        {"checkpoint_cycles": True, "resume_stale_minutes": 90},
+    )
+    monkeypatch.setenv("AUTONOMOUS_TRADING_ENABLED", "true")
+    monkeypatch.setattr(controller, "load_state", lambda: {"paused": False, "kill_switch": False})
+    monkeypatch.setattr(controller, "AUDIT_DIR", tmp_path / "audit")
+    monkeypatch.setattr(controller, "CYCLE_LOCK_DIR", tmp_path / "locks")
+    monkeypatch.setattr("src.investment.mandate.MANDATE_FILE", tmp_path / "no-mandate.json")
+    monkeypatch.setattr(controller.account_store, "account", lambda market: {
+        "cash": 100_000, "holdings": [], "tradeHistory": [],
+    })
+    screening = SimpleNamespace(
+        symbols=["600519"],
+        snapshots={"600519": {"realtime": {"price": 100, "name": "测试"}, "history": [], "indicators": {}}},
+        market_data_errors={},
+        audit={"status": "ok", "selected": [{"symbol": "600519", "name": "测试"}]},
+    )
+    monkeypatch.setattr(controller, "_screening_outcome", lambda *a, **kw: screening)
+    monkeypatch.setattr(controller, "_run_committee_member", lambda role, context: {
+        "role": role, "response": '{"summary":"ok"}',
+    })
+    monkeypatch.setattr(controller, "_chair_decision", lambda market, context, committee, config: {
+        "thesis": "test",
+        "decisions": [{"decision_id": "c1", "symbol": "600519", "action": "BUY",
+                        "target_weight": 0.1, "confidence": 0.9, "reason": "x"}],
+    })
+    marks = []
+    monkeypatch.setattr(checkpoints, "mark_execution_pending", lambda cycle_id: marks.append(("pending", cycle_id)))
+    monkeypatch.setattr(checkpoints, "mark_execution_completed", lambda cycle_id: marks.append(("completed", cycle_id)))
+
+    def fake_execute(market, orders, **kwargs):
+        return {"fills": [{"code": "600519", "action": "BUY", "shares": 100}], "rejected": []}
+
+    monkeypatch.setattr(controller, "execute_orders", fake_execute)
+    result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
+
+    assert result["status"] == "executed"
+    assert ("pending", result["checkpoint"]["cycle_id"]) in marks
+    assert ("completed", result["checkpoint"]["cycle_id"]) in marks
+    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"
+
+
+@pytest.mark.parametrize("age", [timedelta(minutes=91), timedelta(days=7)])
+def test_aged_pending_checkpoint_still_freezes_execution(monkeypatch, tmp_path, age):
+    # The freeze gate must find unconfirmed pending executions of ANY age;
+    # adjacent rounds can exceed the 90-minute resume window, and a crash
+    # plus restart can delay the next cycle by days.
+    checkpoints = _staged_autonomous_setup(monkeypatch, tmp_path)
+    checkpoints.init_checkpoint("old-pending", "cn", ["600519"], input_hash="fixed-hash")
+    checkpoints.mark_execution_pending("old-pending")
+    index = checkpoints._index_path("old-pending")
+    payload = json.loads(index.read_text(encoding="utf-8"))
+    payload["updated_at"] = (NOW - age).isoformat(timespec="seconds")
+    index.write_text(json.dumps(payload), encoding="utf-8")
+
+    monkeypatch.setattr(agent_workflow, "run_analysis_workflow", _fake_staged_workflow)
+    broker_called = []
+
+    def fake_execute(market, orders, **kwargs):
+        broker_called.append(orders)
+        return {"fills": [], "rejected": []}
+
+    monkeypatch.setattr(controller, "execute_orders", fake_execute)
+    result = controller.run_autonomous_cycle("cn", label="test", now=NOW)
+
+    assert result["status"] == "blocked"
+    assert broker_called == [], "broker must never run against aged unconfirmed fills"
+    notes = result.get("checkpoint", {}).get("notes", [])
+    assert any("frozen" in note for note in notes)

@@ -1,0 +1,12 @@
+{
+  "name": "incident-repair",
+  "description": "读取失败轨迹、结构化诊断并回放原始只读请求；只有语义验证通过才确认修复",
+  "version": "1.0.0",
+  "intents": ["repair_failed_execution", "fix_data_gap", "diagnose_harness_failure", "semantic_replay"],
+  "triggers": ["修复数据缺口", "修复失败", "自我修复", "诊断执行", "回放验证", "repair incident"],
+  "session_scope": "system_admin",
+  "side_effect_level": "system_admin",
+  "allowed_actions": ["incident.inspect", "incident.replay", "report.incident"],
+  "priority": 100,
+  "enabled": true
+}

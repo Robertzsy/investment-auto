@@ -1,0 +1,12 @@
+{
+  "name": "system-administration",
+  "description": "读取当前 Harness 的 Skills、受控 Actions、权限和运行能力目录",
+  "version": "1.0.0",
+  "intents": ["system_capabilities", "skill_catalog", "harness_status"],
+  "triggers": ["有哪些 skill", "有哪些能力", "能力目录", "harness 状态", "skill 列表", "action 列表"],
+  "session_scope": "system_admin",
+  "side_effect_level": "read_only",
+  "allowed_actions": ["system.capabilities", "report.system"],
+  "priority": 80,
+  "enabled": true
+}

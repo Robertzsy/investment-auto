@@ -15,7 +15,8 @@ from src.investment.reflection import InvestmentReflectionService
 
 
 ROOT = Path(__file__).resolve().parents[2]
-COMMAND_DIR = ROOT / "runtime" / "investment" / "commands"
+from src.paths import runtime_dir
+COMMAND_DIR = runtime_dir() / "investment" / "commands"
 _mode_lock = threading.RLock()
 
 
@@ -122,6 +123,23 @@ class InvestmentAgentService:
 
             result = run_investment_cycle(market, label=label, progress_callback=progress_callback)
             return {"ok": True, **result, "mandate": get_mandate()}
+        if command.command == InvestmentCommand.RUN_SCHEDULED_CYCLE:
+            market = normalize_market(command.payload.get("market"))
+            cycle_type = str(command.payload.get("cycle_type", "intraday")).strip().lower()
+            if cycle_type not in {"intraday", "close"}:
+                raise ValueError("cycle_type 必须是 intraday 或 close")
+            from src.scheduler import run_scheduled_cycle
+
+            result = run_scheduled_cycle(
+                market,
+                cycle_type=cycle_type,
+                label=str(command.payload.get("label", "scheduled-skill"))[:40],
+                time_str=str(command.payload.get("time", ""))[:10],
+                catch_up=bool(command.payload.get("catch_up", False)),
+                scheduled_at=str(command.payload.get("scheduled_at", "")),
+                progress_callback=progress_callback,
+            )
+            return {"ok": True, **result, "mandate": get_mandate()}
         if command.command == InvestmentCommand.PAUSE:
             state = control.set_paused(True, reason=str(command.payload.get("reason", "管理 AI 暂停"))[:500], updated_by=command.requested_by)
             return {"ok": True, "control": state}
@@ -157,6 +175,22 @@ class InvestmentAgentService:
         if command.command == InvestmentCommand.REFLECT:
             market = str(command.payload.get("market", "")).lower()
             return {"ok": True, "reflections": self.reflection.recent(market, int(command.payload.get("limit", 5)))}
+        if command.command == InvestmentCommand.RESET_PAPER_ACCOUNT:
+            if str(cfg.trading.get("mode", "paper")).strip().lower() != "paper":
+                raise RuntimeError("账户重置只允许 trading.mode=paper；实盘账户不会被修改")
+            market = normalize_market(command.payload.get("market"))
+            from src.portfolio import account as account_store
+
+            reset = account_store.reset_market(
+                market,
+                backup_dir=runtime_dir() / "backups" / "portfolio",
+            )
+            return {
+                "ok": True,
+                "status": "reset",
+                "reason": str(command.payload.get("reason", "用户要求重置模拟账户"))[:500],
+                **reset,
+            }
         if command.command == InvestmentCommand.STATUS:
             from src.investment.status import runtime_status
 

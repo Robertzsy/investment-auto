@@ -159,10 +159,20 @@ def test_portfolio_decision_must_cover_every_candidate_and_holding():
         ]},
         ["000001", "600519"],
     )
+    with pytest.raises(ValueError, match="允许池外"):
+        agent_workflow.validate_portfolio_coverage(
+            {"decisions": [
+                {"symbol": "000001", "action": "HOLD"},
+                {"symbol": "600519", "action": "HOLD"},
+                {"symbol": "SPCX", "action": "BUY"},
+            ]},
+            ["000001", "600519"],
+        )
 
 
 def test_staged_workflow_orders_roles_and_builds_portfolio(monkeypatch, tmp_path):
     calls = []
+    progress = []
 
     def fake_call(role, **kwargs):
         evidence = kwargs["evidence"]
@@ -193,7 +203,8 @@ def test_staged_workflow_orders_roles_and_builds_portfolio(monkeypatch, tmp_path
         lambda roles, **kwargs: ({role: fake_call(role, **kwargs) for role in roles}, {}),
     )
     result = agent_workflow.run_analysis_workflow(
-        _context(), _config(), memory_store=agent_workflow.AgentMemoryStore(tmp_path)
+        _context(), _config(), memory_store=agent_workflow.AgentMemoryStore(tmp_path),
+        progress_callback=progress.append,
     )
 
     assert result["workflow"] == "per_symbol_research_graph_v2"
@@ -207,6 +218,127 @@ def test_staged_workflow_orders_roles_and_builds_portfolio(monkeypatch, tmp_path
     assert "AGENT:BULL_RESEARCHER:R1" in research_manager_call[1]
     final_portfolio_call = [item for item in calls if item[0] == "portfolio_manager"][-1]
     assert "AGENT:RISK_MANAGER" in final_portfolio_call[1]
+    assert any("1/1" in item and "600519" in item for item in progress)
+    assert progress[-1] == "最终组合决策已完成，正在交回硬风控执行层…"
+
+
+def test_partial_symbol_failures_exclude_candidates_and_safe_hold_positions(monkeypatch, tmp_path):
+    context = _context()
+    successful = ["600519", "000002", "000003", "000004", "000005", "000006", "000007", "000008"]
+    context["allowed_symbols"] = [*successful, "000009", "000010"]
+    context["account"] = {
+        "total_capital": 100000,
+        "cash": 90000,
+        "holdings": [{"code": "000010", "quantity": 100, "last_price": 100}],
+    }
+    for symbol in context["allowed_symbols"]:
+        context["snapshots"].setdefault(symbol, {"realtime": {"price": 100}})
+
+    def completed(symbol):
+        trader = {
+            "role": "trader",
+            "summary": "完成",
+            "findings": [{"claim": "完成", "evidence_ids": ["AGENT:RESEARCH_MANAGER"]}],
+            "stance": "HOLD",
+            "confidence": 0.6,
+            "citations": ["AGENT:RESEARCH_MANAGER"],
+        }
+        return {
+            "symbol": symbol,
+            "status": "completed",
+            "evidence_ids": ["AGENT:RESEARCH_MANAGER"],
+            "base_reports": {},
+            "research_debate": [],
+            "research_manager": {"summary": "完成"},
+            "trader": trader,
+            "errors": {},
+            "timings_seconds": {},
+        }
+
+    monkeypatch.setattr(
+        agent_workflow,
+        "_parallel_symbol_research",
+        lambda symbols, **kwargs: (
+            {symbol: completed(symbol) for symbol in successful},
+            {"000009": "交易员工具循环失败", "000010": "交易员工具循环失败"},
+        ),
+    )
+
+    def fake_call(role, **kwargs):
+        evidence = kwargs["evidence"]
+        citation = next(iter(evidence))
+        if kwargs.get("portfolio"):
+            assert "MARKET:000009" not in evidence
+            allowed = kwargs["context"]["allowed_symbols"]
+            return {
+                "role": role,
+                "thesis": "test",
+                "decisions": [{
+                    "decision_id": f"p-{symbol}",
+                    "symbol": symbol,
+                    "action": "SELL",
+                    "target_weight": 0,
+                    "confidence": 0.8,
+                    "reason": "test",
+                    "evidence_ids": [citation],
+                } for symbol in allowed],
+                "citations": [citation],
+            }
+        return {
+            "role": role,
+            "summary": "test",
+            "findings": [{"claim": "test", "evidence_ids": [citation]}],
+            "citations": [citation],
+        }
+
+    monkeypatch.setattr(agent_workflow, "_call_role", fake_call)
+    monkeypatch.setattr(agent_workflow, "_architecture_settings", lambda: {"evidence_store": False})
+    config = _config()
+    config["agent_workflow"].update({
+        "allow_partial_symbol_research": True,
+        "minimum_symbol_research_success_ratio": 0.8,
+    })
+
+    result = agent_workflow.run_analysis_workflow(
+        context,
+        config,
+        memory_store=agent_workflow.AgentMemoryStore(tmp_path),
+    )
+
+    assert result["degraded_mode"] == "partial_symbol_research"
+    assert result["excluded_symbols"] == ["000009"]
+    assert result["portfolio_symbols"] == [*successful, "000010"]
+    assert result["symbol_research"]["000010"]["status"] == "safe_hold"
+    decisions = {
+        item["symbol"]: item for item in result["portfolio_manager"]["decisions"]
+    }
+    assert "000009" not in decisions
+    assert decisions["000010"]["action"] == "HOLD"
+    assert decisions["000010"]["confidence"] == 0.0
+    assert any(item["symbol"] == "000010" for item in result["safety_overrides"])
+    assert "成功 8/10" in result["warnings"][0]
+
+
+def test_partial_symbol_failures_abort_below_safety_threshold(monkeypatch, tmp_path):
+    context = _context()
+    context["allowed_symbols"] = ["600519", "000001"]
+    monkeypatch.setattr(
+        agent_workflow,
+        "_parallel_symbol_research",
+        lambda symbols, **kwargs: ({}, {symbol: "失败" for symbol in symbols}),
+    )
+    config = _config()
+    config["agent_workflow"].update({
+        "allow_partial_symbol_research": True,
+        "minimum_symbol_research_success_ratio": 0.8,
+    })
+
+    with pytest.raises(RuntimeError, match="安全完成阈值"):
+        agent_workflow.run_analysis_workflow(
+            context,
+            config,
+            memory_store=agent_workflow.AgentMemoryStore(tmp_path),
+        )
 
 
 def test_call_role_retries_truncated_json_and_persists_own_memory(monkeypatch, tmp_path):
@@ -288,6 +420,9 @@ def test_invalid_agent_output_is_saved_for_diagnosis(monkeypatch, tmp_path):
 
     monkeypatch.setattr(agent_workflow, "resolve_llm", lambda role: LLM())
     monkeypatch.setattr(agent_workflow, "AGENT_FAILURE_DIR", tmp_path / "failures")
+    # The host config enables tool-mediated roles; this legacy-path test
+    # drives the JSON pipeline explicitly.
+    monkeypatch.setattr(agent_workflow, "_architecture_settings", lambda: {})
 
     with pytest.raises(RuntimeError, match="原始输出诊断"):
         agent_workflow._call_role(
@@ -305,3 +440,198 @@ def test_invalid_agent_output_is_saved_for_diagnosis(monkeypatch, tmp_path):
     saved = json.loads(diagnostics[-1].read_text(encoding="utf-8"))
     assert saved["role"] == "research_manager"
     assert saved["output_chars"] == len('{"summary":"broken"')
+
+
+
+def test_repair_citations_normalizes_round_suffix_mistakes():
+    evidence = {"AGENT:BULL_RESEARCHER": {"summary": "bull"}}
+    repaired, notes = agent_workflow.repair_citations(
+        {"citations": ["AGENT:BULL_RESEARCHER:R1"]}, evidence
+    )
+    assert repaired["citations"] == ["AGENT:BULL_RESEARCHER"]
+    assert any("AGENT:BULL_RESEARCHER:R1 -> AGENT:BULL_RESEARCHER" in n for n in notes)
+
+
+def test_repair_citations_attaches_missing_round_suffix():
+    evidence = {"AGENT:BULL_RESEARCHER:R1": {"summary": "bull"}}
+    repaired, notes = agent_workflow.repair_citations(
+        {"citations": ["AGENT:BULL_RESEARCHER"]}, evidence
+    )
+    assert repaired["citations"] == ["AGENT:BULL_RESEARCHER:R1"]
+    assert any("-> AGENT:BULL_RESEARCHER:R1" in n for n in notes)
+
+
+def test_repair_citations_maps_bare_role_name():
+    evidence = {"AGENT:NEWS_ANALYST": {"summary": "news"}}
+    repaired, notes = agent_workflow.repair_citations(
+        {"findings": [{"claim": "宏观事件", "evidence_ids": ["NEWS_ANALYST"]}]}, evidence
+    )
+    assert repaired["findings"][0]["evidence_ids"] == ["AGENT:NEWS_ANALYST"]
+
+
+def test_repair_citations_attaches_missing_mandatory_upstream():
+    evidence = {
+        "AGENT:BULL_RESEARCHER:R1": {"summary": "bull"},
+        "AGENT:BEAR_RESEARCHER:R1": {"summary": "bear"},
+    }
+    repaired, notes = agent_workflow.repair_citations(
+        {"citations": ["AGENT:BULL_RESEARCHER:R1"]},
+        evidence,
+        required_upstream_prefixes=("AGENT:BULL_RESEARCHER", "AGENT:BEAR_RESEARCHER"),
+        require_all_upstream_prefixes=True,
+    )
+    assert "AGENT:BEAR_RESEARCHER:R1" in repaired["citations"]
+    assert any("auto_attached AGENT:BEAR_RESEARCHER:R1" in n for n in notes)
+
+
+def test_repair_citations_leaves_unknown_ids_for_retry():
+    evidence = {"MARKET:600519": {"price": 100}}
+    repaired, notes = agent_workflow.repair_citations(
+        {"citations": ["FAKE:1"]}, evidence,
+        required_upstream_prefixes=("AGENT:BULL_RESEARCHER",),
+    )
+    assert repaired["citations"] == ["FAKE:1"]
+    assert notes == []
+
+
+def test_call_role_repairs_citations_instead_of_retrying(monkeypatch, tmp_path):
+    calls = []
+
+    class LLM:
+        provider_name = "deepseek"
+
+        def chat(self, messages, **kwargs):
+            calls.append(kwargs)
+            # Forgets the mandatory upstream cite entirely.
+            return json.dumps({
+                "summary": "引用修复测试",
+                "findings": [{"claim": "判断", "impact": "neutral", "evidence_ids": ["MARKET:600519"]}],
+                "stance": "HOLD",
+                "confidence": 0.6,
+                "data_gaps": [],
+                "citations": ["MARKET:600519"],
+                "memory_note": "",
+            }, ensure_ascii=False)
+
+    monkeypatch.setattr(agent_workflow, "resolve_llm", lambda role: LLM())
+    monkeypatch.setattr(agent_workflow, "_architecture_settings", lambda: {"citation_auto_repair": True})
+    result = agent_workflow._call_role(
+        "bull_researcher",
+        stage="research_debate_1",
+        context=_context(),
+        evidence={
+            "MARKET:600519": {"price": 100},
+            "AGENT:TECHNICAL_ANALYST": {"summary": "tech"},
+        },
+        settings=_config()["agent_workflow"],
+        memory_store=agent_workflow.AgentMemoryStore(tmp_path),
+        generated_at="2026-08-12T10:00:00+08:00",
+        required_upstream_prefixes=("AGENT:TECHNICAL_ANALYST",),
+    )
+
+    assert len(calls) == 1  # repaired, no second LLM call
+    assert "AGENT:TECHNICAL_ANALYST" in result["citations"]
+    assert any("auto_attached" in note for note in result["citation_repairs"])
+
+
+def test_call_role_skips_repair_when_disabled(monkeypatch, tmp_path):
+    responses = iter([
+        json.dumps({
+            "summary": "第一次缺引用",
+            "findings": [{"claim": "判断", "impact": "neutral", "evidence_ids": ["MARKET:600519"]}],
+            "stance": "HOLD",
+            "confidence": 0.6,
+            "data_gaps": [],
+            "citations": ["MARKET:600519"],
+            "memory_note": "",
+        }, ensure_ascii=False),
+        json.dumps({
+            "summary": "第二次补上",
+            "findings": [{"claim": "判断", "impact": "neutral", "evidence_ids": ["AGENT:TECHNICAL_ANALYST"]}],
+            "stance": "HOLD",
+            "confidence": 0.6,
+            "data_gaps": [],
+            "citations": ["AGENT:TECHNICAL_ANALYST"],
+            "memory_note": "",
+        }, ensure_ascii=False),
+    ])
+    calls = []
+
+    class LLM:
+        provider_name = "deepseek"
+
+        def chat(self, messages, **kwargs):
+            calls.append(kwargs)
+            return next(responses)
+
+    monkeypatch.setattr(agent_workflow, "resolve_llm", lambda role: LLM())
+    monkeypatch.setattr(agent_workflow, "_architecture_settings", lambda: {"citation_auto_repair": False})
+    result = agent_workflow._call_role(
+        "bull_researcher",
+        stage="research_debate_1",
+        context=_context(),
+        evidence={
+            "MARKET:600519": {"price": 100},
+            "AGENT:TECHNICAL_ANALYST": {"summary": "tech"},
+        },
+        settings={**_config()["agent_workflow"], "json_retries": 1},
+        memory_store=agent_workflow.AgentMemoryStore(tmp_path),
+        generated_at="2026-08-12T10:00:00+08:00",
+        required_upstream_prefixes=("AGENT:TECHNICAL_ANALYST",),
+    )
+
+    assert len(calls) == 2  # repair disabled: full retry as before
+    assert "citation_repairs" not in result
+
+
+
+def test_workflow_marks_research_completed_not_completed(monkeypatch, tmp_path):
+    from src.trading import checkpoints
+
+    checkpoints.CHECKPOINT_DIR = tmp_path / "checkpoints"
+    checkpoints.init_checkpoint("cycle-w", "cn", ["600519"])
+
+    def fake_call(role, **kwargs):
+        evidence = kwargs["evidence"]
+        citation = next(iter(evidence))
+        if kwargs.get("portfolio"):
+            return {
+                "role": role, "thesis": "t",
+                "decisions": [{"decision_id": "d", "symbol": "600519", "action": "BUY",
+                                 "target_weight": 0.1, "confidence": 0.8, "reason": "r",
+                                 "evidence_ids": [citation]}],
+                "citations": [citation],
+            }
+        return {
+            "role": role, "summary": "s",
+            "findings": [{"claim": "c", "evidence_ids": [citation]}],
+            "citations": [citation],
+        }
+
+    monkeypatch.setattr(agent_workflow, "_call_role", fake_call)
+    monkeypatch.setattr(
+        agent_workflow, "_parallel_roles",
+        lambda roles, **kwargs: ({role: fake_call(role, **kwargs) for role in roles}, {}),
+    )
+    monkeypatch.setattr(agent_workflow, "_architecture_settings", lambda: {"evidence_store": False})
+    context = _context()
+    context["snapshots"] = {
+        "600519": {
+            "realtime": {"price": 100, "pe": 20},
+            "indicators": {"rsi": {"rsi14": 55}},
+            "history": [{"date": "2026-08-11", "close": 99}],
+        }
+    }
+    result = agent_workflow.run_analysis_workflow(
+        context, _config(),
+        memory_store=agent_workflow.AgentMemoryStore(tmp_path / "memory"),
+        checkpoint={"cycle_id": "cycle-w"},
+    )
+
+    state = checkpoints.load_checkpoint("cycle-w")
+    # The workflow owns research only; execution state belongs to the
+    # controller.  Marking completed here would hide unconfirmed pending
+    # executions from the resume scan.
+    assert state["status"] == "research_completed"
+    assert result["checkpoint_cycle_id"] == "cycle-w"
+    checkpoints.CHECKPOINT_DIR = checkpoints.ROOT / "runtime" / "trading" / "checkpoints"

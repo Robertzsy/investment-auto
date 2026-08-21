@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
@@ -18,8 +20,12 @@ from src.runtime_lock import ProcessLease, atomic_claim
 
 logger = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parent.parent
-REPORT_DIR = ROOT / "runtime" / "reports"
-SCHEDULER_LOCK = ROOT / "runtime" / "scheduler.lock"
+from src.paths import runtime_dir
+REPORT_DIR = runtime_dir() / "reports"
+SCHEDULER_LOCK = runtime_dir() / "scheduler.lock"
+_active_scheduler: Optional[_BgScheduler] = None
+_skill_schedule_fingerprint = ""
+_skill_schedule_refresh_lock = threading.RLock()
 
 
 class _LockedScheduler(_BgScheduler):
@@ -28,10 +34,38 @@ class _LockedScheduler(_BgScheduler):
         self._process_lease = process_lease
 
     def shutdown(self, wait: bool = True) -> None:
+        global _active_scheduler, _skill_schedule_fingerprint
         try:
             super().shutdown(wait=wait)
         finally:
+            if _active_scheduler is self:
+                _active_scheduler = None
+                _skill_schedule_fingerprint = ""
             self._process_lease.release()
+
+
+def refresh_skill_schedules() -> int:
+    """Reload persisted Skill schedules into the live scheduler, if one exists."""
+    global _skill_schedule_fingerprint
+    scheduler = _active_scheduler
+    if scheduler is None:
+        return 0
+    from src.manager.skill_scheduler import SkillScheduler
+
+    skill_scheduler = SkillScheduler()
+    definitions = skill_scheduler.list(enabled_only=True)
+    fingerprint = hashlib.sha256(
+        json.dumps(definitions, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+    with _skill_schedule_refresh_lock:
+        if fingerprint == _skill_schedule_fingerprint:
+            return len(definitions)
+        for job in list(scheduler.get_jobs()):
+            if str(job.id).startswith("skill-"):
+                scheduler.remove_job(job.id)
+        count = skill_scheduler.add_to_scheduler(scheduler)
+        _skill_schedule_fingerprint = fingerprint
+        return count
 
 
 def _timezone() -> ZoneInfo:
@@ -130,7 +164,7 @@ def _write_report(path: Path, title: str, content: str, generated_at: datetime, 
     path.parent.mkdir(parents=True, exist_ok=True)
     if catch_up:
         run_mode = "启动补跑"
-    elif "-manual-" in path.stem or "-chat-" in path.stem:
+    elif any(marker in path.stem for marker in ("-manual-", "-chat-", "-button-", "-agent-")):
         run_mode = "手动整轮"
     else:
         run_mode = "全自动定时"
@@ -164,6 +198,12 @@ def _decision_section(autonomous: Mapping[str, Any]) -> str:
         for item in decisions
         if isinstance(item, Mapping) and item.get("symbol")
     }
+    workflow = autonomous.get("agent_workflow", {})
+    excluded = {
+        str(symbol).upper()
+        for symbol in workflow.get("excluded_symbols", [])
+    } if isinstance(workflow, Mapping) else set()
+    symbol_errors = workflow.get("symbol_errors", {}) if isinstance(workflow, Mapping) else {}
     symbols = list(dict.fromkeys([*sorted(selected), *sorted(held), *by_symbol]))
     mandate = autonomous.get("mandate", {}) if isinstance(autonomous.get("mandate"), Mapping) else {}
     lines = ["## 本轮投资授权书", ""]
@@ -186,8 +226,16 @@ def _decision_section(autonomous: Mapping[str, Any]) -> str:
             identities.append("已有持仓")
         confidence = decision.get("confidence") if decision else None
         confidence_text = f"{float(confidence):.0%}" if isinstance(confidence, (int, float)) else "-"
-        action_text = _action_label(decision.get("action")) if decision else "未形成决策"
-        reason = str(decision.get("reason", "未提供依据") if decision else "分析链被阻断或失败，未生成该标的决策").replace("|", "/")[:240]
+        if decision:
+            action_text = _action_label(decision.get("action"))
+            reason_value = decision.get("reason", "未提供依据")
+        elif symbol in excluded:
+            action_text = "研究失败/已排除"
+            reason_value = symbol_errors.get(symbol, "逐标的研究失败，未进入组合决策")
+        else:
+            action_text = "未形成决策"
+            reason_value = "分析链被阻断或失败，未生成该标的决策"
+        reason = str(reason_value).replace("|", "/")[:240]
         lines.append(
             f"| {symbol} | {'、'.join(identities) or '分析池'} | "
             f"{action_text} | {confidence_text} | {reason} |"
@@ -289,7 +337,10 @@ def _compact_agent_report(report: Any) -> Dict[str, Any]:
     if not isinstance(report, Mapping):
         return {}
     compact: Dict[str, Any] = {}
-    for key in ("role", "role_name", "stage", "thesis", "summary", "stance", "confidence"):
+    for key in (
+        "role", "role_name", "stage", "thesis", "summary", "stance", "confidence",
+        "tool_recovery", "safety_fallback", "safety_override",
+    ):
         if key in report:
             compact[key] = report[key]
     findings = report.get("findings")
@@ -311,7 +362,10 @@ def _compact_autonomous_for_report(autonomous: Mapping[str, Any]) -> Dict[str, A
     """Prioritize decisions and execution over verbose multi-agent transcripts."""
     result: Dict[str, Any] = {
         key: autonomous.get(key)
-        for key in ("status", "audit_file", "chair", "risk", "execution", "control")
+        for key in (
+            "status", "audit_file", "chair", "risk", "execution", "control",
+            "warnings", "degraded_mode",
+        )
         if key in autonomous
     }
     workflow = autonomous.get("agent_workflow")
@@ -339,6 +393,11 @@ def _compact_autonomous_for_report(autonomous: Mapping[str, Any]) -> Dict[str, A
                 if isinstance(report, Mapping)
             } if isinstance(symbol_research, Mapping) else {},
             "portfolio_proposal": _compact_agent_report(workflow.get("portfolio_proposal")),
+            "symbol_errors": workflow.get("symbol_errors", {}),
+            "excluded_symbols": workflow.get("excluded_symbols", []),
+            "warnings": workflow.get("warnings", []),
+            "degraded_mode": workflow.get("degraded_mode"),
+            "safety_overrides": workflow.get("safety_overrides", []),
             "errors": workflow.get("errors", {}),
             "timings_seconds": workflow.get("timings_seconds", {}),
             "memory": workflow.get("memory", {}),
@@ -430,12 +489,18 @@ def _run_intraday_job(
                 "status": autonomous.get("status"),
                 "reason": autonomous.get("reason"),
                 "error": autonomous.get("error"),
+                "warnings": autonomous.get("warnings", []),
+                "degraded_mode": autonomous.get("degraded_mode"),
                 "control": autonomous.get("control"),
                 "audit_file": autonomous.get("audit_file"),
                 "fills": autonomous.get("execution", {}).get("fills", []),
             },
         }
-        if re.fullmatch(r"\d{4}", label):
+        # Scheduled reports and management-triggered reports are queued for
+        # chat recovery.  A live command client acknowledges its event after
+        # receiving the outbox result; when that client disconnects or times
+        # out, the event remains and is imported by the next history refresh.
+        if re.fullmatch(r"\d{4}", label) or label.startswith(("button-", "agent-")):
             try:
                 from src.manager.report_inbox import publish_cycle_report
 
@@ -532,6 +597,8 @@ def _run_close_job(
                 "status": autonomous.get("status"),
                 "reason": autonomous.get("reason"),
                 "error": autonomous.get("error"),
+                "warnings": autonomous.get("warnings", []),
+                "degraded_mode": autonomous.get("degraded_mode"),
                 "control": autonomous.get("control"),
                 "audit_file": autonomous.get("audit_file"),
                 "fills": autonomous.get("execution", {}).get("fills", []),
@@ -549,13 +616,60 @@ def _run_close_job(
         return result
 
 
+def _run_configured_skill_cycle(
+    market: str,
+    *,
+    cycle_type: str,
+    label: str,
+    time_str: str,
+    scheduled_at: datetime,
+    catch_up: bool = False,
+) -> Dict[str, Any]:
+    """Configured and catch-up jobs enter the same structured Skill Runtime as chat/API."""
+    from src.manager.skill_runtime import SkillRuntime
+
+    execution = SkillRuntime().run(
+        f"结构化定时任务执行 {market} {cycle_type} 投资轮次",
+        skill_name="scheduled-market-cycle",
+        inputs={
+            "market": market,
+            "cycle_type": cycle_type,
+            "label": label,
+            "time": time_str,
+            "scheduled_at": scheduled_at.isoformat(),
+            "catch_up": catch_up,
+        },
+        requested_by="configured-skill-scheduler",
+    )
+    if execution.get("status") != "completed":
+        raise RuntimeError(
+            f"scheduled-market-cycle 未通过完成契约: {execution.get('validation')} {execution.get('error')}"
+        )
+    cycle = execution.get("outputs", {}).get("cycle", {})
+    if not isinstance(cycle, Mapping):
+        raise RuntimeError("scheduled-market-cycle 缺少 cycle 输出")
+    return {
+        **dict(cycle),
+        "skill": execution.get("skill"),
+        "skill_execution_id": execution.get("execution_id"),
+        "skill_trace_path": execution.get("trace_path"),
+        "skill_validation": execution.get("validation"),
+    }
+
+
 def _build_intraday_job(market: str, time_str: str, label: str):
     def job() -> None:
         if str(cfg.autonomous.get("operation_mode", "automatic")).lower() != "automatic":
             logger.info("[INTRADAY:%s] skipped because operation_mode is manual", market)
             return
         current = _now()
-        _run_intraday_job(market, time_str, label, now=current, scheduled_at=_scheduled_reference(current, time_str))
+        _run_configured_skill_cycle(
+            market,
+            cycle_type="intraday",
+            label=label,
+            time_str=time_str,
+            scheduled_at=_scheduled_reference(current, time_str),
+        )
 
     return job
 
@@ -566,7 +680,13 @@ def _build_close_job(market: str, time_str: str):
             logger.info("[CLOSE:%s] skipped because operation_mode is manual", market)
             return
         current = _now()
-        _run_close_job(market, time_str, now=current, scheduled_at=_scheduled_reference(current, time_str))
+        _run_configured_skill_cycle(
+            market,
+            cycle_type="close",
+            label="close",
+            time_str=time_str,
+            scheduled_at=_scheduled_reference(current, time_str),
+        )
 
     return job
 
@@ -637,16 +757,14 @@ def run_catch_up(markets: Optional[Sequence[str]] = None, *, include_macro: bool
 
     for item in planned_catch_up(current, markets):
         try:
-            if item["kind"] == "intraday":
-                result = _run_intraday_job(
-                    item["market"], item["time"], item["label"],
-                    catch_up=True, now=current, scheduled_at=item["scheduled"],
-                )
-            else:
-                result = _run_close_job(
-                    item["market"], item["time"],
-                    catch_up=True, now=current, scheduled_at=item["scheduled"],
-                )
+            result = _run_configured_skill_cycle(
+                item["market"],
+                cycle_type=item["kind"],
+                label=item["label"],
+                time_str=item["time"],
+                scheduled_at=item["scheduled"],
+                catch_up=True,
+            )
             results.append({"kind": item["kind"], **result})
         except Exception as exc:
             logger.exception("Catch-up failed for %s", item)
@@ -655,6 +773,7 @@ def run_catch_up(markets: Optional[Sequence[str]] = None, *, include_macro: bool
 
 
 def start(*, catch_up: bool = True) -> _BgScheduler:
+    global _active_scheduler, _skill_schedule_fingerprint
     lease = ProcessLease(SCHEDULER_LOCK)
     lease.acquire()
     misfire_seconds = max(60, int(cfg.schedule.get("catch_up_grace_minutes", 480)) * 60)
@@ -682,6 +801,16 @@ def start(*, catch_up: bool = True) -> _BgScheduler:
             replace_existing=True,
         )
         scheduler.start()
+        _active_scheduler = scheduler
+        _skill_schedule_fingerprint = ""
+        scheduler.add_job(
+            refresh_skill_schedules,
+            trigger="interval",
+            seconds=15,
+            id="runtime-skill-schedule-refresh",
+            replace_existing=True,
+        )
+        refresh_skill_schedules()
         if catch_up:
             scheduler.add_job(
                 run_catch_up,
@@ -711,5 +840,49 @@ def run_investment_cycle(
     )
 
 
+def run_scheduled_cycle(
+    market: str,
+    *,
+    cycle_type: str,
+    label: str,
+    time_str: str = "",
+    catch_up: bool = False,
+    scheduled_at: str = "",
+    progress_callback: Optional[Callable[[str], None]] = None,
+) -> Dict[str, Any]:
+    """Investment-worker endpoint used only by scheduled-market-cycle Action."""
+    current = _now()
+    effective_time = time_str or current.strftime("%H:%M")
+    if scheduled_at:
+        scheduled = _now(datetime.fromisoformat(scheduled_at))
+    else:
+        scheduled = _scheduled_reference(current, effective_time)
+    if cycle_type == "close":
+        return _run_close_job(
+            market,
+            effective_time,
+            catch_up=catch_up,
+            now=current,
+            scheduled_at=scheduled,
+        )
+    return _run_intraday_job(
+        market,
+        effective_time,
+        label,
+        catch_up=catch_up,
+        now=current,
+        scheduled_at=scheduled,
+        progress_callback=progress_callback,
+    )
+
+
 def run_once(market: str = "cn") -> str:
-    return json.dumps(run_investment_cycle(market), ensure_ascii=False, indent=2)
+    from src.manager.skill_runtime import SkillRuntime
+
+    result = SkillRuntime().run(
+        f"CLI 执行 {market} 完整投资轮次",
+        skill_name="complete-investment-cycle",
+        inputs={"market": market, "label": "cli-once"},
+        requested_by="cli-once",
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)

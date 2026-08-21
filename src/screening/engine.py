@@ -17,7 +17,8 @@ from src.screening.storage import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-SCREENING_DIR = ROOT / "runtime" / "screener"
+from src.paths import runtime_dir
+SCREENING_DIR = runtime_dir() / "screener"
 logger = logging.getLogger("investment-auto.screening")
 
 SnapshotLoader = Callable[[Sequence[str], int], tuple[Dict[str, Any], Dict[str, str]]]

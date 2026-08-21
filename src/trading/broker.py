@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import threading
 import uuid
@@ -11,7 +12,8 @@ from src.portfolio import account as account_store
 from src.runtime_lock import atomic_claim
 
 ROOT = Path(__file__).resolve().parents[2]
-PORTFOLIO_LOCK = ROOT / "runtime" / "data" / ".portfolio.lock"
+from src.paths import runtime_dir
+PORTFOLIO_LOCK = runtime_dir() / "data" / ".portfolio.lock"
 _thread_lock = threading.RLock()
 
 
@@ -93,7 +95,10 @@ def execute_orders(
                 raise RuntimeError("模拟账户正在被另一任务更新")
             data = account_store.load() if portfolio_path is None else json.loads(portfolio_path.read_text(encoding="utf-8"))
             accounts = data.setdefault("accounts", {})
-            account = accounts.setdefault(market, {"totalCapital": 0, "cash": 0, "holdings": [], "tradeHistory": []})
+            account = accounts.setdefault(
+                market,
+                copy.deepcopy(account_store.DEFAULTS.get(market, account_store.DEFAULTS["cn"])),
+            )
             holdings: List[Dict[str, Any]] = account.setdefault("holdings", [])
             history: List[Dict[str, Any]] = account.setdefault("tradeHistory", [])
             fills: List[Dict[str, Any]] = []

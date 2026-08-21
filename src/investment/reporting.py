@@ -10,8 +10,10 @@ def format_cycle_result(result: Mapping[str, Any]) -> str:
     status = str(result.get("status", ""))
     autonomous_status = str(autonomous.get("status", ""))
     fills = autonomous.get("fills", []) if isinstance(autonomous, Mapping) else []
+    warnings = autonomous.get("warnings", []) if isinstance(autonomous, Mapping) else []
+    degraded = bool(warnings or autonomous.get("degraded_mode"))
     completed = status == "generated" and autonomous_status in {"executed", "no_trade"}
-    lines = [f"## {'✅' if completed else '⚠️'} {names.get(market, market.upper())}完整投资轮次"]
+    lines = [f"## {'✅' if completed and not degraded else '⚠️'} {names.get(market, market.upper())}完整投资轮次"]
     if status:
         lines.append(f"- **报告状态**：{status}")
     mandate = result.get("mandate", autonomous.get("mandate", {}))
@@ -32,6 +34,9 @@ def format_cycle_result(result: Mapping[str, Any]) -> str:
         reason = control.get("reason")
     if reason:
         lines.append(f"- **原因**：{reason}")
+    if isinstance(warnings, list):
+        for warning in warnings[:5]:
+            lines.append(f"- **降级说明**：{warning}")
     lines.append(f"- **模拟成交数**：{len(fills) if isinstance(fills, list) else 0}")
     if result.get("report"):
         lines.append(f"- **完整报告**：`{result.get('report')}`")
@@ -42,4 +47,3 @@ def format_cycle_result(result: Mapping[str, Any]) -> str:
             lines.append(f"- **推送说明**：{notification.get('reason')}")
     lines.append("\n本轮为模拟研究与纸面交易，不构成投资建议。")
     return "\n".join(lines)
-

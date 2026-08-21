@@ -22,8 +22,9 @@ from src.trading.risk import build_orders
 
 logger = logging.getLogger("investment-auto.autonomous")
 ROOT = Path(__file__).resolve().parents[2]
-AUDIT_DIR = ROOT / "runtime" / "trading" / "audit"
-CYCLE_LOCK_DIR = ROOT / "runtime" / "trading" / "locks"
+from src.paths import runtime_dir
+AUDIT_DIR = runtime_dir() / "trading" / "audit"
+CYCLE_LOCK_DIR = runtime_dir() / "trading" / "locks"
 
 _ROLE_INSTRUCTIONS = {
     "analyst": "你是技术面分析员。只依据给定行情、K线与指标评估趋势、波动和关键价位，不得虚构数据。",
@@ -31,6 +32,63 @@ _ROLE_INSTRUCTIONS = {
     "quant_analyst": "你是量化分析员。审阅组合权重、收益风险指标和账户暴露，识别样本内偏差和集中度风险。",
     "risk_chairman": "你是独立风险负责人。优先识别回撤、流动性、仓位、结算和数据质量风险，可以建议全部 HOLD。",
 }
+
+
+def _market_rules_fingerprint(market: str, symbols: Sequence[str]) -> Dict[str, Any]:
+    rules = cfg.market_config(market)
+    if not isinstance(rules, Mapping):
+        return {}
+    return {key: rules.get(key) for key in ("trading", "risk", "settlement") if key in rules}
+
+
+def _cycle_input_hash(
+    market: str,
+    symbols: Sequence[str],
+    prices: Mapping[str, float],
+    config: Mapping[str, Any],
+    mandate: Mapping[str, Any],
+    account: Optional[Mapping[str, Any]] = None,
+) -> str:
+    """Fingerprint the research inputs so a resume can detect drift.
+
+    Includes the account state: a cash or holdings change invalidates
+    cached portfolio decisions even when symbols and prices match.
+    """
+    import hashlib
+
+    account_summary = {}
+    if isinstance(account, Mapping):
+        account_summary = {
+            "cash": round(float(account.get("cash", 0) or 0), 4),
+            "holdings": sorted(
+                [
+                    {
+                        "code": str(holding.get("code", "") or "").upper(),
+                        "shares": int(float(holding.get("shares", holding.get("quantity", 0)) or 0)),
+                    }
+                    for holding in account.get("holdings", [])
+                    if isinstance(holding, Mapping)
+                ],
+                key=lambda item: item["code"],
+            ),
+        }
+
+    payload = {
+        "market": market,
+        "symbols": sorted(str(symbol).upper() for symbol in symbols),
+        "prices": {str(symbol).upper(): round(float(prices.get(symbol, 0)), 4) for symbol in symbols},
+        # The full mandate, not a few fields: any profile/prompt/limit
+        # change invalidates cached research decisions.
+        "mandate": dict(mandate),
+        "risk": {key: config.get(key) for key in sorted(config) if key.startswith(("max_", "min_", "drawdown", "stop", "take_profit", "reserve", "turnover", "confidence", "orders", "position"))},
+        "trading": dict(cfg.trading),
+        "market_rules": _market_rules_fingerprint(market, symbols),
+        "account": account_summary,
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+    return digest[:32]
 
 
 def _now(value: Optional[datetime] = None) -> datetime:
@@ -396,6 +454,52 @@ def run_autonomous_cycle(
             return {**base, "status": "in_progress"}
 
         account = account_store.account(market)
+        architecture = cfg.raw.get("architecture", {}) if isinstance(cfg.raw.get("architecture"), Mapping) else {}
+        checkpoint_enabled = bool(architecture.get("checkpoint_cycles", False))
+        checkpoint_payload: Optional[Dict[str, Any]] = None
+        checkpoint_notes: List[str] = []
+
+        # Fail-safe gate, before any screening or research: a previous
+        # cycle that reached execution_pending has unconfirmed fills.
+        # Whatever the current prices, symbols or inputs, freeze this
+        # round so the broker is never asked to replay them.  The next
+        # scheduled round starts a fresh cycle.
+        if checkpoint_enabled:
+            try:
+                from src.trading import checkpoints
+
+                # No staleness bound here: an unconfirmed pending
+                # execution must freeze a cycle however old it is.
+                # (The stale_minutes window only governs ordinary
+                # running/research_completed resume below.)
+                pending_cycles = checkpoints.list_execution_pending(market)
+                if pending_cycles:
+                    for item in pending_cycles:
+                        checkpoints.discard_checkpoint(item["cycle_id"])
+                        checkpoint_notes.append(
+                            f"execution_frozen_after_unconfirmed_pending {item['cycle_id']}"
+                        )
+                    audit = {
+                        **base,
+                        "status": "blocked",
+                        "reason": "上一轮成交状态未确认，本轮冻结下单（fail-safe）；下一轮将重新开始",
+                        "checkpoint": {"notes": checkpoint_notes, "resumed": False},
+                    }
+                    path = _write_audit(audit, current, market, label)
+                    progress("检测到未确认的成交状态，本轮冻结下单…")
+                    return {**audit, "audit_file": str(path)}
+            except Exception as exc:
+                # Fail closed: an unreadable checkpoint store must never
+                # lead to order replay.  Block the whole cycle.
+                logger.exception("Checkpoint fail-safe gate failed; blocking cycle")
+                audit = {
+                    **base,
+                    "status": "blocked",
+                    "reason": f"成交状态检查异常，本轮冻结下单: {str(exc)[:200]}",
+                }
+                path = _write_audit(audit, current, market, label)
+                return {**audit, "audit_file": str(path)}
+
         progress("正在从全市场筛选优质候选，并合并已有持仓…")
         try:
             screening_outcome = _screening_outcome(market, account, config, current)
@@ -441,6 +545,46 @@ def run_autonomous_cycle(
             }
             path = _write_audit(audit, current, market, label)
             return {**audit, "audit_file": str(path)}
+
+        if checkpoint_enabled:
+            try:
+                from src.trading import checkpoints
+
+                stale_minutes = int(architecture.get("resume_stale_minutes", 90))
+                incomplete = [
+                    item for item in checkpoints.list_incomplete(now=current, stale_minutes=stale_minutes)
+                    if str(item.get("market", "")) == market
+                ]
+                input_hash = _cycle_input_hash(market, symbols, prices, config, mandate, account)
+                if incomplete:
+                    latest = incomplete[0]
+                    previous_symbols = {str(symbol).upper() for symbol in latest.get("symbols", [])}
+                    current_symbols = {str(symbol).upper() for symbol in symbols}
+                    same_inputs = str(latest.get("input_hash", "")) == input_hash
+                    if previous_symbols and previous_symbols == current_symbols and same_inputs:
+                        checkpoint_payload = {
+                            "cycle_id": latest["cycle_id"], "market": market,
+                            "resumed": True, "symbols": list(current_symbols),
+                        }
+                        checkpoint_notes.append(f"resumed cycle {latest['cycle_id']}")
+                        progress("检测到未完成的轮次，正在从检查点恢复研究进度…")
+                    else:
+                        checkpoints.discard_checkpoint(latest["cycle_id"])
+                        reason = "input changed" if not same_inputs else "symbols changed"
+                        checkpoint_notes.append(f"discarded stale checkpoint {latest['cycle_id']} ({reason})")
+                if checkpoint_payload is None:
+                    checkpoints.init_checkpoint(
+                        base["generated_at"], market, symbols,
+                        label=label, generated_at=base["generated_at"],
+                        input_hash=input_hash,
+                    )
+                    checkpoint_payload = {
+                        "cycle_id": base["generated_at"], "market": market,
+                        "resumed": False, "symbols": list(symbols),
+                    }
+            except Exception:
+                logger.debug("Checkpoint setup failed; continuing without resumability", exc_info=True)
+                checkpoint_payload = None
 
         progress("正在为每只候选预取公司新闻、基本面和可用情绪数据…")
         research_data_errors = _enrich_research_packets(
@@ -522,7 +666,12 @@ def run_autonomous_cycle(
             if _staged_workflow_enabled(config):
                 from src.trading.agent_workflow import run_analysis_workflow
 
-                staged_workflow = run_analysis_workflow(context, config)
+                staged_workflow = run_analysis_workflow(
+                    context,
+                    config,
+                    checkpoint=checkpoint_payload,
+                    progress_callback=progress,
+                )
                 chair = dict(staged_workflow.get("portfolio_manager", {}))
                 chair["decisions"] = _normalize_decisions(
                     chair,
@@ -542,6 +691,35 @@ def run_autonomous_cycle(
                 now=current,
             )
             should_execute = bool(config.get("auto_execute", True)) and not dry_run
+            if checkpoint_payload and checkpoint_payload.get("resumed"):
+                try:
+                    from src.trading import checkpoints
+
+                    previous_state = checkpoints.load_checkpoint(checkpoint_payload["cycle_id"]) or {}
+                    if previous_state.get("execution_pending") and not previous_state.get("execution_completed"):
+                        # Fail safe: the previous attempt reached the execution
+                        # stage but its fills were never confirmed.  Never
+                        # replay fills; the next scheduled round catches up.
+                        should_execute = False
+                        checkpoint_notes.append("execution_skipped_after_resume")
+                except Exception:
+                    # Fail closed: an unreadable previous state cannot prove
+                    # the fills were confirmed, so freeze this round.
+                    should_execute = False
+                    checkpoint_notes.append("execution_frozen_check_failed")
+                    logger.exception("Resume fail-safe check failed; freezing execution")
+            if checkpoint_payload and should_execute:
+                try:
+                    from src.trading import checkpoints
+
+                    checkpoints.mark_execution_pending(checkpoint_payload["cycle_id"])
+                except Exception:
+                    # Fail closed: without a persisted pending marker, a
+                    # crash during the broker call could not be detected on
+                    # resume.  Never send orders without that marker.
+                    should_execute = False
+                    checkpoint_notes.append("execution_frozen_pending_write_failed")
+                    logger.exception("Could not mark execution pending; freezing execution")
             progress("硬风控完成，正在提交允许的模拟订单…" if should_execute else "硬风控完成，本轮仅生成决策…")
             execution = execute_orders(
                 market,
@@ -553,6 +731,16 @@ def run_autonomous_cycle(
                 mark_prices=prices,
                 security_names=security_names,
             ) if should_execute else {"fills": [], "rejected": [], "dry_run": True}
+            if checkpoint_payload and should_execute:
+                try:
+                    from src.trading import checkpoints
+
+                    checkpoints.mark_execution_completed(checkpoint_payload["cycle_id"])
+                except Exception:
+                    # Fills are already persisted, but the next round will
+                    # see execution_pending and freeze - the safe direction.
+                    checkpoint_notes.append("execution_completed_write_failed")
+                    logger.warning("Could not mark execution completed; next round will freeze", exc_info=True)
             required_liquidations = risk.get("circuit_liquidation_quantities", {})
             filled_quantities: Dict[str, int] = {}
             for fill in execution.get("fills", []):
@@ -588,6 +776,16 @@ def run_autonomous_cycle(
                 "committee": committee,
                 "committee_errors": committee_errors,
                 "agent_workflow": staged_workflow,
+                "warnings": list(staged_workflow.get("warnings", [])) if isinstance(staged_workflow, Mapping) else [],
+                "degraded_mode": staged_workflow.get("degraded_mode") if isinstance(staged_workflow, Mapping) else None,
+                "evidence_ref": staged_workflow.get("evidence_ref", "") if isinstance(staged_workflow, Mapping) else "",
+                "checkpoint": (
+                    {
+                        "cycle_id": checkpoint_payload.get("cycle_id"),
+                        "resumed": checkpoint_payload.get("resumed", False),
+                        "notes": checkpoint_notes,
+                    } if checkpoint_payload else None
+                ),
                 "chair": chair,
                 "risk": risk,
                 "execution": execution,
@@ -632,6 +830,14 @@ def run_autonomous_cycle(
                     "committee": committee,
                     "committee_errors": committee_errors,
                     "agent_workflow": staged_workflow,
+                "evidence_ref": staged_workflow.get("evidence_ref", "") if isinstance(staged_workflow, Mapping) else "",
+                "checkpoint": (
+                    {
+                        "cycle_id": checkpoint_payload.get("cycle_id"),
+                        "resumed": checkpoint_payload.get("resumed", False),
+                        "notes": checkpoint_notes,
+                    } if checkpoint_payload else None
+                ),
                     "market_data_errors": market_errors,
                     "research_data_errors": research_data_errors,
                     "chair": {"decisions": []},
@@ -651,6 +857,14 @@ def run_autonomous_cycle(
                     "committee": committee,
                     "committee_errors": committee_errors,
                     "agent_workflow": staged_workflow,
+                "evidence_ref": staged_workflow.get("evidence_ref", "") if isinstance(staged_workflow, Mapping) else "",
+                "checkpoint": (
+                    {
+                        "cycle_id": checkpoint_payload.get("cycle_id"),
+                        "resumed": checkpoint_payload.get("resumed", False),
+                        "notes": checkpoint_notes,
+                    } if checkpoint_payload else None
+                ),
                     "market_data_errors": market_errors,
                     "research_data_errors": research_data_errors,
                 }

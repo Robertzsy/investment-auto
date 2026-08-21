@@ -1,0 +1,1 @@
+{"steps": [{"id": "control", "action": "investment.control", "required": true, "retries": 0}]}

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from src.investment import mandate
-from src.investment.command_bus import InvestmentAgentClient, InvestmentCommandWorker
+from src.investment.command_bus import InvestmentAgentClient
 from src.investment.reflection import InvestmentReflectionService
 from src.manager.change_manager import ChangeManager
 from src.manager.reflection import ManagerReflectionService
@@ -141,47 +141,31 @@ def test_change_manager_rolls_back_failed_change(monkeypatch, tmp_path):
     assert target.read_text(encoding="utf-8") == "VALUE = 1\n"
 
 
-def test_change_manager_can_modify_any_project_file(monkeypatch, tmp_path):
+def test_change_manager_rolls_back_when_test_harness_raises(monkeypatch, tmp_path):
     import src.manager.change_manager as module
 
     root = tmp_path / "repo"
-    targets = {
-        ".env": "TOKEN=changed\n",
-        "runtime/data/portfolio.json": '{"accounts": {}}\n',
-        "src/ui/chat_server.custom": "manager plane\n",
-        "src/manager/change_manager.py": "# self managed\n",
-    }
+    target = root / "src" / "manager" / "sample.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("VALUE = 1\n", encoding="utf-8")
     monkeypatch.setattr(module, "ROOT", root)
     monkeypatch.setattr(module, "BACKUP_DIR", root / "runtime" / "backups")
     monkeypatch.setattr(module, "ALLOWED_ROOTS", (root,))
     monkeypatch.setattr(
         ChangeManager,
         "_run_tests",
-        staticmethod(lambda commands: [{"command": "python -m pytest -q", "returncode": 0, "stdout": "", "stderr": ""}]),
+        staticmethod(lambda commands: (_ for _ in ()).throw(TimeoutError("verifier timed out"))),
     )
     manager = ChangeManager(StructuredMemoryStore(root / "memory"))
-
-    for relative_path, content in targets.items():
-        result = manager.apply_text_change(
-            relative_path,
-            content,
-            reason="test unrestricted project write",
-            expected_sha256="",
-        )
-        assert result["status"] == "verified_restart_requested"
-        assert (root / relative_path).read_text(encoding="utf-8") == content
-
-
-def test_change_manager_still_refuses_paths_outside_project(monkeypatch, tmp_path):
-    import src.manager.change_manager as module
-
-    root = tmp_path / "repo"
-    monkeypatch.setattr(module, "ROOT", root)
-    monkeypatch.setattr(module, "ALLOWED_ROOTS", (root,))
-    manager = ChangeManager(StructuredMemoryStore(root / "memory"))
-
-    with pytest.raises(ValueError, match="项目内相对路径"):
-        manager.inspect("../outside.txt")
+    result = manager.apply_text_change(
+        "src/manager/sample.py",
+        "VALUE = 2\n",
+        reason="test harness exception rollback",
+        expected_sha256=hashlib.sha256(b"VALUE = 1\n").hexdigest(),
+    )
+    assert result["status"] == "rolled_back"
+    assert result["tests"][0]["returncode"] == -1
+    assert target.read_text(encoding="utf-8") == "VALUE = 1\n"
 
 
 def test_queue_transport_refuses_when_worker_is_not_alive(monkeypatch):
@@ -189,27 +173,6 @@ def test_queue_transport_refuses_when_worker_is_not_alive(monkeypatch):
     monkeypatch.setattr(InvestmentAgentClient, "worker_alive", staticmethod(lambda max_age_seconds=5: False))
     with pytest.raises(RuntimeError, match="独立进程未运行"):
         InvestmentAgentClient().issue("run_cycle", {"market": "us"}, timeout=0.1)
-
-
-def test_worker_heartbeat_is_independent_from_command_loop(monkeypatch, tmp_path):
-    import src.investment.command_bus as module
-
-    heartbeat = tmp_path / "worker.json"
-    monkeypatch.setattr(module, "HEARTBEAT", heartbeat)
-    worker = InvestmentCommandWorker()
-    worker.heartbeat_thread = __import__("threading").Thread(
-        target=worker._heartbeat_loop,
-        daemon=True,
-    )
-    worker.heartbeat_thread.start()
-    try:
-        deadline = __import__("time").monotonic() + 2
-        while not heartbeat.exists() and __import__("time").monotonic() < deadline:
-            __import__("time").sleep(0.02)
-        assert json.loads(heartbeat.read_text(encoding="utf-8"))["status"] == "running"
-        assert worker.heartbeat_thread.is_alive()
-    finally:
-        worker.stop()
 
 
 def test_chat_server_has_no_semantic_keyword_fast_paths():

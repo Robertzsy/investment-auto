@@ -27,10 +27,10 @@ class ManagerReflectionService:
         verified: bool,
     ) -> Dict[str, Any]:
         lesson = (
-            "工具或执行失败；下次先读取真实状态，再选择单一管理工具，并在写操作后复读验证。"
+            "Skill 或 Action 执行失败；下次依据 trajectory 定位失败步骤，并在写操作后验证完成契约。"
             if error else
-            "任务已完成且外部状态已验证。" if verified else
-            "回答已生成但缺少外部状态验证；后续涉及修改或控制时必须调用读取接口确认。"
+            "Skill 完成契约已通过，任务结果已验证。" if verified else
+            "回答已生成但 Skill 完成契约未通过；不得把调用过能力当作任务成功。"
         )
         record = self.store.append("manager_reflections", {
             "kind": "management_task_reflection",
@@ -44,4 +44,3 @@ class ManagerReflectionService:
         if error or not verified:
             self.memory.remember(lesson, source="reflection", confidence=0.8)
         return record
-

@@ -80,6 +80,14 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .console-status { font-size:.68rem; color:#7ee787; background:rgba(63,185,80,.12); border:1px solid rgba(63,185,80,.3); border-radius:999px; padding:4px 7px; white-space:nowrap; }
 .console-card { border:1px solid var(--border); border-radius:10px; background:var(--bg); padding:12px; }
 .console-card-title { font-size:.78rem; font-weight:700; color:var(--text); margin-bottom:9px; }
+.harness-overview { background:linear-gradient(135deg,rgba(88,166,255,.12),rgba(183,148,246,.08));border-color:rgba(88,166,255,.28) }
+.harness-title-row { display:flex;align-items:center;justify-content:space-between;gap:8px }
+.harness-title-row a { color:var(--accent);font-size:.7rem;text-decoration:none }
+.harness-metrics { display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px }
+.harness-metric { padding:7px;background:rgba(15,17,23,.62);border-radius:7px;text-align:center }
+.harness-metric b { display:block;font-size:1rem;color:var(--text) }
+.harness-metric span { color:var(--text-dim);font-size:.62rem }
+.harness-last { margin-top:8px;color:var(--text-dim);font-size:.68rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
 .console-fields { display:grid; gap:10px; }
 .console-field { display:grid; gap:5px; color:var(--text-dim); font-size:.74rem; }
 .console-field select { width:100%; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:7px; padding:8px; }
@@ -125,13 +133,14 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 </head>
 <body>
 <div class="header">
-  <h1>🤖 <span>Investment-Auto</span> AI 助手
-  <small style="font-weight:400;color:var(--text-dim)">· 完全操作权限</small>
+  <h1>🤖 <span>Investment-Auto</span> Agent Harness
+  <small style="font-weight:400;color:var(--text-dim)">· 分级执行权限</small>
   </h1>
   <div class="header-right">
     <div class="nav" style="display:flex;gap:12px;margin-right:16px">
       <a href="/" style="color:var(--accent);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;background:rgba(88,166,255,0.1)">💬 对话</a>
       <a href="/dashboard" style="color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s">📊 仪表盘</a>
+      <a href="/harness" style="color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s">🧩 Harness</a>
       <a href="/settings" style="color:var(--text-dim);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all .15s">⚙️ 设置</a>
     </div>
     <details class="header-menu">
@@ -147,18 +156,24 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 <div class="chat-shell">
 <div class="chat" id="chatBox">
   <div class="msg assistant">
-    你好！我是 Investment-Auto AI 助手。<br><br>
-    我可以：
-    <ul><li>📊 查看和分析数据（行情、持仓、报告）</li><li>✏️ 修改配置文件（config.yaml、风控参数）</li><li>📈 运行优化器生成组合建议</li><li>⚙️ 启停调度器和管理 cron 任务</li><li>🧪 运行测试和回测</li></ul>
-    试试下面的推荐问题，或者直接告诉我你想做什么 👇
+    你好！我是 Investment-Auto Agent Harness。<br><br>
+    你只需要描述目标，我会选择完整 Skill，在隔离会话中执行确定性步骤，并通过完成契约验证结果。
+    <ul><li>🔎 个股研究与全市场筛选</li><li>📊 持仓检查与组合优化</li><li>▶ 完整模拟投资轮次</li><li>🧩 创建、测试和调度新 Skill</li><li>🧾 保存可审计的执行轨迹</li></ul>
+    每项能力都受会话权限和 Action 白名单约束。
   </div>
 </div>
 
 <aside class="agent-console" aria-label="投资 Agent 控制台">
   <div class="console-header">
     <div><h2>投资 Agent 控制台</h2><p>集中管理完整轮次、执行模式与策略目标</p></div>
-    <span class="console-status">模拟盘就绪</span>
+    <span class="console-status" id="harnessHealth">Harness 连接中</span>
   </div>
+
+<div class="console-card harness-overview">
+  <div class="harness-title-row"><div class="console-card-title" style="margin:0">Skill Runtime</div><a href="/harness">打开工作台 →</a></div>
+  <div class="harness-metrics"><div class="harness-metric"><b id="miniSkills">—</b><span>Skills</span></div><div class="harness-metric"><b id="miniSessions">—</b><span>会话</span></div><div class="harness-metric"><b id="miniSchedules">—</b><span>自动任务</span></div></div>
+  <div class="harness-last" id="miniLastExecution">正在读取最近执行…</div>
+</div>
 
 <details class="advanced-model">
   <summary>模型与推理设置</summary>
@@ -199,7 +214,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 </aside>
 
 <div class="input-bar">
-  <textarea id="userInput" rows="1" placeholder="输入你的问题，AI 有完全操作权限..." onkeydown="handleKey(event)"></textarea>
+  <textarea id="userInput" rows="1" placeholder="描述目标，Harness 会选择并完整执行 Skill…" onkeydown="handleKey(event)"></textarea>
   <button id="stopBtn" onclick="stopGeneration()">停止</button>
   <button id="sendBtn" onclick="sendMessage()">发送</button>
 </div>
@@ -278,6 +293,28 @@ async function loadModels() {
     if (modelCatalog[savedProvider]) providerSel.value = savedProvider;
     updateModelSelect();
   } catch(e) { console.warn('load models failed', e); }
+}
+
+async function loadHarnessSummary() {
+  try {
+    const res = await fetch('/api/harness?limit=1');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '读取失败');
+    const summary = data.summary || {};
+    document.getElementById('miniSkills').textContent = summary.skills ?? 0;
+    document.getElementById('miniSessions').textContent = summary.active_sessions ?? 0;
+    document.getElementById('miniSchedules').textContent = summary.enabled_schedules ?? 0;
+    const latest = (data.executions || [])[0];
+    document.getElementById('miniLastExecution').textContent = latest
+      ? `最近：${latest.skill} · ${latest.status}` : '尚无 Skill 执行轨迹';
+    const health = document.getElementById('harnessHealth');
+    health.textContent = 'Skill Runtime 已就绪';
+    health.style.color = 'var(--success)';
+  } catch(e) {
+    const health = document.getElementById('harnessHealth');
+    health.textContent = 'Harness 未连接';
+    health.style.color = 'var(--danger)';
+  }
 }
 
 function updateModelSelect() {
@@ -415,7 +452,8 @@ async function runStreamingRequest(endpoint, payload, displayText) {
           body.innerHTML = renderMarkdown(raw);
           assistantMsg.scrollIntoView({behavior:'smooth', block:'end'});
         } else if (evt.type === 'tool') {
-          body.insertAdjacentHTML('beforeend', sanitizeHtml(`<div style="color:var(--text-dim);font-size:.8rem;margin:6px 0">🔧 调用工具: <code>${escapeHtml(evt.name)}</code></div>`));
+          const isSkill = evt.name === 'run_skill';
+          body.insertAdjacentHTML('beforeend', sanitizeHtml(`<div style="color:var(--text-dim);font-size:.8rem;margin:6px 0">${isSkill?'🧩 进入 Skill Runtime':'🔧 Harness 操作'}: <code>${escapeHtml(evt.name)}</code></div>`));
         } else if (evt.type === 'status') {
           if (!raw) body.innerHTML = `<span style="color:var(--text-dim)">${escapeHtml(evt.content)}</span>`;
         } else if (evt.type === 'cancelled') {
@@ -449,6 +487,7 @@ async function runStreamingRequest(endpoint, payload, displayText) {
       setInputLocked(false);
     }
     loadHistory(false);
+    loadHarnessSummary();
   }
 }
 
@@ -485,13 +524,15 @@ async function stopGeneration() {
   if (body && isGenerating) body.insertAdjacentHTML('beforeend', `<div style="color:var(--text-dim);font-size:.85rem;margin-top:8px">⏹️ 已请求停止生成</div>`);
 }
 
-function appendMessage(role, html, isTemp) {
+function appendMessage(role, html, isTemp, timeValue) {
   const box = document.getElementById('chatBox');
   const div = document.createElement('div');
   div.className = `msg ${role}`;
   const ts = document.createElement('span');
   ts.className = 'ts';
-  ts.textContent = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
+  const messageTime = timeValue ? new Date(timeValue) : new Date();
+  ts.textContent = (Number.isNaN(messageTime.getTime()) ? new Date() : messageTime)
+    .toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
   div.appendChild(ts);
   const body = document.createElement('div');
   body.className = 'body';
@@ -516,7 +557,7 @@ async function loadHistory(render=true) {
     box.appendChild(welcome);
     (data.history || []).forEach(m => {
       if (m.role === 'user' || m.role === 'assistant') {
-        appendMessage(m.role, renderMarkdown(m.content || ''));
+        appendMessage(m.role, renderMarkdown(m.content || ''), false, m.time);
       }
     });
   } catch(e) { console.warn('history load failed', e); }
@@ -532,7 +573,14 @@ loadModels();
 loadOperationMode();
 loadStrategyProfile();
 loadHistory();
+loadHarnessSummary();
+const requestedPrompt = new URLSearchParams(location.search).get('prompt');
+if (requestedPrompt) {
+  document.getElementById('userInput').value = requestedPrompt;
+  document.getElementById('userInput').focus();
+}
 setInterval(() => { if (!isGenerating) loadHistory(); }, 5000);
+setInterval(loadHarnessSummary, 15000);
 </script>
 </body>
 </html>

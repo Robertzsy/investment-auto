@@ -1,232 +1,316 @@
-app:
-  name: investment-auto
-  timezone: Asia/Shanghai
-  data_dir: runtime/data
-  report_dir: runtime/reports
-  optimizer_dir: runtime/optimizer
-  log_dir: runtime/logs
-
-markets:
-  # Choose any subset: cn, hk, us, etf
-  enable: [cn, hk, us, etf]
-
+architecture:
+  audit_summary_only: true
+  checkpoint_cycles: true
+  citation_attach_upstream: true
+  citation_auto_repair: true
+  evidence_store: true
+  evidence_text_max_chars: 16000
+  research:
+    enabled: true
+    max_rounds: 6
+    shell: restricted
+    shell_timeout_seconds: 60
+    workspace: runtime/research
+  resume_stale_minutes: 90
+  tool_mediated: true
+  tool_mediated_roles:
+  - research_manager
+  - trader
+  - risk_manager
+  - portfolio_manager
+  tool_retries: 2
 accounts:
-  initial_capital: 500000
   currency_map:
     cn: CNY
+    etf: CNY
     hk: HKD
     us: USD
-    etf: CNY
   fx_rates:
-    USD_CNY: 7.20
     HKD_CNY: 0.92
-
-schedule:
+    USD_CNY: 7.2
+  initial_capital: 500000
+app:
+  data_dir: runtime/data
+  log_dir: runtime/logs
+  name: investment-auto
+  optimizer_dir: runtime/optimizer
+  report_dir: runtime/reports
   timezone: Asia/Shanghai
-  weekdays_only: true
-  # Intraday construction/rebalance rounds are configurable.
-  # Increase/decrease this list to change daily intraday build frequency.
-  intraday_rounds:
-    cn: ["09:30", "10:30", "13:00"]
-    hk: ["09:45", "13:20"]
-    us: ["21:35", "23:30", "01:00"]
-    etf: ["10:00", "10:50", "13:40"]
-  close_rounds:
-    cn: "15:10"
-    hk: "16:10"
-    us: "04:10"
-    etf: "15:40"
-  # APScheduler uses Monday=0. Beijing-time US early-morning jobs therefore
-  # run Tue-Sat (1-5), mapping to US Mon-Fri sessions.
-  us_early_morning_days: "1-5"
-  # Chat is management-only; scheduler and investment worker run independently.
-  chat_start_scheduler: false
-  catch_up_markets: [cn]
-  catch_up_grace_minutes: 480
-  macro_daily_time: "08:00"
-  macro_timeout_seconds: 240
-
-llm:
-  provider: deepseek
-  provider_fallback: [openai, glm, kimi]
-  models:
-    openai:
-      model: gpt-5.5
-      api_base: https://ai-apigateway.must.edu.mo/openhub/v1
-      variants: [gpt-5.5, gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna]
-      api_key_env: OPENAI_API_KEY
-    deepseek:
-      model: deepseek-v4-pro
-      api_base: https://api.deepseek.com
-      variants: [deepseek-v4-pro, deepseek-v4-flash]
-      api_key_env: DEEPSEEK_API_KEY
-    glm:
-      model: glm-5.2
-      api_base: https://open.bigmodel.cn/api/paas/v4
-      variants: [glm-5.2]
-      api_key_env: GLM_API_KEY
-    kimi:
-      model: kimi-k3
-      api_base: https://api.moonshot.cn/v1
-      variants: [kimi-k3]
-      api_key_env: KIMI_API_KEY
-  role_model_override:
-    analyst: deepseek-v4-flash
-    researcher: deepseek-v4-flash
-    quant_analyst: deepseek-v4-pro
-    judge: deepseek-v4-pro
-    trader: deepseek-v4-pro
-    risk_chairman: deepseek-v4-pro
-    technical_analyst: deepseek-v4-flash
-    sentiment_analyst: deepseek-v4-flash
-    news_analyst: deepseek-v4-flash
-    fundamentals_analyst: deepseek-v4-flash
-    bull_researcher: deepseek-v4-flash
-    bear_researcher: deepseek-v4-flash
-    research_manager: deepseek-v4-pro
-    investment_advisor: deepseek-v4-pro
-    aggressive_analyst: deepseek-v4-pro
-    neutral_analyst: deepseek-v4-pro
-    conservative_analyst: deepseek-v4-pro
-    risk_manager: deepseek-v4-pro
-    portfolio_manager: deepseek-v4-pro
-
-optimizer:
-  enabled: true
-  lookback_days: 120
-  samples: 3000
-  timeout_seconds: 180
-  risk_free_rate: 0.02
-  cost_aware: true
-  black_litterman_tau: 0.05
-  view_confidence: 0.50
-  risk_aversion: 2.5
-  default_symbols:
-    cn: ["600519", "000858", "601318", "600030", "510300", "600036", "000333"]
-    hk: ["00700", "09988", "03690", "01299", "00941", "00005", "02800"]
-    us: ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "BRK.B", "SPY", "QQQ"]
-    etf: ["510300", "510050", "159915", "512100"]
-  stress_thresholds:
-    var95: -0.03
-    max_drawdown: -0.20
-
-# Stock selection runs before the AI committee. Market-wide discovery is
-# deterministic and auditable; the LLM may only decide inside the shortlist.
-screening:
-  enabled: true
-  # auto: use MongoDB when MONGODB_URI is configured, otherwise JSON.
-  # mongodb: require an attempted local/remote MongoDB connection, with JSON fallback.
-  storage:
-    backend: auto
-    mongodb_uri_env: MONGODB_URI
-    mongodb_database: investment_auto
-    connect_timeout_ms: 1500
-    retry_seconds: 60
-  refresh_minutes: 30
-  discovery_timeout_seconds: 180
-  # 0 means discover and cache the complete provider universe. Only the top
-  # snapshot_limit securities receive expensive history/indicator requests.
-  discovery_limit: 0
-  snapshot_limit: 60
-  shortlist_size: 20
-  use_for_optimizer: true
-  optimizer_max_age_minutes: 1440
-  min_price:
-    cn: 3
-    hk: 1
-    us: 5
-    etf: 0.5
-  min_amount:
-    cn: 100000000
-    hk: 50000000
-    us: 20000000
-    etf: 50000000
-  min_market_cap:
-    cn: 5000000000
-    hk: 0
-    us: 1000000000
-    etf: 0
-  max_pe: 80
-  max_pb: 20
-  max_abs_change_pct: 15
-  exclude_name_patterns: ["退", "WARRANT", "RIGHT", "UNIT", "PREFERRED"]
-  exclude_patterns_by_market:
-    cn: ["ST", "*ST"]
-    etf: ["货币", "短融", "日利", "现金", "同业存单", "债"]
-  weights:
-    momentum: 0.28
-    trend: 0.22
-    liquidity: 0.20
-    valuation: 0.12
-    volume: 0.10
-    low_volatility: 0.08
-
-# Autonomous paper-trading is opt-in in the repository. Set enabled=true only
-# after configuring API keys and reviewing the hard limits below.
 autonomous:
-  enabled: false
-  # manual: only one-click complete rounds; automatic: scheduled complete rounds.
-  operation_mode: automatic
-  auto_execute: true
-  trade_on_catch_up: false
-  # TradingAgents-CN-inspired staged research. Core design is reimplemented;
-  # deterministic risk.py remains the final authority over every order.
+  agent_workers: 4
+  command_hard_timeout_seconds: 1800
+  command_heartbeat_seconds: 10
+  command_idle_timeout_seconds: 300
   agent_workflow:
+    allow_partial_symbol_research: true
     enabled: true
-    require_citations: true
-    minimum_citations: 1
-    # Each security must complete all four independent research domains.
-    minimum_base_analysts: 4
-    research_debate_rounds: 1
-    risk_debate_rounds: 1
-    # Each symbol runs its own graph. Keep this bounded to control provider
-    # rate limits while still researching two securities concurrently.
-    symbol_workers: 2
-    max_parallel_workers: 4
-    research_data_ttl_minutes: 30
-    research_data_timeout_seconds: 12
     json_retries: 1
+    max_parallel_workers: 4
+    memory_chars_per_entry: 1200
     memory_enabled: true
     memory_entries_per_role: 6
-    memory_chars_per_entry: 1200
+    minimum_base_analysts: 4
+    minimum_citations: 1
+    minimum_symbol_research_success_ratio: 0.8
+    require_citations: true
+    research_data_timeout_seconds: 12
+    research_data_ttl_minutes: 30
+    research_debate_rounds: 1
+    risk_debate_rounds: 1
     roles:
-      technical_analyst: true
-      sentiment_analyst: true
-      news_analyst: true
-      fundamentals_analyst: true
-      bull_researcher: true
-      bear_researcher: true
-      research_manager: true
-      trader: true
       aggressive_analyst: true
-      neutral_analyst: true
+      bear_researcher: true
+      bull_researcher: true
       conservative_analyst: true
-      risk_manager: true
+      fundamentals_analyst: true
+      neutral_analyst: true
+      news_analyst: true
       portfolio_manager: true
-  # Legacy committee is retained for compatibility when agent_workflow is off.
-  committee_roles: [analyst, researcher, quant_analyst, risk_chairman]
-  minimum_agent_responses: 2
-  min_confidence: 0.65
-  max_universe_size: 40
-  minimum_priced_symbols: 2
-  max_decisions: 40
-  max_orders_per_cycle: 3
-  max_position_pct: 12
-  max_order_value_pct: 8
-  max_cycle_turnover_pct: 15
-  market_data_workers: 4
-  agent_workers: 4
-  # A full 8-security graph makes substantially more LLM calls than the old
-  # batch committee. This is also the stale-lock safety window.
+      research_manager: true
+      risk_manager: true
+      sentiment_analyst: true
+      technical_analyst: true
+      trader: true
+    symbol_workers: 2
+  auto_execute: true
+  committee_roles:
+  - analyst
+  - researcher
+  - quant_analyst
+  - risk_chairman
   cycle_timeout_seconds: 1200
-trading:
-  mode: paper
-  max_daily_trades: 6
-  force_build_positions: true
-  entry_method: "first 50%, add on -2% pullback, avoid chasing +3% intraday spikes"
-
-notify:
   enabled: true
-  channels: [webhook]
-  webhook_url_env: NOTIFY_WEBHOOK_URL
+  market_data_workers: 4
+  max_cycle_turnover_pct: 35
+  max_decisions: 40
+  max_order_value_pct: 38
+  max_orders_per_cycle: 10
+  max_position_pct: 32
+  max_universe_size: 30
+  min_confidence: 0.65
+  minimum_agent_responses: 2
+  minimum_priced_symbols: 2
+  operation_mode: automatic
+  trade_on_catch_up: false
+llm:
+  quick_model: deepseek-v4-flash
+  deep_model: deepseek-v4-pro
+  models:
+    deepseek:
+      api_base: https://api.deepseek.com
+      api_key_env: DEEPSEEK_API_KEY
+      model: deepseek-v4-pro
+      variants:
+      - deepseek-chat
+      - deepseek-v4-pro
+      - deepseek-v4-flash
+    deepinfra:
+      provider_name: DeepInfra
+      api_base: https://api.deepinfra.com/v1/openai
+      api_key_env: DEEPINFRA_API_KEY
+      model: deepseek-ai/DeepSeek-V4-Flash-0731
+      variants:
+      - deepseek-ai/DeepSeek-V4-Flash-0731
+    glm:
+      api_base: https://open.bigmodel.cn/api/paas/v4
+      api_key_env: GLM_API_KEY
+      model: glm-5.2
+      variants:
+      - glm-5.2
+    kimi:
+      api_base: https://api.moonshot.cn/v1
+      api_key_env: KIMI_API_KEY
+      model: kimi-k3
+      variants:
+      - kimi-k3
+    openai:
+      api_base: https://ai-apigateway.must.edu.mo/openhub/v1
+      api_key_env: OPENAI_API_KEY
+      model: gpt-5.5
+      variants:
+      - gpt-5.5
+      - gpt-5.6-sol
+      - gpt-5.6-terra
+      - gpt-5.6-luna
+  provider: deepseek
+  provider_fallback:
+  - openai
+  - glm
+  - kimi
+  request_timeout_seconds: 120
+  role_model_override:
+    aggressive_analyst: deepseek-v4-flash
+    analyst: deepseek-v4-flash
+    bear_researcher: deepseek-v4-flash
+    bull_researcher: deepseek-v4-flash
+    conservative_analyst: deepseek-v4-flash
+    fundamentals_analyst: deepseek-v4-flash
+    investment_advisor: deepseek-v4-pro
+    judge: deepseek-v4-pro
+    neutral_analyst: deepseek-v4-flash
+    news_analyst: deepseek-v4-flash
+    portfolio_manager: deepseek-v4-pro
+    quant_analyst: deepseek-v4-pro
+    research: deepseek-chat
+    research_manager: deepseek-v4-pro
+    researcher: deepseek-v4-flash
+    risk_chairman: deepseek-v4-pro
+    risk_manager: deepseek-v4-pro
+    sentiment_analyst: deepseek-v4-flash
+    technical_analyst: deepseek-v4-flash
+    trader: deepseek-v4-flash
+manager_agent:
+  usage_limits:
+    request_limit: 32
+    tool_call_limit: 64
+    total_token_limit: 240000
+markets:
+  enable:
+  - cn
+  - hk
+  - us
+  - etf
+notify:
+  channels:
+  - webhook
+  enabled: true
   timeout_seconds: 10
+  webhook_url_env: NOTIFY_WEBHOOK_URL
+optimizer:
+  black_litterman_tau: 0.05
+  cost_aware: true
+  default_symbols:
+    cn:
+    - '600519'
+    - 000858
+    - '601318'
+    - '600030'
+    - '510300'
+    - '600036'
+    - '000333'
+    etf:
+    - '510300'
+    - '510050'
+    - '159915'
+    - '512100'
+    hk:
+    - '00700'
+    - 09988
+    - 03690
+    - 01299
+    - 00941
+    - '00005'
+    - 02800
+    us:
+    - AAPL
+    - MSFT
+    - NVDA
+    - AMZN
+    - GOOGL
+    - META
+    - BRK.B
+    - SPY
+    - QQQ
+  enabled: true
+  lookback_days: 120
+  risk_aversion: 2.5
+  risk_free_rate: 0.02
+  samples: 3000
+  stress_thresholds:
+    max_drawdown: -0.2
+    var95: -0.03
+  timeout_seconds: 180
+  view_confidence: 0.5
+schedule:
+  catch_up_grace_minutes: 480
+  catch_up_markets:
+  - cn
+  chat_start_scheduler: false
+  close_rounds:
+    cn: '15:10'
+    etf: '15:40'
+    hk: '16:10'
+    us: 04:10
+  intraday_rounds:
+    cn:
+    - 09:30
+    - '10:30'
+    - '13:00'
+    etf:
+    - '10:00'
+    - '10:50'
+    - '13:40'
+    hk:
+    - 09:45
+    - '13:20'
+    us:
+    - '21:35'
+    - '23:30'
+    - 01:00
+  macro_daily_time: 08:00
+  macro_timeout_seconds: 240
+  timezone: Asia/Shanghai
+  us_early_morning_days: 1-5
+  weekdays_only: true
+screening:
+  discovery_limit: 500
+  discovery_timeout_seconds: 180
+  enabled: true
+  exclude_name_patterns:
+  - 退
+  - WARRANT
+  - RIGHT
+  - UNIT
+  - PREFERRED
+  exclude_patterns_by_market:
+    cn:
+    - ST
+    - '*ST'
+    etf:
+    - 货币
+    - 短融
+    - 日利
+    - 现金
+    - 同业存单
+    - 债
+  max_abs_change_pct: 15
+  max_pb: 0
+  max_pe: 0
+  min_amount:
+    cn: 100000000
+    etf: 50000000
+    hk: 50000000
+    us: 20000000
+  min_market_cap:
+    cn: 5000000000
+    etf: 0
+    hk: 0
+    us: 1000000000
+  min_price:
+    cn: 3
+    etf: 0.5
+    hk: 1
+    us: 5
+  optimizer_max_age_minutes: 1440
+  refresh_minutes: 30
+  shortlist_size: 20
+  snapshot_limit: 60
+  storage:
+    backend: auto
+    connect_timeout_ms: 1500
+    mongodb_database: investment_auto
+    mongodb_uri_env: MONGODB_URI
+    retry_seconds: 60
+  use_for_optimizer: true
+  weights:
+    liquidity: 0.2
+    low_volatility: 0.08
+    momentum: 0.28
+    trend: 0.22
+    valuation: 0.12
+    volume: 0.1
+trading:
+  entry_method: first 50%, add on -2% pullback, avoid chasing +3% intraday spikes
+  force_build_positions: true
+  max_daily_trades: 15
+  mode: paper

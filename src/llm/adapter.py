@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 import threading
 from typing import Any, Dict, Iterator, List, Optional
 
 from openai import OpenAI
+
+from src.config import cfg
 
 from .base import BaseLLM
 
@@ -18,13 +21,11 @@ class GenericOpenAILLM(BaseLLM):
     """
 
     def __init__(self, provider_config: Dict[str, Any], model_override: str | None = None) -> None:
-        import os
-
         key_env = str(provider_config.get("api_key_env", "")).strip()
         provider_name = str(provider_config.get("provider_name", "openai"))
         if not key_env:
             raise ValueError(f"LLM provider '{provider_name}' has no api_key_env configured")
-        api_key = os.getenv(key_env, "").strip()
+        api_key = cfg.llm_api_key(provider_name, provider_config).strip()
         if not api_key:
             raise ValueError(f"LLM provider '{provider_name}' requires environment variable {key_env}")
 
@@ -64,6 +65,55 @@ class GenericOpenAILLM(BaseLLM):
             params["extra_body"] = extra_body
         resp = self._client.chat.completions.create(**params)
         return resp.choices[0].message.content or ""
+
+    def chat_tools(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Dict[str, Any]],
+        *,
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Return content plus normalized tool_calls from one completion."""
+        extra_body = kwargs.pop("extra_body", None) or None
+        # Callers may force the final step of a bounded tool loop to submit a
+        # specific function.  Keep ``auto`` as the transport default while
+        # allowing the workflow to tighten it after a read-only catalog call.
+        tool_choice = kwargs.pop("tool_choice", "auto")
+        params: Dict[str, Any] = dict(
+            model=self._model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tools=tools,
+            tool_choice=tool_choice,
+            **kwargs,
+        )
+        if extra_body:
+            params["extra_body"] = extra_body
+        resp = self._client.chat.completions.create(**params)
+        message = resp.choices[0].message
+        tool_calls = []
+        for call in getattr(message, "tool_calls", None) or []:
+            function = getattr(call, "function", None)
+            raw_arguments = getattr(function, "arguments", "") if function is not None else ""
+            try:
+                arguments = json.loads(raw_arguments) if raw_arguments else {}
+            except json.JSONDecodeError:
+                arguments = {"_raw": raw_arguments}
+            tool_calls.append({
+                "id": getattr(call, "id", "") or "",
+                "type": getattr(call, "type", "function") or "function",
+                "function": {
+                    "name": getattr(function, "name", "") if function is not None else "",
+                    "arguments": arguments,
+                },
+            })
+        return {
+            "content": getattr(message, "content", "") or "",
+            "tool_calls": tool_calls or None,
+        }
 
     def chat_stream(
         self,

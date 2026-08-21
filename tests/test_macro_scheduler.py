@@ -190,6 +190,21 @@ def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, 
 
     monkeypatch.setattr(scheduler, "resolve_llm", lambda **kwargs: FakeLLM())
     monkeypatch.setattr(scheduler, "_deliver_completed_report", lambda *args: {"status": "delivered"})
+    published = []
+    monkeypatch.setattr(
+        "src.manager.report_inbox.publish_cycle_report",
+        lambda result, **kwargs: published.append((result, kwargs)) or {
+            "status": "queued_for_chat", "event_id": "a" * 32,
+        },
+    )
+    monkeypatch.setattr(
+        "src.investment.reflection.InvestmentReflectionService.evaluate_pending",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        "src.investment.reflection.InvestmentReflectionService.reflect_cycle",
+        lambda *args, **kwargs: {"status": "recorded"},
+    )
     monkeypatch.setattr("src.trading.controller.run_autonomous_cycle", lambda *args, **kwargs: {
         "status": "executed",
         "screening": {"selected_symbols": ["NVDA", "MSFT"]},
@@ -203,7 +218,7 @@ def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, 
     })
     current = datetime(2026, 8, 12, 22, 1, tzinfo=ZoneInfo("Asia/Shanghai"))
 
-    result = scheduler._run_intraday_job("us", "22:01", "chat-220100", now=current, scheduled_at=current)
+    result = scheduler._run_intraday_job("us", "22:01", "button-220100", now=current, scheduled_at=current)
     content = Path(result["report"]).read_text(encoding="utf-8")
 
     assert result["status"] == "generated"
@@ -213,6 +228,8 @@ def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, 
     assert "MSFT" in content and "观望/继续持有" in content
     assert "AAPL" in content and "卖出/减仓" in content
     assert "已成交" in content
+    assert result["chat_delivery"]["status"] == "queued_for_chat"
+    assert len(published) == 1
 
 
 def test_us_evening_misfire_keeps_original_schedule_date(monkeypatch, tmp_path):
@@ -225,6 +242,22 @@ def test_us_evening_misfire_keeps_original_schedule_date(monkeypatch, tmp_path):
             return "report"
 
     monkeypatch.setattr(scheduler, "resolve_llm", lambda **kwargs: FakeLLM())
+    monkeypatch.setattr(
+        "src.manager.report_inbox.publish_cycle_report",
+        lambda *args, **kwargs: {"status": "test_isolated"},
+    )
+    monkeypatch.setattr(
+        "src.trading.controller.run_autonomous_cycle",
+        lambda *args, **kwargs: {"status": "no_trade", "execution": {"fills": []}},
+    )
+    monkeypatch.setattr(
+        "src.investment.reflection.InvestmentReflectionService.evaluate_pending",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        "src.investment.reflection.InvestmentReflectionService.reflect_cycle",
+        lambda *args, **kwargs: {"status": "recorded"},
+    )
     actual = datetime(2026, 8, 11, 1, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
     scheduled = scheduler._scheduled_reference(actual, "21:35")
     assert scheduled == datetime(2026, 8, 10, 21, 35, tzinfo=ZoneInfo("Asia/Shanghai"))
@@ -275,6 +308,8 @@ def test_scheduler_registers_macro_job(monkeypatch, tmp_path):
     monkeypatch.setattr(scheduler, "run_catch_up", lambda: [])
     instance = scheduler.start(catch_up=False)
     try:
-        assert "macro-daily" in {job.id for job in instance.get_jobs()}
+        job_ids = {job.id for job in instance.get_jobs()}
+        assert "macro-daily" in job_ids
+        assert "runtime-skill-schedule-refresh" in job_ids
     finally:
         instance.shutdown(wait=False)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import re
@@ -9,14 +10,21 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from src.llm.registry import resolve_llm
+from src.trading.citations import (
+    _citation_ids,
+    _parse_json_object,
+    repair_citations,
+    validate_citations,
+)
 
 logger = logging.getLogger("investment-auto.agent-workflow")
 ROOT = Path(__file__).resolve().parents[2]
-MEMORY_DIR = ROOT / "runtime" / "trading" / "agent_memory"
-AGENT_FAILURE_DIR = ROOT / "runtime" / "trading" / "agent_failures"
+from src.paths import runtime_dir
+MEMORY_DIR = runtime_dir() / "trading" / "agent_memory"
+AGENT_FAILURE_DIR = runtime_dir() / "trading" / "agent_failures"
 _failure_lock = threading.RLock()
 
 ROLE_GROUPS: Dict[str, Sequence[str]] = {
@@ -271,25 +279,6 @@ def _symbol_context(context: Mapping[str, Any], symbol: str) -> Dict[str, Any]:
     return child
 
 
-def _parse_json_object(text: str) -> Dict[str, Any]:
-    cleaned = str(text or "").strip()
-    fence = chr(96) * 3
-    if cleaned.startswith(fence):
-        cleaned = re.sub(r"^[A-Za-z]*\s*", "", cleaned[len(fence):], count=1)
-        if cleaned.endswith(fence):
-            cleaned = cleaned[:-len(fence)].rstrip()
-    try:
-        payload = json.loads(cleaned)
-    except json.JSONDecodeError:
-        start, end = cleaned.find("{"), cleaned.rfind("}")
-        if start < 0 or end <= start:
-            raise ValueError("Agent 没有返回 JSON 对象")
-        payload = json.loads(cleaned[start:end + 1])
-    if not isinstance(payload, dict):
-        raise ValueError("Agent 输出必须是 JSON 对象")
-    return payload
-
-
 def _save_invalid_output(
     *,
     role: str,
@@ -298,6 +287,7 @@ def _save_invalid_output(
     text: str,
     error: Exception,
     generated_at: str,
+    tool_diagnostic: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> str:
     """Persist malformed model output so the next failure is diagnosable."""
 
@@ -314,6 +304,8 @@ def _save_invalid_output(
         "raw_output": text[:24000],
         "truncated_for_diagnostic": len(text) > 24000,
     }
+    if tool_diagnostic:
+        payload["tool_diagnostic"] = [dict(item) for item in tool_diagnostic]
     try:
         with _failure_lock:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -323,71 +315,6 @@ def _save_invalid_output(
         return str(path)
     except OSError:
         return ""
-
-
-def _citation_ids(payload: Mapping[str, Any]) -> List[str]:
-    values: List[Any] = list(payload.get("citations", [])) if isinstance(payload.get("citations"), list) else []
-    findings = payload.get("findings", [])
-    if isinstance(findings, list):
-        for finding in findings:
-            if isinstance(finding, Mapping) and isinstance(finding.get("evidence_ids"), list):
-                values.extend(finding["evidence_ids"])
-    decisions = payload.get("decisions", [])
-    if isinstance(decisions, list):
-        for decision in decisions:
-            if isinstance(decision, Mapping) and isinstance(decision.get("evidence_ids"), list):
-                values.extend(decision["evidence_ids"])
-    return list(dict.fromkeys(str(item).strip() for item in values if str(item).strip()))
-
-
-def validate_citations(
-    payload: Mapping[str, Any],
-    allowed_ids: Iterable[str],
-    *,
-    required: bool,
-    minimum: int,
-    require_decision_citations: bool = False,
-    required_upstream_prefixes: Sequence[str] = (),
-    require_all_upstream_prefixes: bool = False,
-) -> List[str]:
-    allowed = set(allowed_ids)
-    citations = _citation_ids(payload)
-    unknown = [item for item in citations if item not in allowed]
-    if unknown:
-        raise ValueError("引用了不存在的证据 ID: " + ", ".join(unknown[:8]))
-    findings = payload.get("findings", [])
-    if required and not require_decision_citations and (not isinstance(findings, list) or not findings):
-        raise ValueError("必须输出至少一条带引用的 finding")
-    if required and isinstance(findings, list):
-        for finding in findings:
-            if isinstance(finding, Mapping) and str(finding.get("claim", "")).strip():
-                refs = finding.get("evidence_ids", [])
-                if not isinstance(refs, list) or not refs:
-                    raise ValueError("每条 finding 必须包含 evidence_ids")
-    if required and require_decision_citations:
-        decisions = payload.get("decisions", [])
-        for decision in decisions if isinstance(decisions, list) else []:
-            if isinstance(decision, Mapping):
-                refs = decision.get("evidence_ids", [])
-                if not isinstance(refs, list) or not refs:
-                    raise ValueError("每条组合决策必须包含 evidence_ids")
-    if required and len(citations) < max(1, minimum):
-        raise ValueError(f"有效引用不足 {max(1, minimum)} 条")
-    available_prefixes = [
-        prefix for prefix in required_upstream_prefixes
-        if any(evidence_id.startswith(prefix) for evidence_id in allowed)
-    ]
-    if required and available_prefixes:
-        cited_prefixes = {
-            prefix for prefix in available_prefixes
-            if any(citation.startswith(prefix) for citation in citations)
-        }
-        if require_all_upstream_prefixes and len(cited_prefixes) != len(available_prefixes):
-            missing = [prefix for prefix in available_prefixes if prefix not in cited_prefixes]
-            raise ValueError("必须引用全部直接上游 Agent 报告: " + ", ".join(missing))
-        if not cited_prefixes:
-            raise ValueError("必须引用至少一份直接上游 Agent 报告")
-    return citations
 
 
 def validate_portfolio_coverage(payload: Mapping[str, Any], required_symbols: Sequence[str]) -> None:
@@ -403,6 +330,117 @@ def validate_portfolio_coverage(payload: Mapping[str, Any], required_symbols: Se
     missing = sorted(expected - actual)
     if missing:
         raise ValueError(f"投资组合决策缺少标的: {', '.join(missing)}")
+    unexpected = sorted(actual - expected)
+    if unexpected:
+        raise ValueError(f"投资组合决策包含允许池外标的: {', '.join(unexpected)}")
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _holding_symbols(context: Mapping[str, Any]) -> set[str]:
+    account = context.get("account", {})
+    if not isinstance(account, Mapping):
+        return set()
+    return {
+        str(item.get("code", "") or "").strip().upper()
+        for item in account.get("holdings", [])
+        if isinstance(item, Mapping)
+        and str(item.get("code", "") or "").strip()
+        and _safe_float(item.get("quantity", item.get("shares", 0)) or 0) > 0
+    }
+
+
+def _current_symbol_weight(context: Mapping[str, Any], symbol: str) -> float:
+    account = context.get("account", {})
+    if not isinstance(account, Mapping):
+        return 0.0
+    total = _safe_float(account.get("total_capital", 0) or 0)
+    if total <= 0:
+        return 0.0
+    quantity = 0.0
+    last_price = 0.0
+    for item in account.get("holdings", []):
+        if not isinstance(item, Mapping):
+            continue
+        if str(item.get("code", "") or "").strip().upper() != symbol:
+            continue
+        quantity = _safe_float(item.get("quantity", item.get("shares", 0)) or 0)
+        last_price = _safe_float(item.get("last_price", item.get("lastPrice", 0)) or 0)
+        break
+    snapshots = context.get("snapshots", {})
+    snapshot = snapshots.get(symbol, {}) if isinstance(snapshots, Mapping) else {}
+    realtime = snapshot.get("realtime", {}) if isinstance(snapshot, Mapping) else {}
+    if isinstance(realtime, Mapping):
+        last_price = _safe_float(
+            realtime.get("price", realtime.get("last", realtime.get("close", last_price)))
+            or last_price,
+            last_price,
+        )
+    return max(0.0, min(1.0, quantity * last_price / total))
+
+
+def _failed_holding_report(symbol: str, error: str) -> Dict[str, Any]:
+    """Create a deterministic, non-trading report for an unresearched holding."""
+
+    return {
+        "summary": f"{symbol} 逐标的研究失败；本轮禁止据此进行自主调仓，仅保持 HOLD。",
+        "findings": [{
+            "claim": "研究链不完整，不能形成新的自主买入或卖出判断；代码硬止损仍独立生效。",
+            "impact": "neutral",
+            "evidence_ids": ["ACCOUNT:SUMMARY"],
+        }],
+        "stance": "HOLD",
+        "confidence": 0.0,
+        "data_gaps": [str(error)[:500]],
+        "citations": ["ACCOUNT:SUMMARY"],
+        "memory_note": "研究失败时不以模型猜测替代证据，保留仓位并交由确定性保护规则处理。",
+        "role": "trader",
+        "role_name": ROLE_NAMES["trader"],
+        "stage": f"{symbol}:trade_proposal_safe_hold",
+        "safety_fallback": True,
+    }
+
+
+def _enforce_failed_holding_holds(
+    payload: Mapping[str, Any],
+    failed_holdings: Sequence[str],
+    context: Mapping[str, Any],
+) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """Prevent discretionary orders for holdings whose research failed."""
+
+    guarded = copy.deepcopy(dict(payload))
+    failed = {str(symbol).upper() for symbol in failed_holdings}
+    overrides: List[Dict[str, Any]] = []
+    decisions = guarded.get("decisions", [])
+    if not isinstance(decisions, list):
+        return guarded, overrides
+    for decision in decisions:
+        if not isinstance(decision, dict):
+            continue
+        symbol = str(decision.get("symbol", "") or "").strip().upper()
+        if symbol not in failed:
+            continue
+        previous_action = str(decision.get("action", "HOLD") or "HOLD").upper()
+        decision.update({
+            "action": "HOLD",
+            "target_weight": round(_current_symbol_weight(context, symbol), 6),
+            "confidence": 0.0,
+            "reason": "逐标的研究失败，禁止自主调仓；确定性止损、止盈和回撤熔断仍由代码风控执行。",
+            "evidence_ids": [f"AGENT:TRADER:{symbol}"],
+            "safety_override": "failed_research_hold",
+        })
+        overrides.append({
+            "symbol": symbol,
+            "from_action": previous_action,
+            "to_action": "HOLD",
+            "reason": "failed_symbol_research",
+        })
+    return guarded, overrides
 
 
 def _report_evidence_id(role: str, round_number: Optional[int] = None) -> str:
@@ -464,6 +502,14 @@ def _evidence_text(evidence: Mapping[str, Any], max_chars: int = 42000) -> str:
     return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))[:max_chars]
 
 
+def _architecture_settings() -> Dict[str, Any]:
+    """Read the architecture feature-flag block from the global config."""
+    from src.config import cfg
+
+    value = cfg.raw.get("architecture", {})
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
 def _call_role(
     role: str,
     *,
@@ -514,7 +560,10 @@ def _call_role(
             "memory_note": "留给该角色未来轮次的简短教训",
         }
     scoped_evidence = dict(allowed_evidence) if allowed_evidence is not None else _role_evidence(role, evidence)
-    evidence_text = _evidence_text(scoped_evidence)
+    evidence_text = _evidence_text(
+        scoped_evidence,
+        max_chars=int(_architecture_settings().get('evidence_text_max_chars', 42000)),
+    )
     upstream_prefixes = (
         tuple(required_upstream_prefixes)
         if required_upstream_prefixes is not None
@@ -527,21 +576,41 @@ def _call_role(
     mandatory_upstream_ids = {
         prefix: ids for prefix, ids in mandatory_upstream_ids.items() if ids
     }
-    system = (
+    use_tools = (
+        bool(_architecture_settings().get("tool_mediated", False))
+        and role in set(str(item) for item in _architecture_settings().get("tool_mediated_roles", []))
+    )
+    system_base = (
         f"你是{ROLE_NAMES[role]}。{ROLE_INSTRUCTIONS[role]}"
         "只允许依据本轮证据目录和明确列出的上游 Agent 报告作判断。"
-        "不得引用训练知识、猜测来源或制造事实。输出纯 JSON，不要 Markdown，不调用工具。"
+        "不得引用训练知识、猜测来源或制造事实。"
+    )
+    json_system = (
+        system_base
+        + "输出纯 JSON，不要 Markdown，不调用工具。"
         "必须返回一个语法完整的 JSON 对象并以右花括号结束；字符串内部的双引号必须转义。"
         "每个事实判断都要填写 evidence_ids；引用 ID 必须与目录完全一致。"
     )
+    if use_tools:
+        system = (
+            system_base
+            + "必须使用提供的工具：先用 list_evidence_ids 核对合法证据 ID，"
+            "再调用 submit_analysis 提交结论；校验失败时按返回的错误修正后重新提交。"
+            "每个事实判断都要填写 evidence_ids；引用 ID 必须与目录完全一致。"
+        )
+    else:
+        system = json_system
     mandate = context.get("investment_mandate", {})
     if isinstance(mandate, Mapping):
-        system += (
+        mandate_instruction = (
             f"本轮投资授权书为“{mandate.get('display_name', '中立策略')}”，"
             f"长期目标是：{mandate.get('objective', '')}。"
             f"决策倾向：{mandate.get('prompt', '')}"
             "投资授权书是用户目标，角色记忆和本轮反思都不能改变其风险档位或突破硬限制。"
         )
+        system += mandate_instruction
+        if use_tools:
+            json_system += mandate_instruction
     user = (
         f"阶段：{stage}\n市场：{market}\n允许交易池：{_json_text(context.get('allowed_symbols', []), 2000)}"
         f"\n角色独立记忆（只能使用自己的历史记忆，记忆不是本轮事实，不能作为引用）：\n{_memory_text(memories, memory_chars)}"
@@ -556,6 +625,7 @@ def _call_role(
         "\n输出必须精简：summary/thesis 不超过180字，findings最多6条，每条claim/reason不超过120字，"
         "data_gaps最多5条，memory_note不超过160字；不要复制证据原文，不要添加结构外字段。"
     )
+    tool_rounds = max(1, min(4, int(_architecture_settings().get('tool_retries', 2)))) + 1
     llm = resolve_llm(role=role)
     chat_kwargs: Dict[str, Any] = {
         "temperature": 0.1,
@@ -571,6 +641,10 @@ def _call_role(
     last_diagnostic = ""
     for attempt in range(retries + 1):
         text = ""
+        # A semantic tool-loop failure is different from a transport error.
+        # Retrying the identical auto-tool pattern reproduces the same stall,
+        # so the outer retry deliberately falls back to validated plain JSON.
+        attempt_uses_tools = use_tools and attempt == 0
         prompt = user
         if attempt:
             prompt += (
@@ -583,23 +657,85 @@ def _call_role(
             if attempt:
                 attempt_kwargs["temperature"] = 0
                 attempt_kwargs["max_tokens"] = 10000
-            text = llm.chat(
-                [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-                **attempt_kwargs,
-            )
-            payload = _parse_json_object(text)
-            citations = validate_citations(
-                payload,
-                scoped_evidence,
-                required=require_citations,
-                minimum=minimum_citations,
-                require_decision_citations=portfolio,
-                required_upstream_prefixes=upstream_prefixes,
-                require_all_upstream_prefixes=require_all_upstreams,
-            )
+            if attempt_uses_tools:
+                from src.trading import toolchain
+
+                payload, tool_repairs = toolchain.run_tool_mediated_chat(
+                    llm=llm,
+                    system=system,
+                    user=prompt,
+                    allowed_evidence=scoped_evidence,
+                    allowed_symbols=context.get('allowed_symbols', []),
+                    portfolio=portfolio,
+                    require_citations=require_citations,
+                    minimum_citations=minimum_citations,
+                    required_upstream_prefixes=upstream_prefixes,
+                    require_all_upstreams=require_all_upstreams,
+                    attach_missing_upstream=bool(
+                        _architecture_settings().get("citation_attach_upstream", True)
+                    ),
+                    tool_rounds=tool_rounds,
+                    chat_kwargs=attempt_kwargs,
+                )
+                citations = list(payload.get('citations', []))
+                citation_repairs = tool_repairs
+            else:
+                text = llm.chat(
+                [{"role": "system", "content": json_system}, {"role": "user", "content": prompt}],
+                    **attempt_kwargs,
+                )
+                payload = _parse_json_object(text)
+                citation_repairs = []
+            try:
+                citations = validate_citations(
+                    payload,
+                    scoped_evidence,
+                    required=require_citations,
+                    minimum=minimum_citations,
+                    require_decision_citations=portfolio,
+                    required_upstream_prefixes=upstream_prefixes,
+                    require_all_upstream_prefixes=require_all_upstreams,
+                )
+            except ValueError as validation_error:
+                # Citation-format mistakes dominate agent failures.  Repair
+                # unambiguous ones instead of regenerating the whole answer;
+                # an unrecoverable payload is retried as before.
+                auto_repair = bool(_architecture_settings().get("citation_auto_repair", False))
+                if not auto_repair:
+                    raise
+                repaired_payload, repair_notes = repair_citations(
+                    payload,
+                    scoped_evidence,
+                    required_upstream_prefixes=upstream_prefixes,
+                    require_all_upstream_prefixes=require_all_upstreams,
+                    attach_missing_upstream=bool(
+                        _architecture_settings().get("citation_attach_upstream", True)
+                    ),
+                )
+                if not repair_notes:
+                    raise
+                citations = validate_citations(
+                    repaired_payload,
+                    scoped_evidence,
+                    required=require_citations,
+                    minimum=minimum_citations,
+                    require_decision_citations=portfolio,
+                    required_upstream_prefixes=upstream_prefixes,
+                    require_all_upstream_prefixes=require_all_upstreams,
+                )
+                payload = repaired_payload
+                citation_repairs = repair_notes
             if portfolio:
                 validate_portfolio_coverage(payload, context.get("allowed_symbols", []))
             payload.update({"role": role, "role_name": ROLE_NAMES[role], "stage": stage, "citations": citations})
+            if attempt and use_tools:
+                payload["tool_recovery"] = {
+                    "mode": "validated_json_fallback",
+                    "previous_error": str(last_error)[:500],
+                    "diagnostic_file": last_diagnostic,
+                }
+            if citation_repairs:
+                payload["citation_repairs"] = citation_repairs
             # Outcome-blind self summaries are not lessons.  Normal workflow
             # calls keep memory pending until a delayed evaluator can attach
             # observed returns; direct callers may explicitly persist it.
@@ -617,7 +753,8 @@ def _call_role(
             return payload
         except Exception as exc:
             last_error = exc
-            if text:
+            tool_diagnostic = getattr(exc, "diagnostic", None)
+            if text or tool_diagnostic:
                 last_diagnostic = _save_invalid_output(
                     role=role,
                     stage=stage,
@@ -625,6 +762,7 @@ def _call_role(
                     text=text,
                     error=exc,
                     generated_at=generated_at,
+                    tool_diagnostic=tool_diagnostic,
                 )
     diagnostic_note = f"；原始输出诊断: {last_diagnostic}" if last_diagnostic else ""
     raise RuntimeError(
@@ -678,6 +816,24 @@ def _add_reports(evidence: Dict[str, Any], reports: Mapping[str, Any], round_num
         evidence[_report_evidence_id(role, round_number)] = report
 
 
+def _checkpointed(checkpoint, stage, runner):
+    """Run runner() or reuse its archived stage result; returns (result, resumed)."""
+    cycle_id = checkpoint.get("cycle_id") if isinstance(checkpoint, Mapping) else None
+    if cycle_id:
+        from src.trading import checkpoints
+
+        saved = checkpoints.load_stage(cycle_id, stage)
+        if isinstance(saved, Mapping):
+            cleaned = {key: value for key, value in saved.items() if key not in ("stage", "saved_at")}
+            return cleaned, True
+    result = runner()
+    if cycle_id:
+        from src.trading import checkpoints
+
+        checkpoints.save_stage(cycle_id, stage, result)
+    return result, False
+
+
 def _run_symbol_research(
     symbol: str,
     *,
@@ -686,20 +842,31 @@ def _run_symbol_research(
     settings: Mapping[str, Any],
     memory_store: AgentMemoryStore,
     generated_at: str,
+    checkpoint: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Run a complete, isolated research graph for one security."""
+    """Run a complete, isolated research graph for one security.
+
+    With an active checkpoint each stage is archived as it completes, so an
+    interrupted cycle resumes from the first unfinished stage.
+    """
     child_context = _symbol_context(context, symbol)
     child_evidence = evidence_for_symbol(evidence, symbol)
     errors: Dict[str, str] = {}
     timings: Dict[str, float] = {}
 
-    started = time.monotonic()
-    base_reports, stage_errors = _parallel_roles(
-        ROLE_GROUPS["base"], stage=f"{symbol}:base_analysis", context=child_context,
-        evidence=child_evidence, settings=settings, memory_store=memory_store,
-        generated_at=generated_at,
-    )
-    timings["base_analysis"] = round(time.monotonic() - started, 3)
+    def _run_base():
+        started = time.monotonic()
+        reports, stage_errors = _parallel_roles(
+            ROLE_GROUPS["base"], stage=f"{symbol}:base_analysis", context=child_context,
+            evidence=child_evidence, settings=settings, memory_store=memory_store,
+            generated_at=generated_at,
+        )
+        return {"reports": reports, "errors": stage_errors, "timing": round(time.monotonic() - started, 3)}
+
+    base_result, base_resumed = _checkpointed(checkpoint, f"{symbol}:base_analysis", _run_base)
+    base_reports = dict(base_result.get("reports", {}) or {})
+    stage_errors = dict(base_result.get("errors", {}) or {})
+    timings["base_analysis"] = base_result.get("timing", 0.0)
     errors.update(stage_errors)
     required_base = max(1, int(settings.get("minimum_base_analysts", 4)))
     if len(base_reports) < required_base:
@@ -709,65 +876,88 @@ def _run_symbol_research(
     debate_rounds: List[Dict[str, Any]] = []
     rounds = max(1, min(3, int(settings.get("research_debate_rounds", 1))))
     for round_number in range(1, rounds + 1):
-        started = time.monotonic()
-        reports: Dict[str, Any] = {}
-        for role in ROLE_GROUPS["research"]:
-            if not _role_enabled(settings, role):
-                raise RuntimeError(f"{symbol} 的 {ROLE_NAMES[role]}不能停用")
-            opponent = "bear_researcher" if role == "bull_researcher" else "bull_researcher"
-            prior_prefixes = tuple(
-                prefix for prefix in (
-                    _report_evidence_id(opponent, round_number),
-                    _report_evidence_id(opponent, round_number - 1) if round_number > 1 else "",
-                ) if prefix
-            )
-            allowed = _upstream_evidence(
-                child_evidence,
-                (*ROLE_UPSTREAM_PREFIXES[role], *prior_prefixes),
-            )
-            report = _call_role(
-                role, stage=f"{symbol}:research_debate_{round_number}", context=child_context,
-                evidence=child_evidence, allowed_evidence=allowed, settings=settings,
-                memory_store=memory_store, generated_at=generated_at,
-                required_upstream_prefixes=(prior_prefixes or ROLE_UPSTREAM_PREFIXES[role]),
-                extra_instruction=(
-                    f"只研究 {symbol}。直接回应当前辩论历史；"
-                    "不得把 HOLD 当成多头或空头立场，必须提出本方最强论证。"
-                ),
-            )
-            reports[role] = report
+        def _run_debate(round_number: int = round_number):
+            started = time.monotonic()
+            reports: Dict[str, Any] = {}
+            for role in ROLE_GROUPS["research"]:
+                if not _role_enabled(settings, role):
+                    raise RuntimeError(f"{symbol} 的 {ROLE_NAMES[role]}不能停用")
+                opponent = "bear_researcher" if role == "bull_researcher" else "bull_researcher"
+                prior_prefixes = tuple(
+                    prefix for prefix in (
+                        _report_evidence_id(opponent, round_number),
+                        _report_evidence_id(opponent, round_number - 1) if round_number > 1 else "",
+                    ) if prefix
+                )
+                allowed = _upstream_evidence(
+                    child_evidence,
+                    (*ROLE_UPSTREAM_PREFIXES[role], *prior_prefixes),
+                )
+                report = _call_role(
+                    role, stage=f"{symbol}:research_debate_{round_number}", context=child_context,
+                    evidence=child_evidence, allowed_evidence=allowed, settings=settings,
+                    memory_store=memory_store, generated_at=generated_at,
+                    required_upstream_prefixes=(prior_prefixes or ROLE_UPSTREAM_PREFIXES[role]),
+                    extra_instruction=(
+                        f"只研究 {symbol}。直接回应当前辩论历史；"
+                        "不得把 HOLD 当成多头或空头立场，必须提出本方最强论证。"
+                    ),
+                )
+                reports[role] = report
+                child_evidence[_report_evidence_id(role, round_number)] = report
+            return {"reports": reports, "timing": round(time.monotonic() - started, 3)}
+
+        debate_result, _debate_resumed = _checkpointed(
+            checkpoint, f"{symbol}:research_debate_{round_number}", _run_debate
+        )
+        reports = dict(debate_result.get("reports", {}) or {})
+        for role, report in reports.items():
             child_evidence[_report_evidence_id(role, round_number)] = report
-        timings[f"research_debate_{round_number}"] = round(time.monotonic() - started, 3)
+        timings[f"research_debate_{round_number}"] = debate_result.get("timing", 0.0)
         debate_rounds.append({"round": round_number, "reports": reports})
 
-    started = time.monotonic()
-    manager_prefixes = tuple(
-        _report_evidence_id(role, rounds) for role in ROLE_GROUPS["research"]
+    def _run_manager():
+        started = time.monotonic()
+        manager_prefixes = tuple(
+            _report_evidence_id(role, rounds) for role in ROLE_GROUPS["research"]
+        )
+        manager_allowed = _upstream_evidence(child_evidence, manager_prefixes)
+        research_manager = _call_role(
+            "research_manager", stage=f"{symbol}:research_judgement", context=child_context,
+            evidence=child_evidence, allowed_evidence=manager_allowed, settings=settings,
+            memory_store=memory_store, generated_at=generated_at,
+            required_upstream_prefixes=manager_prefixes, require_all_upstreams=True,
+            extra_instruction=f"只裁决 {symbol}，必须分别评价最新多头和空头论证。",
+        )
+        return {"report": research_manager, "timing": round(time.monotonic() - started, 3)}
+
+    manager_result, _manager_resumed = _checkpointed(
+        checkpoint, f"{symbol}:research_judgement", _run_manager
     )
-    manager_allowed = _upstream_evidence(child_evidence, manager_prefixes)
-    research_manager = _call_role(
-        "research_manager", stage=f"{symbol}:research_judgement", context=child_context,
-        evidence=child_evidence, allowed_evidence=manager_allowed, settings=settings,
-        memory_store=memory_store, generated_at=generated_at,
-        required_upstream_prefixes=manager_prefixes, require_all_upstreams=True,
-        extra_instruction=f"只裁决 {symbol}，必须分别评价最新多头和空头论证。",
-    )
-    timings["research_judgement"] = round(time.monotonic() - started, 3)
+    research_manager = dict(manager_result.get("report", {}) or {})
+    timings["research_judgement"] = manager_result.get("timing", 0.0)
     child_evidence[_report_evidence_id("research_manager")] = research_manager
 
-    started = time.monotonic()
-    trader_allowed = _upstream_evidence(child_evidence, ("AGENT:RESEARCH_MANAGER",))
-    trader = _call_role(
-        "trader", stage=f"{symbol}:trade_proposal", context=child_context,
-        evidence=child_evidence, allowed_evidence=trader_allowed, settings=settings,
-        memory_store=memory_store, generated_at=generated_at,
-        required_upstream_prefixes=("AGENT:RESEARCH_MANAGER",),
-        extra_instruction=(
-            f"只针对 {symbol} 给出 BUY、HOLD 或 SELL 候选建议。"
-            "说明入场/退出条件和方向，但不要生成组合目标权重。"
-        ),
+    def _run_trader():
+        started = time.monotonic()
+        trader_allowed = _upstream_evidence(child_evidence, ("AGENT:RESEARCH_MANAGER",))
+        trader = _call_role(
+            "trader", stage=f"{symbol}:trade_proposal", context=child_context,
+            evidence=child_evidence, allowed_evidence=trader_allowed, settings=settings,
+            memory_store=memory_store, generated_at=generated_at,
+            required_upstream_prefixes=("AGENT:RESEARCH_MANAGER",),
+            extra_instruction=(
+                f"只针对 {symbol} 给出 BUY、HOLD 或 SELL 候选建议。"
+                "说明入场/退出条件和方向，但不要生成组合目标权重。"
+            ),
+        )
+        return {"report": trader, "timing": round(time.monotonic() - started, 3)}
+
+    trader_result, _trader_resumed = _checkpointed(
+        checkpoint, f"{symbol}:trade_proposal", _run_trader
     )
-    timings["trade_proposal"] = round(time.monotonic() - started, 3)
+    trader = dict(trader_result.get("report", {}) or {})
+    timings["trade_proposal"] = trader_result.get("timing", 0.0)
     child_evidence[_report_evidence_id("trader")] = trader
 
     return {
@@ -785,6 +975,8 @@ def _run_symbol_research(
 
 def _parallel_symbol_research(
     symbols: Sequence[str],
+    *,
+    progress_callback: Optional[Callable[[str], None]] = None,
     **kwargs: Any,
 ) -> tuple[Dict[str, Dict[str, Any]], Dict[str, str]]:
     workers = max(1, min(len(symbols) or 1, int(kwargs["settings"].get("symbol_workers", 2))))
@@ -795,12 +987,22 @@ def _parallel_symbol_research(
             executor.submit(_run_symbol_research, symbol, **kwargs): symbol
             for symbol in symbols
         }
+        completed = 0
         for future in as_completed(futures):
             symbol = futures[future]
             try:
                 reports[symbol] = future.result()
             except Exception as exc:
                 errors[symbol] = str(exc)[:2000]
+            completed += 1
+            if progress_callback is not None:
+                try:
+                    outcome = "完成" if symbol in reports else "失败"
+                    progress_callback(
+                        f"多 Agent 逐标的研究进度 {completed}/{len(symbols)}：{symbol} {outcome}"
+                    )
+                except Exception:
+                    logger.debug("Symbol progress callback failed", exc_info=True)
     return reports, errors
 
 
@@ -809,6 +1011,8 @@ def run_analysis_workflow(
     config: Mapping[str, Any],
     *,
     memory_store: Optional[AgentMemoryStore] = None,
+    checkpoint: Optional[Mapping[str, Any]] = None,
+    progress_callback: Optional[Callable[[str], None]] = None,
 ) -> Dict[str, Any]:
     settings = config.get("agent_workflow", {})
     if not isinstance(settings, Mapping) or not bool(settings.get("enabled", True)):
@@ -825,144 +1029,348 @@ def run_analysis_workflow(
     ))
     if not symbols:
         raise RuntimeError("逐标的研究没有收到任何允许标的")
+    checkpoint_cycle_id = checkpoint.get("cycle_id") if isinstance(checkpoint, Mapping) else None
+    resumed_stages: List[str] = []
+    if checkpoint_cycle_id:
+        from src.trading import checkpoints
+
+        resumed_stages = checkpoints.list_stages(checkpoint_cycle_id)
 
     started = time.monotonic()
     symbol_research, symbol_errors = _parallel_symbol_research(
         symbols,
+        progress_callback=progress_callback,
         context=context,
         evidence=evidence,
         settings=settings,
         memory_store=store,
         generated_at=generated_at,
+        checkpoint=checkpoint,
     )
     timings["symbol_research"] = round(time.monotonic() - started, 3)
     errors.update({f"symbol:{key}": value for key, value in symbol_errors.items()})
+    warnings: List[str] = []
+    excluded_symbols: List[str] = []
+    failed_holding_symbols: List[str] = []
+    safety_overrides: List[Dict[str, Any]] = []
     if symbol_errors:
-        raise RuntimeError("逐标的研究未完整完成: " + json.dumps(symbol_errors, ensure_ascii=False))
+        successful_symbols = [symbol for symbol in symbols if symbol in symbol_research]
+        success_ratio = len(successful_symbols) / len(symbols)
+        minimum_success_ratio = max(
+            0.0,
+            min(1.0, float(settings.get("minimum_symbol_research_success_ratio", 0.8))),
+        )
+        allow_partial = bool(settings.get("allow_partial_symbol_research", True))
+        if not allow_partial or not successful_symbols or success_ratio < minimum_success_ratio:
+            raise RuntimeError(
+                "逐标的研究未达到安全完成阈值"
+                f"（成功 {len(successful_symbols)}/{len(symbols)}，要求至少 {minimum_success_ratio:.0%}）: "
+                + json.dumps(symbol_errors, ensure_ascii=False)
+            )
+
+        holdings = _holding_symbols(context)
+        failed_holding_symbols = [symbol for symbol in symbols if symbol in symbol_errors and symbol in holdings]
+        excluded_symbols = [symbol for symbol in symbols if symbol in symbol_errors and symbol not in holdings]
+        for symbol in failed_holding_symbols:
+            safe_trader = _failed_holding_report(symbol, symbol_errors[symbol])
+            symbol_research[symbol] = {
+                "symbol": symbol,
+                "status": "safe_hold",
+                "evidence_ids": ["ACCOUNT:SUMMARY"],
+                "base_reports": {},
+                "research_debate": [],
+                "research_manager": {},
+                "trader": safe_trader,
+                "errors": {"research": symbol_errors[symbol]},
+                "timings_seconds": {},
+            }
+        warning = (
+            f"逐标的研究部分降级：成功 {len(successful_symbols)}/{len(symbols)}；"
+            f"排除候选 {', '.join(excluded_symbols) if excluded_symbols else '无'}；"
+            f"失败持仓强制 HOLD {', '.join(failed_holding_symbols) if failed_holding_symbols else '无'}。"
+        )
+        warnings.append(warning)
+        logger.warning("%s errors=%s", warning, json.dumps(symbol_errors, ensure_ascii=False))
+    else:
+        successful_symbols = list(symbols)
+
+    portfolio_symbols = [
+        symbol for symbol in symbols
+        if symbol in successful_symbols or symbol in failed_holding_symbols
+    ]
+    portfolio_context = dict(context)
+    portfolio_context["allowed_symbols"] = portfolio_symbols
+    if progress_callback is not None:
+        progress_callback(
+            f"逐标的研究可用 {len(successful_symbols)}/{len(symbols)}，"
+            f"组合评估覆盖 {len(portfolio_symbols)} 个标的，正在生成组合草案…"
+        )
 
     # The portfolio layer receives the final trader report for every security,
     # not the entire collection of intermediate prose.
-    portfolio_evidence = {
-        evidence_id: value for evidence_id, value in evidence.items()
-        if evidence_id in GLOBAL_EVIDENCE_IDS
-        or evidence_id.startswith("RULES:")
-        or evidence_id.startswith("MARKET:")
-        or evidence_id.startswith("SCREENING:")
-    }
+    portfolio_evidence: Dict[str, Any] = {}
+    original_symbol_set = set(symbols)
+    portfolio_symbol_set = set(portfolio_symbols)
+    for evidence_id, value in evidence.items():
+        eligible = (
+            evidence_id in GLOBAL_EVIDENCE_IDS
+            or evidence_id.startswith("RULES:")
+            or evidence_id.startswith("MARKET:")
+            or evidence_id.startswith("SCREENING:")
+        )
+        if not eligible:
+            continue
+        suffix = evidence_id.rsplit(":", 1)[-1]
+        if suffix in original_symbol_set and suffix not in portfolio_symbol_set:
+            continue
+        if evidence_id == "SCREENING:RUN" and isinstance(value, Mapping):
+            scoped_screening = dict(value)
+            for key in ("selected_symbols", "allowed_symbols"):
+                values = scoped_screening.get(key)
+                if isinstance(values, list):
+                    scoped_screening[key] = [
+                        item for item in values if str(item).upper() in portfolio_symbol_set
+                    ]
+            selected = scoped_screening.get("selected")
+            if isinstance(selected, list):
+                scoped_screening["selected"] = [
+                    item for item in selected
+                    if isinstance(item, Mapping)
+                    and str(item.get("symbol", "")).upper() in portfolio_symbol_set
+                ]
+            value = scoped_screening
+        portfolio_evidence[evidence_id] = value
     trader_prefixes: List[str] = []
-    for symbol in symbols:
+    for symbol in portfolio_symbols:
         evidence_id = f"AGENT:TRADER:{symbol}"
         portfolio_evidence[evidence_id] = symbol_research[symbol]["trader"]
         trader_prefixes.append(evidence_id)
 
-    started = time.monotonic()
-    proposal = _call_role(
-        "portfolio_manager", stage="portfolio_proposal", context=context,
-        evidence=portfolio_evidence, allowed_evidence=portfolio_evidence,
-        settings=settings, memory_store=store, generated_at=generated_at,
-        required_upstream_prefixes=tuple(trader_prefixes), require_all_upstreams=True,
-        extra_instruction=(
-            "这是风控前组合草案。逐一覆盖全部 allowed_symbols；候选股票决定 BUY/HOLD，"
-            "已有持仓决定 BUY/HOLD/SELL。每只股票必须引用它自己的 AGENT:TRADER:代码 报告。"
-        ),
-        portfolio=True,
+    def _run_proposal():
+        started = time.monotonic()
+        result = _call_role(
+            "portfolio_manager", stage="portfolio_proposal", context=portfolio_context,
+            evidence=portfolio_evidence, allowed_evidence=portfolio_evidence,
+            settings=settings, memory_store=store, generated_at=generated_at,
+            required_upstream_prefixes=tuple(trader_prefixes), require_all_upstreams=True,
+            extra_instruction=(
+                "这是风控前组合草案。逐一覆盖全部 allowed_symbols；候选股票决定 BUY/HOLD，"
+                "已有持仓决定 BUY/HOLD/SELL。每只股票必须引用它自己的 AGENT:TRADER:代码 报告。"
+            ),
+            portfolio=True,
+        )
+        return {"proposal": result, "timing": round(time.monotonic() - started, 3)}
+
+    proposal_result, _proposal_resumed = _checkpointed(checkpoint, "portfolio_proposal", _run_proposal)
+    proposal = dict(proposal_result.get("proposal", {}) or {})
+    proposal, proposal_overrides = _enforce_failed_holding_holds(
+        proposal, failed_holding_symbols, portfolio_context
     )
-    timings["portfolio_proposal"] = round(time.monotonic() - started, 3)
+    safety_overrides.extend({"stage": "portfolio_proposal", **item} for item in proposal_overrides)
+    timings["portfolio_proposal"] = proposal_result.get("timing", 0.0)
     portfolio_evidence["AGENT:PORTFOLIO_MANAGER:PROPOSAL"] = proposal
+    if progress_callback is not None:
+        progress_callback("组合草案已完成，正在进行激进/中立/保守风险辩论…")
 
     risk_rounds: List[Dict[str, Any]] = []
     risk_round_count = max(1, min(3, int(settings.get("risk_debate_rounds", 1))))
     for round_number in range(1, risk_round_count + 1):
-        started = time.monotonic()
-        reports: Dict[str, Any] = {}
-        previous_id = "AGENT:PORTFOLIO_MANAGER:PROPOSAL"
-        for role in ROLE_GROUPS["risk"]:
-            if not _role_enabled(settings, role):
-                raise RuntimeError(f"{ROLE_NAMES[role]}不能停用，否则风险讨论不完整")
-            if reports:
-                previous_role = next(reversed(reports))
-                previous_id = _report_evidence_id(previous_role, round_number)
-            elif round_number > 1:
-                previous_id = _report_evidence_id(ROLE_GROUPS["risk"][-1], round_number - 1)
-            discussion_prefixes = (
-                "AGENT:PORTFOLIO_MANAGER:PROPOSAL",
-                *tuple(
-                    _report_evidence_id(previous_role, round_number)
-                    for previous_role in reports
-                ),
-            )
-            if round_number > 1:
-                discussion_prefixes += tuple(
-                    _report_evidence_id(previous_role, round_number - 1)
-                    for previous_role in ROLE_GROUPS["risk"]
+        def _run_risk_round(round_number: int = round_number):
+            started = time.monotonic()
+            reports: Dict[str, Any] = {}
+            previous_id = "AGENT:PORTFOLIO_MANAGER:PROPOSAL"
+            for role in ROLE_GROUPS["risk"]:
+                if not _role_enabled(settings, role):
+                    raise RuntimeError(f"{ROLE_NAMES[role]}不能停用，否则风险讨论不完整")
+                if reports:
+                    previous_role = next(reversed(reports))
+                    previous_id = _report_evidence_id(previous_role, round_number)
+                elif round_number > 1:
+                    previous_id = _report_evidence_id(ROLE_GROUPS["risk"][-1], round_number - 1)
+                discussion_prefixes = (
+                    "AGENT:PORTFOLIO_MANAGER:PROPOSAL",
+                    *tuple(
+                        _report_evidence_id(previous_role, round_number)
+                        for previous_role in reports
+                    ),
                 )
-            allowed = _upstream_evidence(portfolio_evidence, discussion_prefixes)
-            report = _call_role(
-                role, stage=f"risk_debate_{round_number}", context=context,
-                evidence=portfolio_evidence, allowed_evidence=allowed, settings=settings,
-                memory_store=store, generated_at=generated_at,
-                required_upstream_prefixes=(previous_id,),
-                extra_instruction=(
-                    "评议整个组合草案，直接回应上一位发言者，提出仓位、退出和观望条件。"
-                    "不得忽略已有持仓风险。"
-                ),
-            )
-            reports[role] = report
+                if round_number > 1:
+                    discussion_prefixes += tuple(
+                        _report_evidence_id(previous_role, round_number - 1)
+                        for previous_role in ROLE_GROUPS["risk"]
+                    )
+                allowed = _upstream_evidence(portfolio_evidence, discussion_prefixes)
+                report = _call_role(
+                    role, stage=f"risk_debate_{round_number}", context=portfolio_context,
+                    evidence=portfolio_evidence, allowed_evidence=allowed, settings=settings,
+                    memory_store=store, generated_at=generated_at,
+                    required_upstream_prefixes=(previous_id,),
+                    extra_instruction=(
+                        "评议整个组合草案，直接回应上一位发言者，提出仓位、退出和观望条件。"
+                        "不得忽略已有持仓风险。"
+                    ),
+                )
+                reports[role] = report
+                portfolio_evidence[_report_evidence_id(role, round_number)] = report
+            return {"reports": reports, "timing": round(time.monotonic() - started, 3)}
+
+        risk_result, _risk_resumed = _checkpointed(
+            checkpoint, f"risk_debate_{round_number}", _run_risk_round
+        )
+        reports = dict(risk_result.get("reports", {}) or {})
+        for role, report in reports.items():
             portfolio_evidence[_report_evidence_id(role, round_number)] = report
-        timings[f"risk_debate_{round_number}"] = round(time.monotonic() - started, 3)
+        timings[f"risk_debate_{round_number}"] = risk_result.get("timing", 0.0)
         risk_rounds.append({"round": round_number, "reports": reports})
+        if progress_callback is not None:
+            progress_callback(f"风险辩论第 {round_number}/{risk_round_count} 轮已完成…")
 
-    started = time.monotonic()
-    latest_risk_prefixes = tuple(
-        _report_evidence_id(role, risk_round_count) for role in ROLE_GROUPS["risk"]
-    )
-    risk_allowed = _upstream_evidence(portfolio_evidence, latest_risk_prefixes)
-    risk_manager = _call_role(
-        "risk_manager", stage="risk_judgement", context=context,
-        evidence=portfolio_evidence, allowed_evidence=risk_allowed, settings=settings,
-        memory_store=store, generated_at=generated_at,
-        required_upstream_prefixes=latest_risk_prefixes, require_all_upstreams=True,
-        extra_instruction="必须分别裁决激进、保守和中立意见；代码硬风控仍拥有最终否决权。",
-    )
-    timings["risk_judgement"] = round(time.monotonic() - started, 3)
+    def _run_risk_manager():
+        started = time.monotonic()
+        latest_risk_prefixes = tuple(
+            _report_evidence_id(role, risk_round_count) for role in ROLE_GROUPS["risk"]
+        )
+        risk_allowed = _upstream_evidence(portfolio_evidence, latest_risk_prefixes)
+        result = _call_role(
+            "risk_manager", stage="risk_judgement", context=portfolio_context,
+            evidence=portfolio_evidence, allowed_evidence=risk_allowed, settings=settings,
+            memory_store=store, generated_at=generated_at,
+            required_upstream_prefixes=latest_risk_prefixes, require_all_upstreams=True,
+            extra_instruction="必须分别裁决激进、保守和中立意见；代码硬风控仍拥有最终否决权。",
+        )
+        return {"report": result, "timing": round(time.monotonic() - started, 3)}
+
+    risk_manager_result, _rm_resumed = _checkpointed(checkpoint, "risk_judgement", _run_risk_manager)
+    risk_manager = dict(risk_manager_result.get("report", {}) or {})
+    timings["risk_judgement"] = risk_manager_result.get("timing", 0.0)
     portfolio_evidence[_report_evidence_id("risk_manager")] = risk_manager
+    if progress_callback is not None:
+        progress_callback("风险经理裁决已完成，正在生成最终组合决策…")
 
-    started = time.monotonic()
-    final_allowed = _upstream_evidence(
-        portfolio_evidence,
-        ("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
-    )
-    portfolio = _call_role(
-        "portfolio_manager", stage="portfolio_decision", context=context,
-        evidence=portfolio_evidence, allowed_evidence=final_allowed,
-        settings=settings, memory_store=store, generated_at=generated_at,
-        required_upstream_prefixes=("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
-        require_all_upstreams=True,
-        extra_instruction=(
-            "根据风险裁决修订组合草案，逐一覆盖全部标的。候选股票决定 BUY/HOLD，"
-            "已有持仓决定 BUY/HOLD/SELL；每条决策必须引用风险经理或原组合草案。"
-        ),
-        portfolio=True,
-    )
-    timings["portfolio_decision"] = round(time.monotonic() - started, 3)
+    def _run_portfolio():
+        started = time.monotonic()
+        final_allowed = _upstream_evidence(
+            portfolio_evidence,
+            ("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
+        )
+        result = _call_role(
+            "portfolio_manager", stage="portfolio_decision", context=portfolio_context,
+            evidence=portfolio_evidence, allowed_evidence=final_allowed,
+            settings=settings, memory_store=store, generated_at=generated_at,
+            required_upstream_prefixes=("AGENT:RISK_MANAGER", "AGENT:PORTFOLIO_MANAGER:PROPOSAL"),
+            require_all_upstreams=True,
+            extra_instruction=(
+                "根据风险裁决修订组合草案，逐一覆盖全部标的。候选股票决定 BUY/HOLD，"
+                "已有持仓决定 BUY/HOLD/SELL；每条决策必须引用风险经理或原组合草案。"
+            ),
+            portfolio=True,
+        )
+        return {"report": result, "timing": round(time.monotonic() - started, 3)}
 
-    first_symbol = symbols[0]
+    portfolio_result, _pm_resumed = _checkpointed(checkpoint, "portfolio_decision", _run_portfolio)
+    portfolio = dict(portfolio_result.get("report", {}) or {})
+    portfolio, final_overrides = _enforce_failed_holding_holds(
+        portfolio, failed_holding_symbols, portfolio_context
+    )
+    safety_overrides.extend({"stage": "portfolio_decision", **item} for item in final_overrides)
+    timings["portfolio_decision"] = portfolio_result.get("timing", 0.0)
+    if progress_callback is not None:
+        progress_callback("最终组合决策已完成，正在交回硬风控执行层…")
+
+    if checkpoint_cycle_id:
+        try:
+            from src.trading import checkpoints
+
+            # The workflow only finishes research.  Execution state is
+            # owned by the controller: marking the whole cycle completed
+            # here would make an unconfirmed pending execution invisible
+            # to the resume scan and defeat the replay fail-safe.
+            checkpoints.mark_research_completed(checkpoint_cycle_id)
+        except Exception:
+            logger.warning("Could not mark checkpoint research completed", exc_info=True)
+
+    first_symbol = successful_symbols[0]
+    from src.trading import evidence_store
+
+    archive_ref = ""
+    evidence_archive_error = ""
+    try:
+        if bool(_architecture_settings().get("evidence_store", False)):
+            archive_ref = evidence_store.save_cycle_evidence(
+                generated_at,
+                str(context.get("market", "market")),
+                {
+                    "generated_at": generated_at,
+                    "market": context.get("market"),
+                    "catalog": evidence,
+                    "symbol_research": symbol_research,
+                    "portfolio_evidence": portfolio_evidence,
+                },
+            )
+    except Exception as archive_exc:
+        evidence_archive_error = str(archive_exc)[:300]
+        logger.warning(
+            "Could not persist cycle evidence archive: %s", evidence_archive_error,
+            exc_info=True,
+        )
+
+    compact_symbol_research = {
+        symbol: {
+            **{key: report.get(key) for key in ("symbol", "status", "evidence_ids", "errors", "timings_seconds") if key in report},
+            "base_reports": {
+                role: evidence_store.compact_report(item)
+                for role, item in report.get("base_reports", {}).items()
+            } if isinstance(report.get("base_reports"), Mapping) else {},
+            "research_debate": [
+                {
+                    "round": item.get("round"),
+                    "reports": {
+                        role: evidence_store.compact_report(payload)
+                        for role, payload in item.get("reports", {}).items()
+                    },
+                }
+                for item in report.get("research_debate", []) if isinstance(item, Mapping)
+            ],
+            "research_manager": evidence_store.compact_report(report.get("research_manager", {})),
+            "trader": evidence_store.compact_report(report.get("trader", {})),
+        }
+        for symbol, report in symbol_research.items()
+    }
+
     return {
         "workflow": "per_symbol_research_graph_v2",
         "evidence_ids": sorted(portfolio_evidence),
-        "symbol_research": symbol_research,
+        "evidence_ref": archive_ref,
+        "evidence_archive_error": evidence_archive_error or None,
+        "checkpoint_cycle_id": checkpoint_cycle_id,
+        "resumed_stages": resumed_stages,
+        "symbol_research": compact_symbol_research,
         "symbol_errors": symbol_errors,
+        "portfolio_symbols": portfolio_symbols,
+        "excluded_symbols": excluded_symbols,
+        "warnings": warnings,
+        "degraded_mode": "partial_symbol_research" if symbol_errors else None,
+        "safety_overrides": safety_overrides,
         # Compatibility fields keep existing reports/tests readable while the
         # source of truth moves to symbol_research.
-        "base_reports": symbol_research[first_symbol]["base_reports"],
-        "research_debate": symbol_research[first_symbol]["research_debate"],
-        "research_manager": symbol_research[first_symbol]["research_manager"],
-        "trader": {symbol: report["trader"] for symbol, report in symbol_research.items()},
+        "base_reports": compact_symbol_research[first_symbol]["base_reports"],
+        "research_debate": compact_symbol_research[first_symbol]["research_debate"],
+        "research_manager": compact_symbol_research[first_symbol]["research_manager"],
+        "trader": {symbol: report["trader"] for symbol, report in compact_symbol_research.items()},
         "investment_advice": {},
-        "portfolio_proposal": proposal,
-        "risk_debate": risk_rounds,
-        "risk_manager": risk_manager,
-        "portfolio_manager": portfolio,
+        "portfolio_proposal": evidence_store.compact_report(proposal, portfolio=True),
+        "risk_debate": [
+            {
+                "round": item.get("round"),
+                "reports": {
+                    role: evidence_store.compact_report(payload)
+                    for role, payload in item.get("reports", {}).items()
+                },
+            }
+            for item in risk_rounds if isinstance(item, Mapping)
+        ],
+        "risk_manager": evidence_store.compact_report(risk_manager),
+        "portfolio_manager": evidence_store.compact_report(portfolio, portfolio=True),
         "errors": errors,
         "timings_seconds": timings,
         "memory": {

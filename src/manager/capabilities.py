@@ -10,7 +10,8 @@ from pydantic_ai import FunctionToolset, Tool
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CAPABILITY_DIR = ROOT / "runtime" / "manager" / "capabilities"
+from src.paths import runtime_dir
+CAPABILITY_DIR = runtime_dir() / "manager" / "capabilities"
 SKILL_DIR = CAPABILITY_DIR / "skills"
 TOOL_DIR = CAPABILITY_DIR / "tools"
 _NAME_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
@@ -119,6 +120,16 @@ class CapabilityRegistry:
         }
         _write_json(self.tool_dir / f"{capability}.json", payload)
         return {"status": "installed_next_turn", "kind": "tool", **payload}
+
+    def uninstall_tool(self, name: str) -> Dict[str, Any]:
+        """Remove one registered tool manifest; used by transactional rollback."""
+        capability = _name(name)
+        path = self.tool_dir / f"{capability}.json"
+        if not path.is_file():
+            return {"status": "not_found", "kind": "tool", "name": capability}
+        path.unlink()
+        return {"status": "uninstalled", "kind": "tool", "name": capability}
+
 
     def catalog(self) -> Dict[str, List[Dict[str, Any]]]:
         def records(directory: Path) -> List[Dict[str, Any]]:

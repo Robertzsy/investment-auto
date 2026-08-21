@@ -61,6 +61,34 @@ class RuntimeFallbackLLM(BaseLLM):
             f"errors={'; '.join(errors)}"
         )
 
+    def chat_tools(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Dict[str, Any]],
+        *,
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        errors = []
+        for provider, model_override in self._chain:
+            try:
+                llm = _build_llm(provider, model_override=model_override)
+                result = llm.chat_tools(
+                    messages, tools, temperature=temperature, max_tokens=max_tokens, **kwargs
+                )
+                if not result.get("content") and not result.get("tool_calls"):
+                    raise RuntimeError("provider returned an empty tool completion")
+                return result
+            except InterruptedError:
+                raise
+            except Exception as exc:
+                errors.append(f"{provider}: {exc}")
+                logger.warning("LLM provider %s tool call failed, trying fallback: %s", provider, exc)
+        raise RuntimeError(
+            f"LLM tool call failed - chain={[p for p, _ in self._chain]} errors={chr(59).join(errors)}"
+        )
+
     def chat_stream(
         self,
         messages: List[Dict[str, str]],

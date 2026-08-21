@@ -72,6 +72,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .policy-card span{display:block;font-size:.7rem;color:var(--text-dim);margin-bottom:4px}
 .policy-card strong{font-size:.9rem;color:var(--text)}
 .control-market{margin-top:12px;padding-top:14px;border-top:1px solid rgba(88,166,255,.24)}
+.dual-model-panel{margin-top:14px;padding:14px;border:1px solid rgba(88,166,255,.45);border-radius:9px;background:rgba(15,17,23,.58)}
+.dual-model-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.dual-model-header h3{font-size:.95rem;color:var(--accent)}
+.dual-model-header span{font-size:.72rem;color:var(--success);border:1px solid rgba(63,185,80,.45);border-radius:999px;padding:3px 8px}
+.dual-model-panel .form-group{margin-bottom:0}
 .settings-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:18px;align-items:start}
 .settings-index{position:sticky;top:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px}
 .settings-index h2{font-size:.82rem;color:var(--text-dim);margin:2px 4px 10px;text-transform:uppercase;letter-spacing:.08em}
@@ -107,6 +112,7 @@ html{scroll-behavior:smooth;scroll-padding-top:16px}
   <div class="nav">
     <a href="/">💬 对话</a>
     <a href="/dashboard">📊 仪表盘</a>
+    <a href="/harness">🧩 Harness</a>
     <a href="/settings" class="active">⚙️ 设置</a>
   </div>
 </div>
@@ -148,6 +154,21 @@ html{scroll-behavior:smooth;scroll-padding-top:16px}
       <div class="policy-card"><span>最低置信度</span><strong id="investorMinConfidence">-</strong></div>
       <div class="policy-card"><span>最大回撤线</span><strong id="investorMaxDrawdown">-</strong></div>
     </div>
+    <div class="dual-model-panel" id="dual-model-settings">
+      <div class="dual-model-header"><h3>🧠 快速 / 深度双模型分工</h3><span>投资核心配置</span></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>快速模型（研究、辩论与逐标的观点）</label>
+          <select id="quickModel"></select>
+          <div class="help-text">技术、情绪、新闻、基本面、多头、空头、交易员及三类风险观点使用此模型。</div>
+        </div>
+        <div class="form-group">
+          <label>深度模型（裁决与最终组合决策）</label>
+          <select id="proModel"></select>
+          <div class="help-text">研究经理、投资建议、风险经理和组合经理使用此模型；硬风控仍由确定性代码执行。</div>
+        </div>
+      </div>
+    </div>
     <div class="control-market">
       <label style="display:block;font-size:.8rem;color:var(--text-dim);margin-bottom:8px">启用市场（可多选）</label>
       <div class="checkbox-group" id="marketCheckboxes">
@@ -163,7 +184,7 @@ html{scroll-behavior:smooth;scroll-padding-top:16px}
     <option value="">快速跳转到设置…</option>
     <option value="section-autonomy">AI 自主交易</option><option value="section-market-risk">分市场风控</option>
     <option value="section-screening">自主选股与数据</option><option value="section-schedule">调度设置</option>
-    <option value="section-models">AI 模型</option><option value="section-optimizer">组合优化</option>
+    <option value="dual-model-settings">快速 / 深度双模型</option><option value="section-models">模型供应商与管理 Agent</option><option value="section-optimizer">组合优化</option>
     <option value="section-trading">交易规则</option><option value="section-api">API Keys</option>
   </select>
   <div class="settings-layout">
@@ -173,7 +194,7 @@ html{scroll-behavior:smooth;scroll-padding-top:16px}
       <nav>
         <a href="#section-autonomy">🤖 AI 自主交易</a><a href="#section-market-risk">🛡️ 分市场风控</a>
         <a href="#section-screening">🔎 自主选股与数据</a><a href="#section-schedule">⏰ 调度设置</a>
-        <a href="#section-models">🧠 AI 模型</a><a href="#section-optimizer">📈 组合优化</a>
+        <a href="#dual-model-settings">⚡ 快速 / 深度双模型</a><a href="#section-models">🧠 模型供应商与管理 Agent</a><a href="#section-optimizer">📈 组合优化</a>
         <a href="#section-trading">💰 交易规则</a><a href="#section-api">🔑 API Keys</a>
       </nav>
     </aside>
@@ -191,9 +212,10 @@ html{scroll-behavior:smooth;scroll-padding-top:16px}
     </div>
   </details>
 
-  <!-- 模型选择 -->
-  <div class="section" id="section-models" data-search="ai 模型 主模型 回退 超时 快速 专业 供应商">
-    <h2>🤖 AI 模型</h2>
+  <!-- 模型供应商与管理 Agent -->
+  <div class="section" id="section-models" data-search="ai 模型 主模型 回退 超时 快速 深度 专业 供应商 request tool 请求 工具 上限">
+    <h2>🤖 模型供应商与管理 Agent</h2>
+    <div class="section-note">快速 / 深度双模型在页面顶部“投资者控制中心”直接设置；这里管理供应商、回退顺序以及对话管理 Agent 的防循环额度。</div>
     <div class="form-group">
       <label>主模型（点击选择）</label>
       <div class="model-select-group" id="modelSelectGroup"></div>
@@ -210,12 +232,14 @@ html{scroll-behavior:smooth;scroll-padding-top:16px}
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>快速模型（分析师/研究员）</label>
-        <select id="quickModel"></select>
+        <label>管理对话单任务模型请求上限</label>
+        <input type="number" id="managerRequestLimit" min="8" max="128" step="1" value="32">
+        <div class="help-text">默认 32。常用投资操作应由一个高层工具完成；此限制只用于阻止异常循环。</div>
       </div>
       <div class="form-group">
-        <label>专业模型（裁决/交易/风控）</label>
-        <select id="proModel"></select>
+        <label>管理对话单任务工具调用上限</label>
+        <input type="number" id="managerToolCallLimit" min="8" max="256" step="1" value="64">
+        <div class="help-text">默认 64。已成功完成的权威操作不会再因后续额度保护被误报为失败。</div>
       </div>
     </div>
     <button class="add-btn" onclick="addProvider()">+ 添加模型供应商</button>
@@ -470,6 +494,7 @@ html{scroll-behavior:smooth;scroll-padding-top:16px}
 <script>
 let config = {};
 let envVars = {};
+let secretKeys = new Set();
 let marketConfigs = {};
 let mandateData = {};
 let currentRiskMarket = 'cn';
@@ -477,6 +502,7 @@ let settingsDirty = false;
 
 const DEFAULT_PROVIDERS = {
   deepseek: { name: 'DeepSeek', desc: '深度求索 V4', defaultModel: 'deepseek-v4-pro', defaultBase: 'https://api.deepseek.com' },
+  deepinfra: { name: 'DeepInfra', desc: 'OpenAI 兼容模型托管服务', defaultModel: 'deepseek-ai/DeepSeek-V4-Flash-0731', defaultBase: 'https://api.deepinfra.com/v1/openai' },
   openai: { name: 'OpenAI/MUST中转', desc: 'GPT-5.6 / 学校中转站', defaultModel: 'gpt-5.5', defaultBase: 'https://ai-apigateway.must.edu.mo/openhub/v1' },
   glm: { name: 'GLM', desc: '智谱 5.2', defaultModel: 'glm-5.2', defaultBase: 'https://open.bigmodel.cn/api/paas/v4' },
   kimi: { name: 'Kimi', desc: '月之暗面 K3', defaultModel: 'kimi-k3', defaultBase: 'https://api.moonshot.cn/v1' }
@@ -491,15 +517,17 @@ function providers() {
 
 async function loadConfig() {
   try {
-    const [configRes, envRes, marketConfigRes, mandateRes] = await Promise.all([
+    const [configRes, envRes, secretsRes, marketConfigRes, mandateRes] = await Promise.all([
       fetch('/api/config'),
       fetch('/api/env'),
+      fetch('/api/secrets'),
       fetch('/api/market-configs'),
       fetch('/api/investment/mandate')
     ]);
-    if (!configRes.ok || !envRes.ok || !marketConfigRes.ok || !mandateRes.ok) throw new Error('配置接口返回异常');
+    if (!configRes.ok || !envRes.ok || !secretsRes.ok || !marketConfigRes.ok || !mandateRes.ok) throw new Error('配置接口返回异常');
     config = await configRes.json();
     envVars = await envRes.json();
+    secretKeys = new Set((await secretsRes.json()).keys || []);
     marketConfigs = await marketConfigRes.json();
     mandateData = await mandateRes.json();
     renderConfig();
@@ -529,6 +557,8 @@ function renderConfig() {
   // LLM
   document.getElementById('llmFallback').value = (config.llm?.provider_fallback || []).join(',');
   document.getElementById('llmRequestTimeout').value = config.llm?.request_timeout_seconds ?? 120;
+  document.getElementById('managerRequestLimit').value = config.manager_agent?.usage_limits?.request_limit ?? 32;
+  document.getElementById('managerToolCallLimit').value = config.manager_agent?.usage_limits?.tool_call_limit ?? 64;
 
   // 优化器
   document.getElementById('optimizerEnabled').value = String(config.optimizer?.enabled ?? true);
@@ -731,7 +761,7 @@ function renderApiKeys() {
   
   for (const [key, info] of Object.entries(providers())) {
     const envKey = (config.llm?.models?.[key]?.api_key_env) || (key.toUpperCase() + '_API_KEY');
-    const hasKey = Boolean(envVars[envKey]);
+    const hasKey = secretKeys.has(envKey) || Boolean(envVars[envKey]);
     const currentModel = config.llm?.models?.[key]?.model || info.defaultModel;
     const currentBase = config.llm?.models?.[key]?.api_base || info.defaultBase;
     const safeKey = escapeHtml(key);
@@ -812,8 +842,8 @@ function renderRoleModels() {
     const o2 = document.createElement('option'); o2.value=n; o2.textContent=n; pro.appendChild(o2);
   });
   const roleMap = config.llm?.role_model_override || {};
-  quick.value = roleMap.analyst || roleMap.researcher || names[0] || '';
-  pro.value = roleMap.judge || roleMap.trader || roleMap.risk_chairman || names[0] || '';
+  quick.value = config.llm?.quick_model || roleMap.technical_analyst || roleMap.trader || roleMap.analyst || roleMap.researcher || names[0] || '';
+  pro.value = config.llm?.deep_model || roleMap.research_manager || roleMap.risk_manager || roleMap.portfolio_manager || roleMap.judge || roleMap.risk_chairman || names[0] || '';
 }
 
 function addProvider() {
@@ -882,12 +912,13 @@ async function saveConfig() {
   if (!validateTradingControls()) return;
 
   // 收集 API Keys
-  const newEnv = {};
+  const newSecrets = {};
   for (const key of Object.keys(providers())) {
     const envKey = (config.llm?.models?.[key]?.api_key_env) || (key.toUpperCase() + '_API_KEY');
     const value = document.getElementById(`apikey_${key}`).value;
-    if (value) newEnv[envKey] = value;
+    if (value) newSecrets[envKey] = value;
   }
+  const newEnv = {};
   const mongoUri = document.getElementById('screenMongoUri').value.trim();
   if (mongoUri) newEnv.MONGODB_URI = mongoUri;
   const finnhubApiKey = document.getElementById('finnhubApiKey').value.trim();
@@ -895,15 +926,20 @@ async function saveConfig() {
   const notifyWebhookUrl = document.getElementById('notifyWebhookUrl').value.trim();
   if (notifyWebhookUrl) newEnv.NOTIFY_WEBHOOK_URL = notifyWebhookUrl;
   
-  // 保存到 .env
+  // LLM 密钥写入 Windows DPAPI；其他现有环境设置保持兼容。
   try {
-    await fetch('/api/env', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(newEnv)
-    });
+    const requests = [];
+    if (Object.keys(newSecrets).length) requests.push(fetch('/api/secrets', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(newSecrets)
+    }));
+    if (Object.keys(newEnv).length) requests.push(fetch('/api/env', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(newEnv)
+    }));
+    const responses = await Promise.all(requests);
+    if (responses.some(response => !response.ok)) throw new Error('密钥接口返回异常');
   } catch(e) {
     showToast('⚠️ API Keys 保存失败: ' + e.message, 'error');
+    return;
   }
 
   // 收集模型配置
@@ -928,19 +964,26 @@ async function saveConfig() {
   // 快速/专业模型映射
   const quickModel = document.getElementById('quickModel').value;
   const proModel = document.getElementById('proModel').value;
+  config.llm.quick_model = quickModel;
+  config.llm.deep_model = proModel;
   config.llm.role_model_override = config.llm.role_model_override || {};
   config.llm.role_model_override.analyst = quickModel;
   config.llm.role_model_override.researcher = quickModel;
   config.llm.role_model_override.quant_analyst = proModel;
   config.llm.role_model_override.judge = proModel;
-  config.llm.role_model_override.trader = proModel;
+  config.llm.role_model_override.trader = quickModel;
   config.llm.role_model_override.risk_chairman = proModel;
-  for (const role of ['technical_analyst', 'sentiment_analyst', 'news_analyst', 'fundamentals_analyst', 'bull_researcher', 'bear_researcher']) {
+  for (const role of ['technical_analyst', 'sentiment_analyst', 'news_analyst', 'fundamentals_analyst', 'bull_researcher', 'bear_researcher', 'trader', 'aggressive_analyst', 'neutral_analyst', 'conservative_analyst']) {
     config.llm.role_model_override[role] = quickModel;
   }
-  for (const role of ['research_manager', 'trader', 'aggressive_analyst', 'neutral_analyst', 'conservative_analyst', 'risk_manager', 'portfolio_manager']) {
+  for (const role of ['research_manager', 'investment_advisor', 'risk_manager', 'portfolio_manager']) {
     config.llm.role_model_override[role] = proModel;
   }
+  config.manager_agent = config.manager_agent || {};
+  config.manager_agent.usage_limits = config.manager_agent.usage_limits || {};
+  config.manager_agent.usage_limits.request_limit = parseInt(document.getElementById('managerRequestLimit').value);
+  config.manager_agent.usage_limits.tool_call_limit = parseInt(document.getElementById('managerToolCallLimit').value);
+  config.manager_agent.usage_limits.total_token_limit = config.manager_agent.usage_limits.total_token_limit || 240000;
 
   // 市场开关
   const markets = [];

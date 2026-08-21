@@ -1,0 +1,10 @@
+{
+  "required_steps": ["resolve", "snapshot", "quality", "report"],
+  "required_outputs": ["resolve.securities", "snapshot.snapshots", "quality.coverage_ratio", "report.user_report", "report.data_timestamp", "report.sources"],
+  "quality_gates": [
+    {"path": "quality.identity_consistent", "operator": "equals", "value": true, "message": "证券代码、交易所与行情返回身份必须一致"},
+    {"path": "quality.freshness_passed", "operator": "equals", "value": true, "message": "行情必须带有可验证且未过期的交易日期"},
+    {"path": "quality.fact_consistent", "operator": "equals", "value": true, "message": "报告事实与已解析证券身份必须一致"},
+    {"path": "quality.coverage_ratio", "operator": "min", "value": 0.8, "message": "至少覆盖 80% 的请求标的"}
+  ]
+}

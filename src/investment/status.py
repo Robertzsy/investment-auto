@@ -11,8 +11,9 @@ from src.config import cfg
 
 
 ROOT = Path(__file__).resolve().parents[2]
-REPORT_DIR = ROOT / "runtime" / "reports"
-AUDIT_DIR = ROOT / "runtime" / "trading" / "audit"
+from src.paths import runtime_dir
+REPORT_DIR = runtime_dir() / "reports"
+AUDIT_DIR = runtime_dir() / "trading" / "audit"
 
 
 def _now(value: Optional[datetime] = None) -> datetime:
@@ -90,6 +91,22 @@ def cycle_evidence(market: str, date: str = "", label: str = "") -> Dict[str, An
             audit = json.loads(audits[0].read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             audit = {"status": "unreadable", "error": str(exc)}
+    evidence_ref = audit.get("evidence_ref") if isinstance(audit, Mapping) else None
+    evidence_ids = None
+    if evidence_ref:
+        try:
+            from src.trading.evidence_store import load_cycle_evidence
+
+            archived = load_cycle_evidence(evidence_ref)
+            if isinstance(archived, Mapping):
+                ids = set()
+                for section in ("catalog", "portfolio_evidence"):
+                    values = archived.get(section)
+                    if isinstance(values, Mapping):
+                        ids.update(str(item) for item in values)
+                evidence_ids = sorted(ids)
+        except Exception:
+            evidence_ids = None
     return {
         "market": normalized,
         "date": requested_date,
@@ -101,6 +118,8 @@ def cycle_evidence(market: str, date: str = "", label: str = "") -> Dict[str, An
         "investment_status": audit.get("status") if isinstance(audit, Mapping) else None,
         "error": audit.get("error") if isinstance(audit, Mapping) else None,
         "fills": len((audit.get("execution") or {}).get("fills", [])) if isinstance(audit, Mapping) else 0,
+        "evidence_ref": evidence_ref,
+        "evidence_ids": evidence_ids,
     }
 
 
@@ -128,7 +147,19 @@ def runtime_status(now: Optional[datetime] = None) -> Dict[str, Any]:
     latest_audit: Any = None
     if audits:
         try:
-            latest_audit = json.loads(audits[0].read_text(encoding="utf-8"))
+            payload = json.loads(audits[0].read_text(encoding="utf-8"))
+            # The desktop polls this snapshot every five seconds.  Returning
+            # the full evidence graph made each status response hundreds of
+            # kilobytes and duplicated it into command audits.  Detailed
+            # evidence remains available through cycle_evidence().
+            latest_audit = {
+                "file": audits[0].name,
+                **{
+                    key: payload.get(key)
+                    for key in ("generated_at", "market", "label", "status", "reason", "error", "evidence_ref")
+                    if payload.get(key) is not None
+                },
+            }
         except (OSError, json.JSONDecodeError) as exc:
             latest_audit = {"file": audits[0].name, "error": str(exc)}
     enabled = autonomous_enabled()

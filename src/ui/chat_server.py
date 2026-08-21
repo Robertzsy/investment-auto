@@ -25,7 +25,8 @@ from typing import Any, Dict, Generator, List, Mapping, Optional
 from src.config import cfg
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-RUNTIME_DIR = PROJECT_ROOT / "runtime"
+from src.paths import runtime_dir
+RUNTIME_DIR = runtime_dir()
 HISTORY_FILE = RUNTIME_DIR / "chat_history.json"
 MEMORY_FILE = RUNTIME_DIR / "chat_memory.md"
 
@@ -45,14 +46,29 @@ _LEGACY_TOOL_NAMES = {
 
 
 # ── history/memory ───────────────────────────────────
+def _sanitize_history(history: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], bool]:
+    from src.secret_store import redact_text
+
+    sanitized: List[Dict[str, Any]] = []
+    changed = False
+    for item in history:
+        clean = dict(item)
+        original = str(clean.get("content", ""))
+        redacted = redact_text(original)
+        clean["content"] = redacted
+        changed = changed or redacted != original
+        sanitized.append(clean)
+    return sanitized, changed
+
+
 def load_history(limit: int = 30) -> List[Dict[str, Any]]:
     with _history_lock:
         try:
             data = json.loads(HISTORY_FILE.read_text(encoding="utf-8")) if HISTORY_FILE.exists() else []
+            data, changed = _sanitize_history(data if isinstance(data, list) else [])
             from src.manager.report_inbox import pending_events
 
             known = {str(item.get("event_id")) for item in data if item.get("event_id")}
-            changed = False
             consumed_paths: List[Path] = []
             for event in pending_events():
                 event_id = str(event.get("event_id", ""))
@@ -82,7 +98,8 @@ def load_history(limit: int = 30) -> List[Dict[str, Any]]:
 def save_history(history: List[Dict[str, Any]]) -> None:
     with _history_lock:
         RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-        HISTORY_FILE.write_text(json.dumps(history[-200:], ensure_ascii=False, indent=2), encoding="utf-8")
+        sanitized, _ = _sanitize_history(history[-200:])
+        HISTORY_FILE.write_text(json.dumps(sanitized, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def append_history(role: str, content: str) -> None:
@@ -159,16 +176,21 @@ def _investment_cycle_events(
     label: str,
     cancel_event: threading.Event,
 ) -> Generator[Dict[str, Any], None, None]:
-    yield {"type": "tool", "name": "run_complete_investment_cycle", "params": {"market": market}}
+    yield {
+        "type": "tool",
+        "name": "run_skill",
+        "params": {"skill_name": "complete-investment-cycle", "market": market},
+    }
     updates: "queue.Queue[Dict[str, Any]]" = queue.Queue()
 
     def run_complete_cycle() -> None:
         try:
-            from src.investment.command_bus import InvestmentAgentClient
+            from src.manager.skill_runtime import SkillRuntime
 
-            result = InvestmentAgentClient().issue(
-                "run_cycle",
-                {"market": market, "label": label},
+            result = SkillRuntime().run(
+                f"一键执行{market.upper()}完整投资轮次",
+                skill_name="complete-investment-cycle",
+                inputs={"market": market, "label": label},
                 requested_by="chat-button",
                 progress_callback=lambda value: updates.put({"type": "status", "content": value}),
             )
@@ -192,9 +214,10 @@ def _investment_cycle_events(
             result = update["value"]
         elif update["type"] == "error":
             error = update["value"]
-    from src.investment.reporting import format_cycle_result
-
-    final_answer = format_cycle_result(result) if result else f"## ❌ 完整投资轮次失败\n\n{error or '未知错误'}"
+    final_answer = (
+        str(result.get("user_report") or result.get("error") or "Skill 未产生报告")
+        if result else f"## ❌ 完整投资轮次失败\n\n{error or '未知错误'}"
+    )
     emitted = ""
     for chunk in _chunk_text(final_answer, 18):
         emitted += chunk

@@ -13,7 +13,8 @@ import requests
 
 logger = logging.getLogger("investment-auto.research-data")
 ROOT = Path(__file__).resolve().parents[2]
-CACHE_DIR = ROOT / "runtime" / "data" / "research"
+from src.paths import runtime_dir
+CACHE_DIR = runtime_dir() / "data" / "research"
 _write_lock = threading.RLock()
 
 
