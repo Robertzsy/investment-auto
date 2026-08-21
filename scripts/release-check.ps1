@@ -52,7 +52,8 @@ if (-not $SkipPythonVenv -and (Test-Path ".venv\Scripts\python.exe")) {
     }
 }
 
-# 3. DSH app gates: plugin unit tests + skill structure/tool-reference check.
+# 3. DSH app gates: plugin unit tests + skill structure/tool-reference check +
+#    plugin packaging/client-contract check.
 $node = "node"
 if (Test-Path "build\runtime\node\node.exe") { $node = "build\runtime\node\node.exe" }
 Run-Step "DSH plugin unit tests (node --test)" {
@@ -62,6 +63,10 @@ Run-Step "DSH plugin unit tests (node --test)" {
 Run-Step "Investment skills structural check" {
     & $node app/scripts/check-skills.mjs | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "check-skills exit code $LASTEXITCODE" }
+}
+Run-Step "Plugin packaging + client contract check" {
+    & $node app/scripts/check-plugins.mjs | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "check-plugins exit code $LASTEXITCODE" }
 }
 
 # 3. Bundled runtime must be fully self-contained (-s disables user-site,

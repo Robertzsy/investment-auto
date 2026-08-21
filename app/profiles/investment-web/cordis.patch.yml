@@ -52,3 +52,12 @@
       config:
         engineUrl: 'http://127.0.0.1:8790'
 
+# ── browser roster: investment tool cards ──────────────────────────────────
+#
+# Client plugin registering keyed tool views (tool.call.toolview) for
+# investment_status / investment_portfolio / investment_mandate. The modules
+# node half scans this row into window.__DSH_BOOT__ and serves its client.js.
+- insert:
+    - id: investment-ui
+      name: '@investment-auto/dsh-investment-ui'
+

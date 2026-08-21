@@ -1,0 +1,25 @@
+{
+  "name": "@investment-auto/dsh-investment-ui",
+  "version": "2.0.0-p5",
+  "description": "Investment Auto 2.0 client UI: keyed tool cards for investment_status / investment_portfolio / investment_mandate in the DSH web conversation",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-tool",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  }
+}

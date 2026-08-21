@@ -159,10 +159,13 @@ MongoDB/自建）从 .env 提取进 DPAPI 库且回读字节一致，源目录�
 
 ## 6. 已延期 / 待办
 
-- **客户端投资面板插件**（状态栏、持仓/报告页嵌进 DSH 侧栏）：需要
-  按 `dsh.client` roster 行 + client 插件包模式实现；当前桌面壳状态栏
-  （模式/策略/风控/轮次）已覆盖最常用信息。扩展入口：在
-  investment-web patch 的 browser roster 中新增自定义 client 包。
+- **客户端投资面板插件**：✅ 已实现关键部分 ——
+  `app/plugins/dsh-investment-ui` 通过官方 `tool.call.toolview` 键控视图
+  扩展点注册 `investment_status` / `investment_portfolio` /
+  `investment_mandate` 三个工具卡片（模式/风控/策略 chip、现金/持仓/成交
+  摘要、授权书硬边界），进 browser roster 并由 `/plugins/.../client.js`
+  服务（启动实测 200，boot 表包含该条目）。侧栏级常驻面板（slots 均为
+  single-kind，无可并插槽）作为可选后续；桌面壳状态栏已覆盖常驻状态。
 - **对话面 E2E 验收**：自主轮次链路已用真实模型实测通过；桌面对话页
   （investment-web + 投资 preset）的日常问答与手动周期流程待配置
   安装版 API Key 后走一轮人工验收（DPAPI overlay 已在 headless 同款

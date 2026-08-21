@@ -12,6 +12,7 @@
 | `skills/` | 7 个投资 Skills（SKILL.md）：security-analysis、market-overview、stock-screening、portfolio-review、portfolio-optimization、complete-investment-cycle、account-management |
 | `plugins/dsh-investment-tools/` | 引擎桥工具插件：16 个 `investment_*` 工具（只读事实 + 纸面边界写操作），`ctx.tools.register` 注册 |
 | `plugins/dsh-dpapi-credentials/` | DPAPI 凭据 provider：实现 harness `credentials` 服务，密钥经引擎 DPAPI 加密存储 |
+| `plugins/dsh-investment-ui/` | 客户端 UI 插件：`tool.call.toolview` 键控卡片（investment_status / portfolio / mandate） |
 | `scripts/seed.ps1` | 把 profiles/presets/skills/plugins 播种进 `$DSH_HOME`（开发与安装版共用；已存在不覆盖，`-Force` 刷新） |
 | `scripts/dev.ps1` | 开发启动器：DSH_HOME=app/dev-home，安装依赖、播种、启动 investment-web |
 | `scripts/check-skills.mjs` | 技能结构校验 + 被引用工具与插件注册表一致性 |
