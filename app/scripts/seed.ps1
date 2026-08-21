@@ -4,6 +4,7 @@
 #   app/profiles/*            -> $DSH_HOME/profiles/*
 #   app/presets/*             -> $DSH_HOME/.agent-presets/*
 #   app/skills/*              -> $DSH_HOME/skills/*
+#   app/plugins/*             -> $DSH_HOME/profiles/<profile>/node_modules/<scope>/<name>
 #
 # Production uses the same script: the installer ships app/ and runs this
 # against %LocalAppData%\InvestmentAuto (set $env:DSH_HOME before calling).
@@ -23,20 +24,42 @@ if (-not $env:DSH_HOME) {
 $appRoot = Split-Path -Parent $PSScriptRoot
 $dshHome = $env:DSH_HOME
 
+# robocopy exit codes 0-7 are success; >=8 is failure. Contents of $Source
+# are copied into $Target (no nested source dir), unlike Copy-Item -Recurse.
 function Copy-Tree([string]$Source, [string]$Target) {
   if (-not (Test-Path $Source)) { return }
+  if ((Test-Path $Target) -and (-not $Force)) {
+    Write-Host "  keep  $Target (exists; use -Force to refresh)"
+    return
+  }
   New-Item -ItemType Directory -Force -Path $Target | Out-Null
-  Get-ChildItem $Source | ForEach-Object {
-    $dest = Join-Path $Target $_.Name
-    if ((Test-Path $dest) -and (-not $Force)) {
-      Write-Host "  keep  $dest"
+  robocopy $Source $Target /E /R:0 /W:0 /NFL /NDL /NJH /NJS /NP | Out-Null
+  if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE): $Source -> $Target" }
+  Write-Host "  seed  $Target"
+}
+
+function Install-Plugins([string]$PluginsRoot, [string]$ProfilesRoot) {
+  if (-not (Test-Path $PluginsRoot)) { return }
+  Get-ChildItem $PluginsRoot -Directory | ForEach-Object {
+    $plugin = $_
+    $manifestPath = Join-Path $plugin.FullName 'package.json'
+    if (-not (Test-Path $manifestPath)) { return }
+    $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+    $pkgName = $manifest.name
+    if (-not $pkgName -or -not $pkgName.Contains('/')) {
+      Write-Warning "plugin $($plugin.Name) has no scoped package name; skipped"
       return
     }
-    if ($_.PSIsContainer) {
-      Copy-Item -Recurse -Force $_.FullName $dest
-      Write-Host "  seed  $dest"
-    } else {
-      Copy-Item -Force $_.FullName $dest
+    Get-ChildItem $ProfilesRoot -Directory | Where-Object { $_.Name -ne 'node_modules' } | ForEach-Object {
+      $dest = Join-Path $_.FullName "node_modules\$pkgName"
+      if ((Test-Path $dest) -and (-not $Force)) {
+        Write-Host "  keep  $dest"
+        return
+      }
+      if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+      New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dest) | Out-Null
+      robocopy $plugin.FullName $dest /E /R:0 /W:0 /NFL /NDL /NJH /NJS /NP | Out-Null
+      if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE): $($plugin.FullName) -> $dest" }
       Write-Host "  seed  $dest"
     }
   }
@@ -46,4 +69,5 @@ Write-Host "Seeding DSH home: $dshHome"
 Copy-Tree (Join-Path $appRoot 'profiles') (Join-Path $dshHome 'profiles')
 Copy-Tree (Join-Path $appRoot 'presets') (Join-Path $dshHome '.agent-presets')
 Copy-Tree (Join-Path $appRoot 'skills') (Join-Path $dshHome 'skills')
+Install-Plugins (Join-Path $appRoot 'plugins') (Join-Path $dshHome 'profiles')
 Write-Host 'Done.'

@@ -27,3 +27,10 @@
       maxQueueSize: 2048
       maxExportBatchSize: 2048
       exportTimeoutMillis: 1500
+
+# ── investment engine bridge (host plane) ──────────────────────────────────
+- insert:
+    - id: investment-tools
+      name: '@investment-auto/dsh-investment-tools'
+      config:
+        engineUrl: 'http://127.0.0.1:8790'

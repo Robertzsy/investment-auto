@@ -1,5 +1,12 @@
 # investment-auto
 
+> **Investment Auto 2.0 正在 `dsch/2.0` 分支开发中** —— 以 DeepSeek Harness
+> 为运行底座：DSH 对话/会话/工具/Skills 作为通用 AI 对话与决策面，1.x 的
+> 行情/选股/组合/风控/纸面经纪/调度能力收敛为独立 Python 引擎（`engine/`），
+> 通过 HTTP 命令 API 与 MCP 工具桥连接。架构与阶段计划见
+> `docs/ENGINE_API.md` 与 `app/README.md`；`master` 保留 1.x（v0.9.1）作为
+> 回退版本。以下为 1.x 文档。
+
 **多市场（A股/港股/美股/ETF）自动化模拟交易系统**
 
 - 支持 A股、港股、美股、场内ETF 独立账户模拟交易

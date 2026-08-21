@@ -38,3 +38,17 @@
       maxQueueSize: 2048
       maxExportBatchSize: 2048
       exportTimeoutMillis: 1500
+
+# ── investment engine bridge (host plane) ──────────────────────────────────
+#
+# The bridge tools register into the host `tools` registry, so every agent
+# preset mounted in this profile (the investment preset) sees them. The
+# plugin package itself is seeded into this profile's node_modules by
+# app/scripts/seed.ps1. engineUrl can be overridden per machine via the
+# INVESTMENT_ENGINE_URL environment variable.
+- insert:
+    - id: investment-tools
+      name: '@investment-auto/dsh-investment-tools'
+      config:
+        engineUrl: 'http://127.0.0.1:8790'
+

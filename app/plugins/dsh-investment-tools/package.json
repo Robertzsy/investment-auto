@@ -1,0 +1,12 @@
+{
+  "name": "@investment-auto/dsh-investment-tools",
+  "version": "2.0.0-p1",
+  "description": "Investment Auto 2.0 engine bridge tools for DeepSeek Harness (market data, screening, portfolio, reports, controls)",
+  "type": "module",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "0.1.0-rc.6"
+  }
+}
