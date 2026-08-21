@@ -1,5 +1,37 @@
 # 更新日志
 
+## 2.0.0-preview — DeepSeek Harness 底座重构（2026-08-21，分支 `dsch/2.0`）
+
+Investment Auto 2.0 以 DeepSeek Harness（DSH）为运行底座全面重建：对话、会话、
+模型调用、工具、Skills、plan/goal/子代理/工作流全部来自 DSH；1.x 的业务能力收敛为
+独立 Python 引擎（`engine/`），通过回环 HTTP 命令 API 与 DSH 工具桥连接。
+
+- **P0 骨架**：`engine/` 业务引擎（1.x 复用部分重排，旧 Agent/Manager/UI/LLM 层删除）；
+  `app/` 锁定 `@deepseek-ai/dsh@0.1.0-rc.6` 依赖树（防 npm 混装 rc.8）；
+  自定义 `investment-web` / `investment` profile + `investment` agent preset
+  （无 Shell/文件/编码工具）；HTTP 命令 API 骨架。
+- **P1 对话+桥**：引擎只读 API（状态/行情/选股/组合/报告/宏观/授权书）+ 17 个
+  `investment_*` 工具（`ctx.tools.register` 原生插件）+ 投资 persona。
+- **P2 投资 Skills**：`submit_decisions` 执行链（引擎自行取价 → 授权书硬边界 →
+  `build_orders` 风控 → 纸面撮合 → 审计/报告/反思）+ 7 个 DSH `SKILL.md`
+  （证券分析/市场概览/选股/组合检查/组合优化/完整投资周期/账户管理）+
+  技能-工具一致性校验。
+- **P3 自主轮次**：`engine/dsh_bridge.py` 在调度时刻 spawn DSH headless 会话
+  （同一套工具与 Skills；shell/文件/编辑/ralph/plan 模式关闭），runner 以引擎审计
+  为事实回填决策与成交；fail-safe 由幂等设计保证（崩溃丢轮不重复成交）。
+- **P4 桌面发行**：WPF 壳 2.0 进程模型（引擎 serve/run + DSH web 双进程、动态端口、
+  `--patch` overlay、就绪解析、Job Object）；DPAPI 凭据 provider（密钥不落明文）；
+  `/setup` 首次向导（导入旧数据 + 初始化 + 完成前不启动自动投资）；引擎启动自动播种
+  DSH home（安装版零 PowerShell）；Node 22 运行时与安装器脚本。
+- **P5 门禁与实测**：发行门禁覆盖 Python/C#/插件/技能全测试面；自主轮次真实模型
+  端到端实测（真实行情研究 → 3 决策 → 纸面成交 → 审计/报告/反思）；真实 1.x 数据
+  迁移实测（15 项数据 + 4 密钥 DPAPI 无损导入）。
+- **实测修复**：工具 render 契约（内容块而非裸字符串）、桥进程环境
+  （INVESTMENT_ENGINE_URL 派生）、runner 注册范围（serve 进程同样执行轮次）。
+- **测试基线**：Python 121 项 + C# 桌面 20 项 + Node 插件 6 项 + 技能结构校验。
+
+详细架构见 `docs/ARCHITECTURE_2.0.md`、`docs/ENGINE_API.md`；1.x 保留在 `master`。
+
 ## 0.9.1 — Supervised Repair Closure（2026-08-20）
 
 - 安装版内置 `repair_verifier`，自修复不再依赖未随安装包发布的 pytest 测试目录；
