@@ -12,7 +12,10 @@ from engine.api import server
 
 
 @pytest.fixture
-def api():
+def api(monkeypatch):
+    # Deterministic auth surface: every test starts token-free regardless of
+    # any ambient IA_ACCESS_TOKEN left by unrelated tooling.
+    monkeypatch.setenv("IA_ACCESS_TOKEN", "")
     httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), server._Handler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()

@@ -139,6 +139,24 @@ DPAPI store（`app/plugins/dsh-dpapi-credentials`），密钥不落明文文件�
 对应回归测试：`tests/test_dsh_bridge.py`（10 项）、
 `app/plugins/dsh-investment-tools/test/tools.test.mjs`（render 契约）。
 
+### 5.2 数据迁移真实数据验证（2026-08-21 实测）
+
+用仓库真实 1.x 数据（运行时目录 + .env）构造 1.x 布局夹具，在隔离数据
+目录执行 `engine.main migrate`：15 项全部复制（87 份报告、66 份审计、
+367 条记忆、选股/优化缓存、授权书、账户），4 个密钥（DeepSeek/Kimi/
+MongoDB/自建）从 .env 提取进 DPAPI 库且回读字节一致，源目录零改动。
+账户数据经 `normalize_portfolio` 归一化后再进入 2.0。
+
+### 5.3 自主轮次 agent 平面结论（实测）
+
+曾尝试让 headless 轮次挂载 agent preset（与桌面对话完全同构）；实测
+发现 preset 挂载由 web 会话创建流程调用，headless runner 的 agent 工厂
+无 preset 调用方（请求中只有 host 平面的 17 个 investment 工具）。结论：
+自主轮次采用 **host 平面组合**——投资 persona（profile patch）+ 桥工具行
++ base 的 skills/web/goals/subagents/workflows/todo/compaction（shell/
+文件/编辑/ralph/plan 模式关闭）。与对话 preset 的唯一有意差异是 plan
+模式与 ask_user（交互面）。该组合已通过完整轮次 E2E 复验（1 笔成交）。
+
 ## 6. 已延期 / 待办
 
 - **客户端投资面板插件**（状态栏、持仓/报告页嵌进 DSH 侧栏）：需要

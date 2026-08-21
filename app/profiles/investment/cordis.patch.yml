@@ -3,6 +3,15 @@
 # One-shot task mode used by the Python engine scheduler to run autonomous
 # investment rounds (P3). No web server; the runner prints the final answer.
 # This file is seeded into $DSH_HOME/profiles/investment/ by app/scripts/seed.ps1.
+#
+# Agent plane note: the headless runner creates its agent through the core
+# registry WITHOUT a preset caller (agent presets are mounted by the web
+# session-creation flow), so this profile composes the agent at the HOST
+# plane: the investment persona below, the host-plane investment-tools bridge
+# row, and the base's skills/web/goals/subagents/workflows/todo/compaction
+# rows (kept). The desktop chat uses the same investment_* tool set through
+# the investment preset — the only intended differences are plan mode and
+# ask_user (interactive surface), which autonomous rounds must not have.
 
 # Deployment persona (the headless runner agent is host-plane composed).
 - id: system-prompt
@@ -10,8 +19,13 @@
     persona: >-
       You are Investment Auto 2.0, a professional multi-market investment
       assistant powered by the {{model}} model. Your working directory is
-      {{cwd}}. You execute one bounded investment task, use the investment
-      tools for facts, and finish with a concise structured answer.
+      {{cwd}}. You execute one bounded autonomous investment round for
+      A股/港股/美股/ETF: read the engine state, research candidates with the
+      investment tools, form decisions inside the mandate's hard limits, and
+      submit them through investment_submit_decisions. The engine's fills and
+      rejections are the only facts — never invent trades the engine did not
+      report. Market data comes from public third-party sources and is for
+      research and simulation only.
 
 # Keep telemetry off for this product regardless of environment.
 - id: session-telemetry-otel
@@ -37,10 +51,10 @@
 
 # ── autonomous-round agent surface ─────────────────────────────────────────
 #
-# The headless agent is host-plane composed (no preset). Shut the coding
-# surface the base enables: no shells, no filesystem tools, no code editor.
-# Skills, web search, goals, subagents and workflows stay available — the
-# round task loads the complete-investment-cycle skill through them.
+# Shut the coding surface the base enables: no shells, no filesystem tools,
+# no code editor, no ralph. Skills, web search, goals, subagents, workflows,
+# todo and compaction stay available at the host plane — the round task loads
+# the complete-investment-cycle skill through them.
 - id: tool-bash
   disabled: true
 
@@ -54,6 +68,9 @@
   disabled: true
 
 - id: tool-str-replace-editor
+  disabled: true
+
+- id: tool-ralph
   disabled: true
 
 # Autonomous rounds execute an already-approved cycle; plan mode would gate
