@@ -81,6 +81,7 @@ test("registers the full investment tool surface", async () => {
       "investment_set_strategy",
       "investment_control",
       "investment_run_cycle",
+      "investment_submit_decisions",
       "investment_run_screening",
       "investment_reset_account",
     ]) {

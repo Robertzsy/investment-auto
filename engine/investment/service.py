@@ -165,6 +165,19 @@ class InvestmentAgentService:
             from engine.screening.preview import run_screening_preview
 
             return {"ok": True, "market": market, "screening": run_screening_preview(market)}
+        if command.command == InvestmentCommand.SUBMIT_DECISIONS:
+            market = normalize_market(command.payload.get("market"))
+            from engine.trading.decision_execution import submit_decisions
+
+            result = submit_decisions(
+                market,
+                command.payload.get("decisions"),
+                label=str(command.payload.get("label", "dsh-manual")),
+                note=str(command.payload.get("note", "")),
+                requested_by=command.requested_by,
+                progress_callback=progress_callback,
+            )
+            return {"ok": True, **result}
         if command.command == InvestmentCommand.RUN_OPTIMIZER:
             market = normalize_market(command.payload.get("market"))
             from engine.optimizer.runner import compact_result, parse_symbols, run_optimizer

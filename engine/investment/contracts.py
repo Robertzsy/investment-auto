@@ -11,6 +11,7 @@ MARKETS = {"cn", "hk", "us", "etf"}
 class InvestmentCommand(str, Enum):
     RUN_CYCLE = "run_cycle"
     RUN_SCHEDULED_CYCLE = "run_scheduled_cycle"
+    SUBMIT_DECISIONS = "submit_decisions"
     PAUSE = "pause"
     RESUME = "resume"
     KILL = "kill"

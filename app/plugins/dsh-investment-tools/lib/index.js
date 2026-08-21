@@ -253,6 +253,40 @@ export function apply(ctx, config) {
 
   registerTool(
     ctx,
+    "investment_submit_decisions",
+    "把本轮研究得出的买卖决策提交给引擎执行：引擎自行获取行情、按当前授权书硬边界重算仓位、执行硬风控与纸面撮合，返回成交与拒绝清单。只允许纸面模式；决策前先用 plan 模式或 ask_user 取得用户确认。",
+    {
+      market: { type: "string", required: true, description: "市场代码：cn、hk、us 或 etf", default: "cn" },
+      decisions: {
+        type: "array",
+        required: true,
+        description: "决策清单（每个决策带 symbol/action/target_weight/confidence/reason）",
+        items: {
+          type: "object",
+          additionalProperties: true,
+          properties: {
+            symbol: { type: "string", required: true, description: "证券代码" },
+            action: { type: "string", required: true, description: "BUY / SELL / HOLD" },
+            target_weight: { type: "number", description: "目标仓位权重 0-1（引擎会重新计算并硬封顶）" },
+            confidence: { type: "number", description: "置信度 0-1（低于授权书阈值会被拒绝）" },
+            reason: { type: "string", description: "决策依据（写入审计与报告）" },
+          },
+        },
+      },
+      label: { type: "string", description: "轮次标签（用于报告文件名，默认 dsh-manual）" },
+      note: { type: "string", description: "本轮分析摘要，写入报告正文" },
+    },
+    async ({ market, decisions, label, note = "" }) =>
+      client.issue(
+        "submit_decisions",
+        { market, decisions, label: String(label || "dsh-manual").slice(0, 40), note },
+        { requestedBy: "dsh-tools", timeoutMs: 300000 },
+      ),
+    { timeoutMs: 300000 },
+  );
+
+  registerTool(
+    ctx,
     "investment_reset_account",
     "重置指定市场的模拟账户（备份后清空为初始资金）。写操作，且只允许纸面模式。",
     {
