@@ -70,6 +70,52 @@ def test_runner_spawns_headless_profile_with_task(monkeypatch, tmp_path):
     assert result["warnings"]
 
 
+def test_runner_passes_engine_url_from_api_port(monkeypatch, tmp_path):
+    (tmp_path / "app" / "node_modules" / "@deepseek-ai" / "dsh" / "lib").mkdir(parents=True)
+    (tmp_path / "app" / "node_modules" / "@deepseek-ai" / "dsh" / "lib" / "bin.js").write_text("", encoding="utf-8")
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["env"] = kwargs.get("env") or {}
+        return subprocess.CompletedProcess(command, 0, stdout=b"ok", stderr=b"")
+
+    monkeypatch.setattr(dsh_bridge.subprocess, "run", fake_run)
+    monkeypatch.setattr(dsh_bridge.shutil, "which", lambda name: "node.exe")
+    monkeypatch.setenv("INVESTMENT_API_PORT", "8802")
+    monkeypatch.delenv("INVESTMENT_ENGINE_URL", raising=False)
+
+    _runner(tmp_path)("cn", "intraday", _context())
+
+    assert captured["env"].get("INVESTMENT_ENGINE_URL") == "http://127.0.0.1:8802"
+
+
+def test_runner_applies_dpapi_patch_only_with_desktop_token(monkeypatch, tmp_path):
+    (tmp_path / "app" / "node_modules" / "@deepseek-ai" / "dsh" / "lib").mkdir(parents=True)
+    (tmp_path / "app" / "node_modules" / "@deepseek-ai" / "dsh" / "lib" / "bin.js").write_text("", encoding="utf-8")
+    patch_dir = tmp_path / "app" / "profiles" / "patches"
+    patch_dir.mkdir(parents=True)
+    (patch_dir / "dpapi-credentials.yml").write_text("- id: credentials\n  disabled: true\n", encoding="utf-8")
+    captured = {"with_token": None, "without_token": None}
+
+    def fake_run(command, **kwargs):
+        if "--patch" in command:
+            captured["with_token"] = list(command)
+        else:
+            captured["without_token"] = list(command)
+        return subprocess.CompletedProcess(command, 0, stdout=b"ok", stderr=b"")
+
+    monkeypatch.setattr(dsh_bridge.subprocess, "run", fake_run)
+    monkeypatch.setattr(dsh_bridge.shutil, "which", lambda name: "node.exe")
+
+    monkeypatch.setenv("IA_ACCESS_TOKEN", "desktop-token")
+    _runner(tmp_path)("cn", "intraday", _context())
+    monkeypatch.delenv("IA_ACCESS_TOKEN")
+    _runner(tmp_path)("cn", "intraday", _context())
+
+    assert captured["with_token"] is not None and str(patch_dir / "dpapi-credentials.yml") in captured["with_token"]
+    assert captured["without_token"] is not None and "--patch" not in captured["without_token"]
+
+
 def test_runner_folds_engine_audit_into_result(monkeypatch, tmp_path):
     (tmp_path / "app" / "node_modules" / "@deepseek-ai" / "dsh" / "lib").mkdir(parents=True)
     (tmp_path / "app" / "node_modules" / "@deepseek-ai" / "dsh" / "lib" / "bin.js").write_text("", encoding="utf-8")

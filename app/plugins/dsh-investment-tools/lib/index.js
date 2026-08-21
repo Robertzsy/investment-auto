@@ -27,9 +27,14 @@ const FREE_OBJECT = {
   additionalProperties: true,
 };
 
-const jsonRender = (value) => {
+/**
+ * The registry calls render(args, value) and expects CONTENT BLOCKS back
+ * (`[{type: "text", text}]`), not a raw string — a string render collapses
+ * the tool-result message into a bare string the adapters then reject.
+ */
+const jsonRender = (_args, value) => {
   const text = JSON.stringify(value, null, 2);
-  return text.length > 32000 ? text.slice(0, 32000) + "\n…(截断)" : text;
+  return [{ type: "text", text: text.length > 32000 ? text.slice(0, 32000) + "\n…(截断)" : text }];
 };
 
 /**

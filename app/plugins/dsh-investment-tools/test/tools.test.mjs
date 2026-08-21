@@ -160,6 +160,27 @@ test("investment_control rejects unknown actions without hitting the engine", as
   }
 });
 
+test("output render returns content blocks from the value, never the arguments", async () => {
+  const { server, url } = await startMockEngine();
+  const ctx = fakeCtx();
+  try {
+    apply(ctx, { engineUrl: url });
+    const tool = ctx.registered.find((t) => t.name === "investment_status");
+    // Registry contract: render(args, value) -> ContentBlock[]. A render
+    // that mistakes the first argument for the value collapses every result
+    // to "{}"; one that returns a bare string corrupts the tool-result
+    // message shape.
+    const rendered = tool.output.render({ market: "cn" }, { ok: true, hello: "世界" });
+    assert.ok(Array.isArray(rendered));
+    assert.equal(rendered[0].type, "text");
+    assert.ok(rendered[0].text.includes('"hello"'));
+    assert.ok(rendered[0].text.includes("世界"));
+    assert.ok(!rendered[0].text.includes("market"));
+  } finally {
+    server.close();
+  }
+});
+
 test("environment variable overrides the configured engine URL", async () => {
   const previous = process.env.INVESTMENT_ENGINE_URL;
   process.env.INVESTMENT_ENGINE_URL = "http://127.0.0.1:9999";

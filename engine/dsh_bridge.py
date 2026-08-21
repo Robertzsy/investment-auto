@@ -127,10 +127,27 @@ class DshBridgeRunner:
         task = _round_task(market, cycle_type, context)
         env = dict(os.environ)
         env["DSH_TELEMETRY_DISABLED"] = "1"
+        # Point the round's investment tools at the engine API. The shell
+        # passes INVESTMENT_ENGINE_URL to the web process only; the engine
+        # process knows its own API port (INVESTMENT_API_PORT) instead.
+        api_port = os.getenv("INVESTMENT_API_PORT", "").strip()
+        engine_url = os.getenv("INVESTMENT_ENGINE_URL", "").strip()
+        if not engine_url and api_port:
+            engine_url = f"http://127.0.0.1:{api_port}"
+        if engine_url:
+            env["INVESTMENT_ENGINE_URL"] = engine_url
         home = self.dsh_home or _resolve_dsh_home(self.app_dir)
         if home:
             env["DSH_HOME"] = home
-        command = [self.node, str(self.bin), "--profile", "investment", task]
+        command = [self.node, str(self.bin), "--profile", "investment"]
+        # Desktop lifecycle: credentials live in the engine DPAPI store, and
+        # the round must resolve them through the same provider the web UI
+        # writes. Dev mode (no IA_ACCESS_TOKEN) keeps the default
+        # .credentials.yaml provider.
+        dpapi_patch = self.app_dir / "profiles" / "patches" / "dpapi-credentials.yml"
+        if dpapi_patch.exists() and os.getenv("IA_ACCESS_TOKEN", "").strip():
+            command += ["--patch", str(dpapi_patch)]
+        command.append(task)
         start_monotonic = time.time()
         start_wall = time.time()
         logger.info("[DSH-BRIDGE:%s] spawning headless round (label=%s)", market, label)

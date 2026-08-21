@@ -117,7 +117,27 @@ DPAPI store（`app/plugins/dsh-dpapi-credentials`），密钥不落明文文件�
 | P2 | submit_decisions 执行链 + 7 个 DSH Skills + 技能校验脚本 | ✅ 105→113 测试 |
 | P3 | headless 自主轮次（DSH 桥 + runner + headless profile 收紧） | ✅ 113→119 测试 |
 | P4 | 桌面壳 2.0 进程模型、DPAPI 凭据、首次向导、安装器/运行时脚本 | ✅ 119 + C# 20/20 |
-| P5 | 发行门禁更新、架构文档；客户端投资面板插件与正式 Release | 🚧 门禁/文档已更新；见第 6 节 |
+| P5 | 发行门禁、架构文档、真实模型端到端验收 | ✅ 121 测试；自主轮次 E2E 实测通过（见下） |
+
+### 5.1 自主轮次真实模型端到端验收（2026-08-21 实测）
+
+隔离数据目录下完整验证：引擎 `serve` + `run`（调度器 + DSH 桥）→
+`run_cycle` → headless 会话（DPAPI 凭据 overlay）→ 真实模型 + 真实行情
+研究 4 只候选并形成 3 条 BUY 决策 → `investment_submit_decisions` →
+引擎硬风控 + 纸面经纪 **2 笔成交** → 审计/报告/反思全链路落盘。验收中
+发现并修复三个真实缺陷：
+
+1. **工具 render 契约**：`output.render(args, value)` 必须返回内容块
+   `[{type:"text", text}]`；返回裸字符串会破坏工具结果消息结构
+   （第二轮模型请求 `content.some is not a function` → TRANSPORT）。
+2. **桥进程环境**：runner 必须把 `INVESTMENT_API_PORT` 派生成
+   `INVESTMENT_ENGINE_URL` 传给 headless 会话，否则轮次工具全部
+   指向默认端口 8790。
+3. **runner 注册范围**：`serve` 进程也要注册桥（API 的 run_cycle 在
+   serve 内执行），否则手动轮次报 `cycle_runner_unavailable`。
+
+对应回归测试：`tests/test_dsh_bridge.py`（10 项）、
+`app/plugins/dsh-investment-tools/test/tools.test.mjs`（render 契约）。
 
 ## 6. 已延期 / 待办
 
@@ -125,8 +145,10 @@ DPAPI store（`app/plugins/dsh-dpapi-credentials`），密钥不落明文文件�
   按 `dsh.client` roster 行 + client 插件包模式实现；当前桌面壳状态栏
   （模式/策略/风控/轮次）已覆盖最常用信息。扩展入口：在
   investment-web patch 的 browser roster 中新增自定义 client 包。
-- **真实模型端到端验收**（对话跑通一轮手动周期、路由评估 56 项改写版、
-  定时轮次实测）：需要配置模型 API Key 后执行；脚本与结构检查已备好。
+- **对话面 E2E 验收**：自主轮次链路已用真实模型实测通过；桌面对话页
+  （investment-web + 投资 preset）的日常问答与手动周期流程待配置
+  安装版 API Key 后走一轮人工验收（DPAPI overlay 已在 headless 同款
+  路径上验证）。
 - **正式 Release**：VM 全流程验收（安装 → 向导 → 对话 → 轮次 → 托盘 →
   重启恢复 → 卸载保数据）后发布 2.0 安装包；发行门禁
   `scripts/release-check.ps1` 已切到 2.0 全部测试面。

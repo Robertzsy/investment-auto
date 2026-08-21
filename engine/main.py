@@ -152,6 +152,17 @@ def main() -> None:
     except Exception:
         logger.debug("DSH home seeding skipped", exc_info=True)
 
+    # Every process that can execute a cycle (serve dispatches manual
+    # run_cycle commands, run drives scheduled rounds) registers the DSH
+    # bridge runner; the scheduler and broker locks keep parallel rounds safe.
+    if args.command in {"run", "serve", "once", "catchup"}:
+        try:
+            from engine.dsh_bridge import install_dsh_runner
+
+            install_dsh_runner()
+        except Exception:
+            logger.exception("DSH bridge runner installation failed")
+
     if args.command == "init":
         from engine.portfolio import account
 
@@ -232,11 +243,9 @@ def main() -> None:
 
     if args.command == "run":
         logger.info("Starting investment engine + scheduler...")
-        from engine.dsh_bridge import install_dsh_runner
         from engine.scheduler import start
         from engine.investment.command_bus import InvestmentCommandWorker
 
-        install_dsh_runner()
         command_worker = InvestmentCommandWorker().start()
         scheduler = start(catch_up=True)
         try:
