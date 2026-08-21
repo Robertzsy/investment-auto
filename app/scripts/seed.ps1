@@ -21,7 +21,7 @@ if (-not $env:DSH_HOME) {
 }
 
 $appRoot = Split-Path -Parent $PSScriptRoot
-$home = $env:DSH_HOME
+$dshHome = $env:DSH_HOME
 
 function Copy-Tree([string]$Source, [string]$Target) {
   if (-not (Test-Path $Source)) { return }
@@ -42,8 +42,8 @@ function Copy-Tree([string]$Source, [string]$Target) {
   }
 }
 
-Write-Host "Seeding DSH home: $home"
-Copy-Tree (Join-Path $appRoot 'profiles') (Join-Path $home 'profiles')
-Copy-Tree (Join-Path $appRoot 'presets') (Join-Path $home '.agent-presets')
-Copy-Tree (Join-Path $appRoot 'skills') (Join-Path $home 'skills')
+Write-Host "Seeding DSH home: $dshHome"
+Copy-Tree (Join-Path $appRoot 'profiles') (Join-Path $dshHome 'profiles')
+Copy-Tree (Join-Path $appRoot 'presets') (Join-Path $dshHome '.agent-presets')
+Copy-Tree (Join-Path $appRoot 'skills') (Join-Path $dshHome 'skills')
 Write-Host 'Done.'
