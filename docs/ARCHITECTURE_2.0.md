@@ -166,10 +166,12 @@ MongoDB/自建）从 .env 提取进 DPAPI 库且回读字节一致，源目录�
   摘要、授权书硬边界），进 browser roster 并由 `/plugins/.../client.js`
   服务（启动实测 200，boot 表包含该条目）。侧栏级常驻面板（slots 均为
   single-kind，无可并插槽）作为可选后续；桌面壳状态栏已覆盖常驻状态。
-- **对话面 E2E 验收**：自主轮次链路已用真实模型实测通过；桌面对话页
-  （investment-web + 投资 preset）的日常问答与手动周期流程待配置
-  安装版 API Key 后走一轮人工验收（DPAPI overlay 已在 headless 同款
-  路径上验证）。
+- **对话面 E2E 验收**：✅ 已自动化验证 —— `app/scripts/verify-web-conversation.mjs`
+  用浏览器同款 wire 协议（session.create/session.prompt/session.history unary
+  RPC）驱动 investment-web 会话：`session.create` 返回 `agentPreset:
+  investment`（对话 preset 在真实 web 会话中挂载），真实模型调用
+  `investment_status` 并经引擎返回正确回答（operation_mode + kill_switch），
+  `turn/end: completed`。人工体验确认（视觉/交互）仍建议在安装版走一轮。
 - **正式 Release**：VM 全流程验收（安装 → 向导 → 对话 → 轮次 → 托盘 →
   重启恢复 → 卸载保数据）后发布 2.0 安装包。本机已完成发行预检：
   `scripts/release-manifest-check.ps1`（dotnet publish + 安装器 12 个
