@@ -82,6 +82,23 @@ def test_migration_backs_up_existing_target(monkeypatch, tmp_path):
     assert (data_root / "config" / "config.yaml").read_text(encoding="utf-8") != "existing"
 
 
+def test_engine_layout_root_is_accepted_as_source(monkeypatch, tmp_path):
+    """The transition-era source may be a 2.0 repo (engine/main.py): the same
+    directory that used to hold the 1.x project."""
+    root = tmp_path / "repo"
+    (root / "engine").mkdir(parents=True)
+    (root / "engine" / "main.py").write_text("# 2.0", encoding="utf-8")
+    (root / "runtime" / "data").mkdir(parents=True)
+    (root / "runtime" / "data" / "portfolio.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("INVESTMENT_AUTO_HOME", str(root))
+    data_root = tmp_path / "data-root"
+    monkeypatch.setattr(paths, "data_root", lambda: data_root)
+
+    assert any(s["path"] == str(root) for s in migration.detect_sources())
+    result = migration.run_migration(str(root), ["runtime/data"])
+    assert result["status"] == "migrated"
+
+
 @pytest.mark.skipif(os.name != "nt", reason="DPAPI is Windows-only")
 def test_env_secrets_move_to_dpapi_and_plaintext_removed(monkeypatch, tmp_path):
     root = _legacy_tree(tmp_path)

@@ -52,6 +52,13 @@ _RUNTIME_INCLUDE = (
 _RUNTIME_EXCLUDE = ("logs", "locks", "checkpoints", "agent_failures", "bus", "launcher")
 
 
+def _is_project_root(root: Path) -> bool:
+    """Accept both the 1.x layout (src/main.py) and the 2.0 repo layout
+    (engine/main.py) — the transition-era source may be the same directory
+    the new engine lives in."""
+    return (root / "src" / "main.py").exists() or (root / "engine" / "main.py").exists()
+
+
 def detect_sources() -> List[Dict[str, Any]]:
     """Find candidate legacy project roots."""
     candidates: List[Path] = []
@@ -61,7 +68,7 @@ def detect_sources() -> List[Dict[str, Any]]:
     candidates.append(Path(r"D:\investment-auto"))
     found = []
     for candidate in candidates:
-        if (candidate / "src" / "main.py").exists() and candidate.resolve() != paths.APP_ROOT:
+        if _is_project_root(candidate) and candidate.resolve() != paths.APP_ROOT:
             found.append({"path": str(candidate), "name": str(candidate)})
     return found
 
@@ -87,7 +94,7 @@ def run_migration(source: str, items: Optional[List[str]] = None) -> Dict[str, A
     runtime/backups/migrate/<timestamp>/ first.
     """
     root = Path(source)
-    if not (root / "src" / "main.py").exists():
+    if not _is_project_root(root):
         raise ValueError(f"源目录不是 investment-auto 项目: {source}")
     target_root = paths.data_root()
     if root.resolve() == target_root.resolve():
