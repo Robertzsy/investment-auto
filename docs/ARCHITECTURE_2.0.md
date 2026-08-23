@@ -14,7 +14,7 @@
                ▼ http://127.0.0.1:<web>                    ▼ http://127.0.0.1:<api> + X-IA-Token
 ┌ DSH web（Node 22，profile: investment-web，DSH_HOME=用户数据目录）────────┐
 │ 对话/会话/设置/模型页/Skills/plan/goal/jobs（DSH 原生）                    │
-│ agent preset "investment"：投资 persona，无 shell/文件/编码工具            │
+│ agent preset "investment"：投资 persona + 完整 DSH 编码/自维护工具        │
 │ host 插件 investment-tools：15+ 个 investment_* 工具（引擎 HTTP 桥）       │
 │ 桌面 overlay：credentials 行换成 DPAPI provider（app/profiles/patches）    │
 └──────────────┬───────────────────────────────────────────────────────────┘
@@ -42,8 +42,12 @@
 - 只读：`investment_status / portfolio / market_snapshot / market_history /
   security_search / screening / optimizer_latest / reports / report_latest /
   macro_latest / mandate`
-- 写（纸面边界）：`investment_set_strategy / control / run_cycle /
-  run_screening / reset_account / submit_decisions`
+- 写（纸面边界）：`investment_set_strategy / control / run_screening /
+  reset_account / submit_decisions`（幂等：`idempotency_key`）
+- 固定分析流程（`app/plugins/dsh-investment-workflow`）：
+  `investment_analysis_workflow`（唯一完整分析入口：手动会话为异步启动器，
+  headless 自主轮次为同步执行器）+ `investment_analysis_status`（进度轮询）。
+  旧 `investment_run_cycle` 工具已从模型可见面移除，引擎内部命令保留给调度器。
 
 写操作在 Skill 与 persona 中约定为「先计划、用户批准后执行」；引擎侧还有
 独立防线（见第 4 节）。
@@ -54,12 +58,12 @@
 （`engine/scheduler.set_cycle_runner`）调用 `engine/dsh_bridge.DshBridgeRunner`：
 
 1. spawn `dsh --profile investment "<任务>"`（headless，同一套
-   investment 工具与 Skills；shell/文件/编码工具与 plan 模式在该
-   profile 中已禁用）；
-2. 会话按 complete-investment-cycle 流程研究并调用
-   `investment_submit_decisions` 提交决策；
+   investment 工具、固定分析流程与完整 DSH 自维护工具；plan 模式关闭）；
+2. 会话必须调用固定工作流 `investment_analysis_workflow`（任务文本强制）；
+   该工具在 headless 环境同步执行多阶段流水线并把检查点写回引擎
+   `runtime/analysis_runs`；自主轮次以 `submit=true` 在同一工具内提交；
 3. 引擎在 `submit_decisions` 内完成取价、授权书硬边界、硬风控、纸面撮合，
-   原子写入审计；
+   原子写入审计（`idempotency_key` 认领/重放保证不重复成交）；
 4. runner 读取本轮审计（引擎事实）回填决策/成交，调度器据此写报告、
    通知、反思。
 
@@ -106,8 +110,10 @@ overlay 采用「禁用原 credentials 行 + insert 新 credentials-dpapi 行」
 4. 撮合在纸面经纪的持仓锁 + 原子写内完成；审计原子落盘。崩溃最多丢失
    一轮研究，不会重复成交（fail-safe 由幂等设计保证，替代 1.x 的
    checkpoint 重放）。
-5. 自主轮次的 headless agent 无 shell、无文件工具、无 plan 模式；
-   对话 preset（investment）同样无 shell/编码工具。
+5. 桌面对话与自主 headless IA 均固定使用 `danger-full-access`，具备 Shell、
+   文件、搜索、后台任务、子代理和 Ralph，可维护 `INVESTMENT_AUTO_ROOT` 下的
+   权威源码并运行测试/构建。系统权限放宽不改变交易业务边界：纸面模式、用户
+   批准、幂等回执、决策指纹与 Python 硬风控仍不可绕过。
 6. 服务仅绑定 127.0.0.1 动态端口；引擎 API 要求 `X-IA-Token`（每启动
    随机），令牌只注入 WebView2 对引擎源的请求，从不注入 DSH web 源。
 
@@ -156,9 +162,10 @@ MongoDB/自建）从 .env 提取进 DPAPI 库且回读字节一致，源目录�
 发现 preset 挂载由 web 会话创建流程调用，headless runner 的 agent 工厂
 无 preset 调用方（请求中只有 host 平面的 17 个 investment 工具）。结论：
 自主轮次采用 **host 平面组合**——投资 persona（profile patch）+ 桥工具行
-+ base 的 skills/web/goals/subagents/workflows/todo/compaction（shell/
-文件/编辑/ralph/plan 模式关闭）。与对话 preset 的唯一有意差异是 plan
-模式与 ask_user（交互面）。该组合已通过完整轮次 E2E 复验（1 笔成交）。
++ base 的 skills/web/goals/subagents/workflows/todo/compaction 及完整自维护
+工具。与对话 preset 的有意差异是 plan 模式与 ask_user（交互面）；两者均
+具备 Shell/文件/搜索/Ralph 并使用全权限策略。该组合已通过完整轮次 E2E
+复验（1 笔成交）。
 
 ## 6. 已延期 / 待办
 

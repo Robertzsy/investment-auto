@@ -4,8 +4,15 @@
  * Registers the investment tool surface on `ctx.tools`:
  *   - read-only facts: status, portfolio, market data, screening, optimizer,
  *     reports, macro, mandate
- *   - engine actions (paper-trading boundary): run_cycle, set_strategy,
- *     control (pause/resume/kill/reset_kill), run_screening, reset_account
+ *   - engine actions (paper-trading boundary): set_strategy, control
+ *     (pause/resume/kill/reset_kill), run_screening, submit_decisions
+ *     (idempotent), reset_account
+ *
+ * The full analysis cycle has exactly ONE model-facing entry —
+ * investment_analysis_workflow — registered by the companion
+ * @investment-auto/dsh-investment-workflow plugin (same implementation for
+ * web sessions and headless autonomous rounds). This plugin deliberately
+ * does not re-expose the legacy run_cycle command to the model.
  *
  * All execution goes through the engine loopback HTTP API; this plugin owns
  * schemas, argument validation and result shaping only. Write actions are
@@ -133,7 +140,7 @@ export function apply(ctx, config) {
   registerTool(
     ctx,
     "investment_screening",
-    "查看指定市场最近一次全市场选股结果（缓存）。刷新选股请用 investment_run_screening。",
+    "查看指定市场最近一次全市场选股结果（缓存）。刷新选股请用 investment_run_screening。选股是固定分析流程之前的独立环节：选股结果应作为 symbols 传入 investment_analysis_workflow 进行分析。",
     {
       market: { type: "string", required: true, description: "市场代码：cn、hk、us 或 etf", default: "cn" },
     },
@@ -232,23 +239,16 @@ export function apply(ctx, config) {
     { timeoutMs: 30000 },
   );
 
-  registerTool(
-    ctx,
-    "investment_run_cycle",
-    "对指定市场执行一次完整投资轮次（选股→研究→决策→硬风控→模拟成交→报告）。模拟交易；受引擎硬风控约束。",
-    {
-      market: { type: "string", required: true, description: "市场代码：cn、hk、us 或 etf", default: "cn" },
-      label: { type: "string", description: "轮次标签（用于报告文件名）" },
-    },
-    async ({ market, label = "dsh" }) =>
-      client.issue("run_cycle", { market, label: String(label || "dsh").slice(0, 40) }, { requestedBy: "dsh-tools", timeoutMs: 600000 }),
-    { timeoutMs: 600000 },
-  );
+  // NOTE: the legacy `investment_run_cycle` tool is intentionally NOT
+  // registered anymore. The fixed workflow (investment_analysis_workflow)
+  // is the single trusted full-cycle entry for both the conversation plane
+  // and headless autonomous rounds; the engine's run_cycle command remains
+  // available for the internal scheduler only.
 
   registerTool(
     ctx,
     "investment_run_screening",
-    "刷新指定市场的全市场选股并返回结果（耗时数十秒）。",
+    "刷新指定市场的全市场选股并返回结果（耗时数十秒）。选股是固定分析流程之前独立的选股环节：得到标准化候选列表后，把它们作为 symbols 传给 investment_analysis_workflow(symbols_source=\"screening\")。",
     {
       market: { type: "string", required: true, description: "市场代码：cn、hk、us 或 etf", default: "cn" },
     },
@@ -259,7 +259,7 @@ export function apply(ctx, config) {
   registerTool(
     ctx,
     "investment_submit_decisions",
-    "把本轮研究得出的买卖决策提交给引擎执行：引擎自行获取行情、按当前授权书硬边界重算仓位、执行硬风控与纸面撮合，返回成交与拒绝清单。只允许纸面模式；决策前先用 plan 模式或 ask_user 取得用户确认。",
+    "把用户已批准的买卖决策提交给引擎执行：引擎自行获取行情、按当前授权书硬边界重算仓位、执行硬风控与纸面撮合，返回成交与拒绝清单。只允许纸面模式；必须已取得用户本次明确授权。idempotency_key 必填：提交固定分析流程的最终决策时用该轮 cycle_id，引擎校验提交内容与该轮记录的决策指纹完全一致（不一致直接拒绝），并保证同一键只成交一次——超时重试返回原结果而不会重复成交。用户指定的股票只有在对应分析轮次到达 ready_for_execution 后才能以该轮 cycle_id 提交。",
     {
       market: { type: "string", required: true, description: "市场代码：cn、hk、us 或 etf", default: "cn" },
       decisions: {
@@ -280,11 +280,12 @@ export function apply(ctx, config) {
       },
       label: { type: "string", description: "轮次标签（用于报告文件名，默认 dsh-manual）" },
       note: { type: "string", description: "本轮分析摘要，写入报告正文" },
+      idempotency_key: { type: "string", required: true, description: "稳定幂等键（必填）：提交固定分析流程的最终决策时使用该轮 cycle_id。同一键只执行一次，重试返回原结果；同键不同决策内容会被拒绝。" },
     },
-    async ({ market, decisions, label, note = "" }) =>
+    async ({ market, decisions, label, note = "", idempotency_key = "" }) =>
       client.issue(
         "submit_decisions",
-        { market, decisions, label: String(label || "dsh-manual").slice(0, 40), note },
+        { market, decisions, label: String(label || "dsh-manual").slice(0, 40), note, idempotency_key },
         { requestedBy: "dsh-tools", timeoutMs: 300000 },
       ),
     { timeoutMs: 300000 },

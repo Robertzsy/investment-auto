@@ -9,7 +9,7 @@ SETUP_PAGE_HTML = """<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>Investment Auto 2.0 — 首次配置</title>
+<title>Investment Auto 2.1 — 首次配置</title>
 <style>
   body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: #0f1420; color: #e8ecf4;
          display: flex; justify-content: center; padding: 40px 16px; margin: 0; }
@@ -34,8 +34,8 @@ SETUP_PAGE_HTML = """<!doctype html>
 </head>
 <body>
 <div class="card">
-  <h1>Investment Auto <span class="v2">2.0</span></h1>
-  <p class="sub">基于 DeepSeek Harness 的多市场模拟投资助手 · 首次配置</p>
+  <h1>Investment Auto <span class="v2">2.1</span></h1>
+  <p class="sub">多市场模拟投资助手 · 首次配置</p>
   <ul>
     <li>初始化四个市场（A股/港股/美股/ETF）的模拟账户，每账户 500,000 初始资金。</li>
     <li>可选择导入旧版（1.x）数据：账户、报告、记忆、选股缓存与策略授权书，导入前自动备份。</li>

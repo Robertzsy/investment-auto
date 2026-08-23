@@ -40,7 +40,16 @@ if ($missing.Count -gt 0) {
     Write-Host ("   MISSING: " + ($missing -join ", ")) -ForegroundColor Red
     throw "installer manifest references missing files"
 }
+$appSource = ($iss -split "`r?`n" | Where-Object { $_ -like 'Source: "..\app\*"*' } | Select-Object -First 1)
+if (-not $appSource -or $appSource -notmatch 'Excludes:\s*"[^"]*dev-home\\\*') {
+    throw "installer app source must exclude app/dev-home (sessions and developer credentials)"
+}
+if ($iss -notmatch 'Type:\s*filesandordirs;\s*Name:\s*"\{app\}\\app\\dev-home"') {
+    throw "installer upgrade must remove app/dev-home left by older releases"
+}
 Write-Host "   all non-runtime sources present"
+Write-Host "   app/dev-home excluded from installer"
+Write-Host "   legacy installed app/dev-home removed on upgrade"
 Write-Host "== 3. Build-machine steps (run before ISCC):"
 foreach ($source in $buildMachine) { Write-Host "   - ensure $source (scripts\fetch-runtime.ps1 + scripts\bundle-runtime.ps1)" }
 Write-Host "   - ISCC.exe installer\InvestmentAuto.iss"

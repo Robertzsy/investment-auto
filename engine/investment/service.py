@@ -175,6 +175,7 @@ class InvestmentAgentService:
                 label=str(command.payload.get("label", "dsh-manual")),
                 note=str(command.payload.get("note", "")),
                 requested_by=command.requested_by,
+                idempotency_key=str(command.payload.get("idempotency_key", "")),
                 progress_callback=progress_callback,
             )
             return {"ok": True, **result}

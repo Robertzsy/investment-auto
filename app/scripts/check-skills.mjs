@@ -11,6 +11,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { apply } from "../plugins/dsh-investment-tools/lib/index.js";
+import { apply as applyWorkflow } from "../plugins/dsh-investment-workflow/lib/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const skillsRoot = join(here, "..", "skills");
@@ -23,6 +24,11 @@ const check = (ok, message) => {
 // 1. Collect registered tool names from the plugin.
 const registered = [];
 apply({ tools: { register: (definition) => registered.push(definition) } }, { engineUrl: "http://127.0.0.1:1" });
+applyWorkflow({
+  tools: { register: (definition) => registered.push(definition) },
+  workflowEngine: {},
+  on: () => () => {},
+}, { engineUrl: "http://127.0.0.1:1" });
 const toolNames = new Set(registered.map((tool) => tool.name));
 
 // 2. Walk skills.
@@ -43,6 +49,7 @@ const requiredSkills = [
   "portfolio-optimization",
   "complete-investment-cycle",
   "account-management",
+  "self-maintenance",
 ];
 for (const name of requiredSkills) {
   check(entries.includes(name), `missing required skill directory: ${name}`);

@@ -80,13 +80,14 @@ test("registers the full investment tool surface", async () => {
       "investment_mandate",
       "investment_set_strategy",
       "investment_control",
-      "investment_run_cycle",
       "investment_submit_decisions",
       "investment_run_screening",
       "investment_reset_account",
     ]) {
       assert.ok(names.includes(expected), `missing tool ${expected}`);
     }
+    // The legacy full-cycle entry must not compete with the fixed workflow.
+    assert.ok(!names.includes("investment_run_cycle"), "investment_run_cycle must not be exposed to the model");
 
     for (const tool of ctx.registered) {
       assert.ok(tool.name.startsWith("investment_"), tool.name);
@@ -131,17 +132,34 @@ test("write tools dispatch engine commands", async () => {
 
     await ctx.registered.find((t) => t.name === "investment_set_strategy").execute({ profile: "conservative" });
     await ctx.registered.find((t) => t.name === "investment_control").execute({ action: "pause", reason: "test" });
-    await ctx.registered.find((t) => t.name === "investment_run_cycle").execute({ market: "us", label: "smoke" });
+    await ctx.registered
+      .find((t) => t.name === "investment_submit_decisions")
+      .execute({ market: "cn", decisions: [], idempotency_key: "20260822-cn-user" });
 
     assert.deepEqual(
       state.commands.map((command) => command.command),
-      ["set_strategy", "pause", "run_cycle"],
+      ["set_strategy", "pause", "submit_decisions"],
     );
     assert.equal(state.commands[0].payload.profile, "conservative");
     assert.equal(state.commands[1].payload.reason, "test");
-    assert.equal(state.commands[2].payload.market, "us");
-    assert.equal(state.commands[2].payload.label, "smoke");
+    assert.equal(state.commands[2].payload.idempotency_key, "20260822-cn-user");
     for (const command of state.commands) assert.equal(command.requested_by, "dsh-tools");
+  } finally {
+    server.close();
+  }
+});
+
+test("submit tool requires a stable idempotency key", async () => {
+  const { server, url } = await startMockEngine();
+  const ctx = fakeCtx();
+  try {
+    apply(ctx, { engineUrl: url });
+    const tool = ctx.registered.find((t) => t.name === "investment_submit_decisions");
+    // JSON-Schema projection: required is a top-level array.
+    assert.ok(Array.isArray(tool.parameters.required) && tool.parameters.required.includes("idempotency_key"));
+    assert.ok(tool.parameters.properties.idempotency_key);
+    assert.match(tool.description, /idempotency_key 必填/);
+    assert.match(tool.description, /决策指纹/);
   } finally {
     server.close();
   }

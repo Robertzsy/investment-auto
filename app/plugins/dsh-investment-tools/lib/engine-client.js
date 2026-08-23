@@ -25,6 +25,29 @@ export class EngineClient {
     }
   }
 
+  async post(path, payload = {}, { timeoutMs = 120000 } = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(this.baseUrl + path, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(this.token ? { "X-IA-Token": this.token } : {}),
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(`engine ${path} -> HTTP ${response.status}: ${body?.error ?? JSON.stringify(body)}`);
+      }
+      return body;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async issue(command, payload = {}, { requestedBy = "dsh-tools", timeoutMs = 120000 } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);

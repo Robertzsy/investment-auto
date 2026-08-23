@@ -10,14 +10,15 @@ public class SingleInstanceTests
     [Fact]
     public void TryAcquire_WhenFree_AcquiresAndCanRelease()
     {
-        Assert.True(SingleInstance.TryAcquire(out var mutex));
+        var name = SingleInstance.MutexName + ".Tests." + Guid.NewGuid().ToString("N");
+        Assert.True(SingleInstance.TryAcquire(name, out var mutex));
         try
         {
             mutex.ReleaseMutex();
             mutex.Dispose();
 
             // Re-acquiring after release must succeed again.
-            Assert.True(SingleInstance.TryAcquire(out var again));
+            Assert.True(SingleInstance.TryAcquire(name, out var again));
             again.ReleaseMutex();
             again.Dispose();
         }
@@ -31,10 +32,11 @@ public class SingleInstanceTests
     [Fact]
     public void TryAcquire_WhileHeld_ReturnsFalse()
     {
-        Assert.True(SingleInstance.TryAcquire(out var first));
+        var name = SingleInstance.MutexName + ".Tests." + Guid.NewGuid().ToString("N");
+        Assert.True(SingleInstance.TryAcquire(name, out var first));
         try
         {
-            Assert.False(SingleInstance.TryAcquire(out var second));
+            Assert.False(SingleInstance.TryAcquire(name, out var second));
             // second refers to the existing mutex without ownership; just dispose it.
             second?.Dispose();
         }

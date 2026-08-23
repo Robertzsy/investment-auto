@@ -13,7 +13,17 @@ from engine.config import cfg
 
 def _webhook_url(settings: Mapping[str, Any]) -> str:
     env_name = str(settings.get("webhook_url_env", "NOTIFY_WEBHOOK_URL")).strip()
-    return os.getenv(env_name, "").strip() if env_name else ""
+    if not env_name:
+        return ""
+    from_env = os.getenv(env_name, "").strip()
+    if from_env:
+        return from_env
+    try:
+        from engine.secret_store import load_secret
+
+        return load_secret(env_name) or ""
+    except Exception:
+        return ""
 
 
 def deliver_report(

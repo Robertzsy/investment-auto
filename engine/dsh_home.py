@@ -77,7 +77,17 @@ def seed_dsh_home(app_dir: str | Path, dsh_home: str | Path, *, force: bool = Fa
 
 
 def seed_from_env() -> bool:
-    """Seed from INVESTMENT_AUTO_APP_DIR/DSH_HOME when the app dir exists."""
+    """Seed from INVESTMENT_AUTO_APP_DIR/DSH_HOME when the app dir exists.
+
+    The installed product owns profiles/presets/skills/plugins (the product
+    exposes no editor for them; the user's override layer is the home-level
+    cordis.patch.yml, which is never seeded). Seeding therefore refreshes the
+    shipped trees on every engine start so product updates — e.g. the 2.1
+    product-shell profile composition — reach existing installations. Extra
+    user-created entries (extra profiles, presets, skills) are left alone;
+    user DATA (sessions, workspaces, credentials, config) lives outside these
+    trees and is never touched.
+    """
     app_dir = os.getenv("INVESTMENT_AUTO_APP_DIR", "").strip()
     dsh_home = os.getenv("DSH_HOME", "").strip()
     if not app_dir or not dsh_home:
@@ -85,5 +95,5 @@ def seed_from_env() -> bool:
     app_path = Path(app_dir)
     if not (app_path / "profiles").exists():
         return False
-    seed_dsh_home(app_path, dsh_home)
+    seed_dsh_home(app_path, dsh_home, force=True)
     return True

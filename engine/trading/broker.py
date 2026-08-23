@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import threading
 import uuid
 from datetime import datetime
@@ -73,15 +74,25 @@ def execute_orders(
     equity_snapshot: Optional[float] = None,
     mark_prices: Optional[Mapping[str, float]] = None,
     security_names: Optional[Mapping[str, str]] = None,
+    idempotency_key: str = "",
+    decision_fingerprint: str = "",
 ) -> Dict[str, Any]:
     """Fill approved orders against the supplied reference price.
 
     This engine deliberately refuses every mode except paper. It performs an
     atomic portfolio replacement and never delegates balance updates to the AI.
+
+    Idempotency: when ``idempotency_key`` is supplied, the execution receipt
+    (key + decision fingerprint + fills) is written INTO the same portfolio
+    document as the account mutation, under the same cross-process lock and
+    the same atomic replace — so a crash between "fills happened" and any
+    later bookkeeping can never be re-executed: a retry finds the receipt in
+    the account file itself. A same-key/different-content call is refused.
     """
 
     if str(trading_mode).lower() != "paper":
         raise RuntimeError("自主执行当前只允许 trading.mode=paper")
+    receipt_key = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(idempotency_key or "")).strip("-")[:120]
     trading = market_config.get("trading", {})
     slippage = float(trading.get("slippage", 0) or 0)
     decimals = int(trading.get("price_decimals", 2) or 2)
@@ -94,6 +105,17 @@ def execute_orders(
             if not claimed:
                 raise RuntimeError("模拟账户正在被另一任务更新")
             data = account_store.load() if portfolio_path is None else json.loads(portfolio_path.read_text(encoding="utf-8"))
+            receipts = data.setdefault("execution_receipts", {})
+            if receipt_key and receipt_key in receipts:
+                existing = receipts[receipt_key]
+                if str(existing.get("decision_fingerprint", "")) != str(decision_fingerprint or ""):
+                    raise ValueError("同一幂等键对应不同的决策内容，拒绝重复执行（请更换幂等键）")
+                return {
+                    "fills": list(existing.get("fills", [])),
+                    "rejected": list(existing.get("rejected", [])),
+                    "cash_after": existing.get("cash_after"),
+                    "replayed": True,
+                }
             accounts = data.setdefault("accounts", {})
             account = accounts.setdefault(
                 market,
@@ -201,6 +223,22 @@ def execute_orders(
                 history.append(fill)
                 fills.append(fill)
 
+            if receipt_key:
+                # Execution receipt rides the same atomic document replace as
+                # the account mutation: this write IS the durability point of
+                # the fills (the audit file is only an external record).
+                if len(receipts) >= 200:
+                    for stale_key in sorted(receipts, key=lambda key: str(receipts[key].get("completed_at", "")), reverse=True)[199:]:
+                        receipts.pop(stale_key, None)
+                receipts[receipt_key] = {
+                    "idempotency_key": receipt_key,
+                    "decision_fingerprint": str(decision_fingerprint or ""),
+                    "market": market,
+                    "completed_at": timestamp,
+                    "fills": fills,
+                    "rejected": rejected,
+                    "cash_after": account.get("cash", 0),
+                }
             if portfolio_path is None:
                 account_store.save(data)
             else:

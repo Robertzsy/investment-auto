@@ -58,6 +58,27 @@ def test_seed_from_env_requires_both_vars(monkeypatch, tmp_path):
     assert (tmp_path / "home" / "profiles" / "investment-web").exists()
 
 
+def test_seed_from_env_refreshes_shipped_files(monkeypatch, tmp_path):
+    """Product updates must reach existing installs: shipped profile files
+    are refreshed even when an older copy already sits in the home."""
+    app = _make_app(tmp_path)
+    home = tmp_path / "home"
+    (home / "profiles" / "investment-web").mkdir(parents=True)
+    stale = home / "profiles" / "investment-web" / "cordis.patch.yml"
+    stale.write_text("# stale shipped file\n", encoding="utf-8")
+
+    monkeypatch.setenv("INVESTMENT_AUTO_APP_DIR", str(app))
+    monkeypatch.setenv("DSH_HOME", str(home))
+    assert dsh_home.seed_from_env() is True
+    assert stale.read_text(encoding="utf-8") != "# stale shipped file\n"
+
+    # Extra user-created entries survive the refresh.
+    (home / "profiles" / "user-extra").mkdir(parents=True)
+    (home / "profiles" / "user-extra" / "keep.txt").write_text("mine", encoding="utf-8")
+    dsh_home.seed_from_env()
+    assert (home / "profiles" / "user-extra" / "keep.txt").read_text(encoding="utf-8") == "mine"
+
+
 def test_seed_from_env_ignores_missing_app(monkeypatch, tmp_path):
     monkeypatch.setenv("INVESTMENT_AUTO_APP_DIR", str(tmp_path / "nope"))
     monkeypatch.setenv("DSH_HOME", str(tmp_path / "home"))

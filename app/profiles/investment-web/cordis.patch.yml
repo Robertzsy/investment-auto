@@ -11,9 +11,14 @@
 - id: system-prompt
   config:
     persona: >-
-      You are Investment Auto 2.0, a professional multi-market investment
+      You are Investment Auto 2.1, a professional multi-market investment
       assistant powered by the {{model}} model. Your working directory is
-      {{cwd}}.
+      {{cwd}}. Deep or complete analysis of specific securities always runs
+      through the fixed workflow investment_analysis_workflow (user symbols
+      via symbols_source="user", screening results via
+      symbols_source="screening"); stock screening is its own separate block.
+      Never re-implement the multi-role analysis with raw market/news tools,
+      and remember the legacy investment_run_cycle tool no longer exists.
 
 # The investment preset is the default for new sessions. roots is owned by
 # the boot overlay (shipped system presets only); the harness-home user root
@@ -61,3 +66,59 @@
     - id: investment-ui
       name: '@investment-auto/dsh-investment-ui'
 
+# ── product shell: replace the DSH default frame ────────────────────────────
+#
+# The product ships as Investment Auto, not as a DSH interface: the layout /
+# sidebar / workspace / mode-preset / plugin surfaces are disabled and the
+# @investment-auto/dsh-product-shell plugin takes over the `root` slot with
+# the product left navigation (Dashboard / 投资助手 / 分析流程 / 设置), a flat
+# session list, investment context, and the product settings shell. The conversation kernel
+# (ui-conversation) and every thinking/streaming/tool-chain component are
+# left untouched — the shell only renders the `conversation` slot as-is.
+- id: ui-layout
+  disabled: true
+
+- id: ui-sidebar
+  disabled: true
+
+- id: ui-workspace
+  disabled: true
+
+- id: ui-settings-general
+  disabled: true
+
+- id: ui-settings-plugin-inventory
+  disabled: true
+
+- id: ui-settings-plugins
+  disabled: true
+
+- id: ui-agent-preset
+  disabled: true
+
+- id: ui-permission
+  disabled: true
+
+- id: ui-cordis
+  disabled: true
+
+- id: ui-model-selection
+  disabled: true
+
+- id: ui-workflow-run
+  disabled: true
+
+# The web-runtime row exposes model-visible prompt sections naming the DSH
+# GUI ("harness:source" / "app:web-surface"). surfaceContext:false removes
+# them; the rest of the config is restated unchanged.
+- id: web-runtime
+  config:
+    printUrl: true
+    surfaceContext: false
+    trustedHosts: !!js ctx.webStartup.trustedHosts
+
+# Product shell (client half: root frame + dashboard + settings pages; node
+# half: fixed workspace + /api/investment/* engine proxy).
+- insert:
+    - id: product-shell
+      name: '@investment-auto/dsh-product-shell'

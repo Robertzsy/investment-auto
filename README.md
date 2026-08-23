@@ -1,11 +1,15 @@
-# investment-auto
+# Investment Auto
 
-> **Investment Auto 2.0 正在 `dsch/2.0` 分支开发中** —— 以 DeepSeek Harness
-> 为运行底座：DSH 对话/会话/工具/Skills 作为通用 AI 对话与决策面，1.x 的
-> 行情/选股/组合/风控/纸面经纪/调度能力收敛为独立 Python 引擎（`engine/`），
-> 通过 HTTP 命令 API 与 MCP 工具桥连接。架构与阶段计划见
-> `docs/ENGINE_API.md` 与 `app/README.md`；`master` 保留 1.x（v0.9.1）作为
-> 回退版本。以下为 1.x 文档。
+[简体中文](README.md) | [English](README_EN.md)
+
+Investment Auto 2.1 是一款仅用于研究与模拟交易的多市场投资分析桌面应用，当前在
+`dsch/2.0` 分支开发。产品界面提供 Dashboard、投资助手、完整分析流程和设置；底层
+完全基于 DSH 深度改造，但不向用户暴露工作区、模式/preset 选择或底座品牌。
+
+2.1 的自主轮次采用固定多角色链路：技术面/基本面/新闻/情绪研究 → 多空辩论 →
+研究经理与个股交易员 → 组合草案 → 激进/保守/中立风险辩论 → 风险经理 → 最终组合
+决策。阶段结果原子保存并可断点续跑，真实进度显示在分析流程页；所有下单仍必须经过
+Python 引擎的硬风控与纸面撮合。1.x（v0.9.1）保留在 `master` 作为回退版本。
 
 **多市场（A股/港股/美股/ETF）自动化模拟交易系统**
 
@@ -17,24 +21,24 @@
 - 多模型接入：OpenAI (GPT)、DeepSeek、GLM (智谱)、Kimi (月之暗面)
 - Python + Docker 一键部署，MongoDB 加速选股查询并在不可用时自动回退 JSON
 
-> **Windows 桌面版 v0.7.0 已发布：** 安装后可直接从桌面启动，内置 Python、Node.js 和全部运行依赖，无需浏览器或 PowerShell。
->
-> [下载安装包与查看更新说明](https://github.com/Robertzsy/investment-auto/releases/tag/v0.7.0)
+> 只支持模拟交易，不连接真实券商，不应用于真实资金决策。
 
-> **main 分支已升级至 v0.9.1：** Harness 会校验证券身份、行情时效和证据覆盖率，并提供安装版可运行的受监督修复：最小补丁、内置验证器、全新解释器原请求回放和失败自动回滚。发布安装包前可使用 `scripts/build-desktop.ps1` 构建桌面程序。
+架构与接口见 [docs/ENGINE_API.md](docs/ENGINE_API.md)、[app/README.md](app/README.md)，
+完整版本记录见 [CHANGELOG.md](CHANGELOG.md)。Windows 安装包由
+`scripts/build-desktop.ps1` 与 `installer/InvestmentAuto.iss` 构建。
 
-## v0.9.1 当前主线更新
+## 2.1 当前能力
 
-- 管理对话升级为持久化 Agent Harness，顶层仅保留六个高层能力，投资函数全部收敛为受控 Skill Actions；
-- 内置证券分析、市场概览、选股、组合检查与优化、完整投资周期、定时轮次、账户管理和系统管理等 Skills；
-- Skill 使用明确的 Manifest、Workflow 和完成契约，证券身份、行情时效、事实一致性和证据覆盖率共同决定任务是否真正完成；
-- 失败轨迹可进入受监督修复：只允许最小精确补丁，必须通过安装版内置验证器和全新解释器语义回放，任何失败都会自动回滚；
-- 桌面端新增 Harness 工作台，可查看 Skill、持久会话、执行轨迹、完成验证、定时任务和修复审计；
-- 独立投资 Agent、命令总线、纸面交易硬风控、证据库和可恢复工作单元继续作为不可绕过的执行边界。
+- A 股、港股、美股、ETF 四市场行情、选股、组合、报告与独立模拟账户；
+- 固定多角色分析、证据引用校验、失败降级、安全 HOLD 与阶段检查点恢复；
+- Dashboard、会话列表、原生思考/流式对话、实时分析流程和产品设置；
+- DPAPI 本机密钥存储、自动调度、硬风险边界、纸面撮合与审计报告；
+- IA 自维护：完整文件/PowerShell/搜索/后台任务能力，可检查日志、修复源码、
+  运行测试与构建、恢复失败流程，并迭代提示词、Skills 和固定工作流；
+- Windows EXE/安装包内置 Python、Node.js 和 WebView2 桌面壳。
 
-完整版本记录见 [CHANGELOG.md](CHANGELOG.md)，Harness 扩展契约见 [docs/SKILL_RUNTIME.md](docs/SKILL_RUNTIME.md)。
-
-当前源码验证（2026-08-21）：Python 全量测试 `322/322`、Windows 桌面测试 `18/18`、Skill 路由评估 `56/56` 通过。
+当前 2.1 回归基线：Python `147/147`、Windows 桌面 `20/20`、Node 插件
+`12/12`，真实 Profile 与浏览器页面验收通过。
 
 ## v0.7.0 桌面发行说明
 
@@ -376,7 +380,10 @@ python -m src.main research --task bugfix --objective 修复XX模块缺陷 --max
 
 - 每轮启动全新 Agent（无对话记忆），工作区 runtime/research/workspace/<run>/ 是唯一长期记忆，轮间只传递有界结构化报告。
 - 任务类型：backtest（确定性规则回测，不复用生产账户）、strategy_experiment（参数对比实验）、bugfix（复现→修改→全量测试→失败自动回滚）。
-- **受限 shell**：研究循环的命令执行采用可执行文件白名单 + argv 直执行（无 shell 元字符）+ 路径参数边界校验 + 最小化环境（不含生产密钥）。注意：这是启发式约束而非 OS 级沙箱——python -c 代码字符串中的路径不受边界校验约束，研究 Agent 理论上可读取项目外文件（包括 .env 密钥文件）；请仅在可信环境手动运行研究循环。交易执行路径与管理对话 Agent 永远没有 shell。
+- **1.x 历史行为——受限 shell**：旧研究循环采用可执行文件白名单 + argv
+  直执行与路径边界，旧管理对话没有 shell。2.1 已改为完全基于 DSH 的自维护
+  IA，桌面对话与 headless 均具有完整编码工具和 `danger-full-access`；交易执行
+  仍只能经过引擎的纸面模式、用户批准、幂等与硬风控边界。
 - 研究结论要进入生产配置时，必须经 apply_experiment_to_config（版本化变更管理器：SHA-256 记录、版本备份、全量测试、失败自动回滚）。
 
 ## 多模型接入

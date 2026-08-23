@@ -27,6 +27,10 @@ if ($Install -or -not (Test-Path (Join-Path $appRoot 'node_modules\@deepseek-ai\
 
 $env:DSH_HOME = $devHome
 $env:DSH_TELEMETRY_DISABLED = '1'
+$env:DSH_PERMISSION_MODE = 'danger-full-access'
+$env:INVESTMENT_AUTO_ROOT = $repoRoot
+$env:INVESTMENT_AUTO_APP_DIR = $appRoot
+$env:INVESTMENT_ENGINE_APP_DIR = $appRoot
 New-Item -ItemType Directory -Force -Path $devHome | Out-Null
 
 & (Join-Path $PSScriptRoot 'seed.ps1') -Force:$ForceSeed

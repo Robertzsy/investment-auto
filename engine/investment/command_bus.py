@@ -32,9 +32,32 @@ def _now() -> str:
 
 def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(dict(value), ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-    temporary.replace(path)
+    # Multiple engine roles can publish heartbeat/activity state at once.
+    # A fixed ``worker.json.tmp`` lets one writer replace another writer's
+    # temporary file on Windows, producing recurrent WinError 5 failures.
+    temporary = path.with_name(
+        f".{path.name}.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex}.tmp"
+    )
+    try:
+        temporary.write_text(
+            json.dumps(dict(value), ensure_ascii=False, indent=2, default=str),
+            encoding="utf-8",
+        )
+        for attempt in range(5):
+            try:
+                temporary.replace(path)
+                return
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                # Antivirus/indexers can briefly hold the destination on
+                # Windows. Back off without sharing a temp file with peers.
+                time.sleep(0.02 * (2**attempt))
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            logger.debug("temporary command-bus file cleanup failed: %s", temporary)
 
 
 class InvestmentAgentClient:

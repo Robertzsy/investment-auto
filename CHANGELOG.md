@@ -1,5 +1,158 @@
 # 更新日志
 
+## 2.1.3 — IA 全权限自维护引导层（2026-08-23，分支 `dsch/2.0`）
+
+- 桌面对话 preset 与 headless profile 恢复 DSH 原生 Shell、文件、搜索、jobs、
+  子代理与 Ralph 能力；桌面、开发启动器和无头桥统一使用
+  `danger-full-access`，并向 IA 暴露权威 `INVESTMENT_AUTO_ROOT`。
+- 新增 `self-maintenance` Skill：从真实日志与持久状态定位故障，修改权威源码、
+  测试、构建、重试原任务，并支持提示词、Skills 和固定工作流持续改进；禁止把
+  DSH_HOME 播种副本当成源码，更新安装前保留可恢复备份。
+- 修复全部工作流 `agent()` schema：属性级 `required:true` 改为对象根级数组；
+  schema 提升为共享常量，并在插件组合时使用 DSH 公共
+  `assertObjectJsonSchema()` 快速预检。
+- 修复失败轮次重试竞态：只有先取得跨进程 cycle lease 的 orchestrator 才能
+  将 failed 重开为 running；工作流内部重复 start 不再清除具体错误，通用
+  headless 失败也不再覆盖原始 WorkflowError。
+- 修复 command bus 多写入者共用固定 `.tmp` 导致的 Windows WinError 5：使用
+  每次写入唯一临时文件，并对短暂文件占用指数退避重试。
+- 修复安装器会递归打包 `app/dev-home` 的缺陷，明确排除开发会话、开发凭据与
+  重复 profile 依赖；升级时清理旧版误装的该目录，并在发行 manifest 检查中
+  设为强制门禁。正式用户数据目录不受影响。
+- 系统级完全权限与交易业务权限分离：纸面模式、用户批准、成交幂等、决策指纹
+  和 Python 硬风控继续保留。
+
+## 2.1.2 — 执行安全与轮次可靠性收紧（2026-08-23，分支 `dsch/2.0`）
+
+针对评审指出的四项缺陷与两个会话栏缺陷的系统性修复。
+
+- **成交幂等以账户文件为唯一事实**：`execute_orders` 接收 `idempotency_key` +
+  决策指纹，成交结果与**执行回执**在账户锁内同一次原子替换写入
+  `portfolio.json`（回执含指纹/成交/拒绝/时间戳，上限 200 条滚动淘汰）。
+  崩溃于「已成交、未写簿记」之间时，重试从账户内回执重放，绝不再成交；
+  同键不同指纹直接拒绝。审计文件降级为外部记录（写失败不再导致提交失败）。
+- **幂等键必填 + 内容绑定**：`submit_decisions` 无键直接拒绝；认领时写入
+  **归一化决策指纹**（市场 + 排序后的 symbol/action/weight/confidence），
+  重放/复用必须指纹一致。四类 in_progress 处理：参数格式错误与确定性内容
+  拒绝→终态 rejected 记录并重放；确定性硬风控拒绝→保存并重放；进入撮合前
+  的暂时性故障（行情缺失/紧急停止）→释放认领允许重试；已进入撮合→绝不删除，
+  由 broker 回执恢复。
+- **`ready_for_execution` 状态机**：固定流程先把最终决策持久化为
+  `execution_ready`（引擎计算并保存决策指纹），随后才允许提交——自主轮次
+  （submit=true）与手动批准都走同一条指纹校验；执行结束后由引擎把绑定轮次
+  置为 completed。分析页展示该阶段。
+- **用户指定标的贯通执行**：以 cycle_id 提交时，引擎校验轮次处于
+  `ready_for_execution` 且提交内容与轮次记录的决策指纹完全一致，其已分析
+  目标进入允许池；独立提交（无绑定轮次）仍限于持仓∪选股∪默认池。
+- **轮次身份基于平台请求身份**：cycle_id = 会话 ID + 最新直接用户消息 ID
+  （`user/message` + source.kind=user），同一轮次重试复用、新用户消息即使
+  内容相同也生成新 ID；短 TTL 内容指纹仅作无会话上下文时的传输兜底。
+- **跨进程租约与启动恢复**：每个 cycle 持 `runtime/analysis_runs/<id>.lease`
+  （O_EXCL + stale）——此前只有线程锁，现在两个引擎进程也不可能双跑；
+  serve 进程在 API 监听后扫描并续跑被重启孤儿的 running 轮次（检查点续跑，
+  不重复提交）；failed 轮次允许同键安全重试。
+- **会话隔离与两个会话栏缺陷**：headless 轮次改用独立内部 DSH home
+  （`<home>/agent-home`，播种产品树 + 继承 settings storages + 开发模式镜像
+  .credentials.yaml，会话文件不复制）；会话栏过滤 archivedSessionIds 与
+  origin=subagent；会话搜索按 `{items:[{sessionId,snippet}]}` 正确映射；
+  新增 `cleanup-internal-sessions.mjs` 把历史上泄漏的 headless 会话组
+  （cwd=安装目录）备份归档，绝不删除。
+- **流程边界代码化**：手动分析入口（工具 + 引擎端点双重）拒绝空 symbols，
+  必须先选股；自主调度保留内部选股。轮次任务文本的股票列表改用严格 JSON
+  编码（`symbols=["688981"]`），不再依赖模型自纠。
+- **测试**：Python 182 项（新增 broker 回执 5 项、崩溃恢复/内容绑定/四类
+  claim/用户标的批准执行 8 项、ready 状态与指纹 3 项、恢复扫描/失败重试/
+  ready 重放 5 项、内部 home 与 JSON 任务 3 项）+ Node 21 项 + 技能/插件
+  契约检查 + 无头浏览器 29 项断言（含会话搜索映射）+ 真实 wire 对话全绿。
+
+## 2.1.1 — 分析流程路由与执行修复（2026-08-22，分支 `dsch/2.0`）
+
+修复分析流程的路由与执行问题：固定工作流成为唯一可信的完整分析入口，窗口 AI
+只做意图识别、证券身份确认、symbols 提取、调用与总结；选股与股票分析明确分块。
+
+- **两块路由**：用户点名证券 → 跳过选股，`investment_analysis_workflow(symbols=…,
+  symbols_source="user")`；用户要求选股 → `investment_run_screening` /
+  `investment_screening` 输出标准化列表，再把结果以 `symbols_source="screening"`
+  传入同一分析模块。用户指定标的绝不混入选股池；持仓只作上下文。
+- **统一实现**：`investment-analysis-workflow` 行在 headless `investment` profile 的
+  host 平面注册（此前无头会话没有该工具 → "unknown tool" → 通用 workflow 临时拼装）。
+  Web 会话与 headless 自主轮次执行同一套阶段脚本；`investment_analysis_workflow`
+  手动会话为异步启动器、headless 环境为同步执行器；新增
+  `investment_analysis_status` 轮询工具（阶段/检查点/Agent 进度/终态决策）。
+- **旧入口退役**：`investment_run_cycle` 从模型可见工具中移除（引擎内部命令保留给
+  调度器），消除双入口歧义；persona、preset 与 3 个核心 Skill 同步改写，明确
+  「单股分析/完整分析必须走固定流程」。
+- **异步轮次 + 幂等**：新增 `POST /api/analysis/rounds/start`（`engine/analysis_rounds.py`）：
+  同一 `cycle_id` 至多一个轮次（活跃→返回现状、终态→重放、孤儿→按检查点续跑），
+  由引擎 worker 线程拉起 headless 轮次，检查点写回 `runtime/analysis_runs`。
+  `submit_decisions` 增加 `idempotency_key`（分析轮次用 cycle_id）：先认领
+  （in_progress 10 分钟租约）再执行，完成后重放原结果——超时、重复调用、并发重试
+  都不可能重复成交。
+- **5 分钟 fetch-failed 根因与硬化**：长轮次期间浏览器/工具 HTTP 长连接被 Node
+  `requestTimeout`（默认 300s）掐断，后端继续跑、窗口 AI 重复调用（实测一次请求
+  启动 4 个轮次、产生 4 笔重复成交）。修复：轮次全部改为「秒级启动 + 轮询」的异步
+  形态，产品外壳并把 web server 的 `requestTimeout` 归零——超时与重试不再重复启动
+  流程或重复成交。
+- **测试**：Python 160 项（新增 `test_analysis_rounds.py` 6 项、幂等提交 2 项、桥
+  分析任务/环境 3 项、HTTP 强制分析模式 1 项）+ Node 插件 17 项 + 技能/插件契约
+  检查 + 两个 profile 组合验证 + 无头浏览器 27 项断言 + 真实 wire 对话验证全绿。
+
+## 2.1.0 — 产品化外壳：Investment Auto（2026-08-22，分支 `dsch/2.0`）
+
+把 2.0 从「DSH 界面 + 投资 preset」改造成独立投资产品：DSH 仅作为不可见的内部运行时。
+
+- **品牌去 DSH 化**：页面 `<title>` / manifest name·short_name / favicon（鱼形 logo→IA
+  标记）全部改为 Investment Auto（`app/scripts/brand-dist.mjs`）；桌面窗口标题与状态栏
+  文案去 Harness；首次向导文案去 DeepSeek Harness；web-runtime 行 `surfaceContext:false`
+  （移除模型可见的 harness-source / app:web-surface 提示段）。JS bundle 未改——内核中
+  无用户可见品牌串（仅有小写 module id 与 CSS token 名）。
+- **移除 Workspace 与模式/preset 选择**：禁用 11 个客户端行（ui-layout / ui-sidebar /
+  ui-workspace / ui-settings-general / ui-settings-plugin-inventory / ui-settings-plugins /
+  ui-agent-preset / ui-permission / ui-cordis / ui-model-selection / ui-workflow-run）；
+  agent-presets 机制保留且 default 恒为 investment；新建会话自动 investment。
+- **产品外壳 `@investment-auto/dsh-product-shell`**：接管 `root` 槽——左侧产品导航
+  （Dashboard / 投资助手 / 分析流程 / 设置；不设账户入口）、扁平会话列表
+  （新建/切换/重命名/搜索/归档）、可收起投资上下文，
+  固定 Investment Auto 工作区（node 半启动时经 workspaceRegistry 创建）；theme 投影
+  随 ui-layout 退役而由外壳接管。
+- **Dashboard、分析流程与设置页**：Dashboard 聚合引擎状态/风控/四市场资产/最近轮次/
+  宏观日报；分析流程页显示真实轮次、当前阶段、Agent 成功/失败计数、证据数与检查点；
+  设置 = 模型与 API Key（复用原 models 页）+ 投资策略与风控 + 自动轮次与调度 +
+  市场与选股 + 通知 + 应用设置；所有数据经 host 代理 `/api/investment/*` 读写引擎，
+  引擎 URL 与令牌不进浏览器 JS；Webhook 地址 DPAPI 加密存储、永不回显。
+- **引擎 API 扩展（不绕过 DPAPI）**：`GET /api/config`（脱敏全量）+
+  `POST /api/config/update`（产品设置字段逐项类型/范围校验 + 原子更新 + reload 回滚，
+  `trading.mode` / `llm` 禁止修改）。
+- **完整多角色分析恢复**：新增会话层固定工作流插件；每只标的并行技术面、基本面、
+  新闻、情绪研究，随后进入多空辩论、研究经理、个股交易员、组合草案、激进/保守/
+  中立风险辩论、风险经理与最终组合经理。自主轮次只调用该固定入口，不再依赖单 Agent
+  自由解释文字清单；证据引用不足按阈值失败，失败候选剔除、失败持仓安全 HOLD。
+- **检查点与进度真值**：`runtime/analysis_runs/` 原子保存阶段输出；同一 cycle id 中断后
+  跳过已完成阶段继续执行。新增 `/api/analysis/*` 查询/更新接口及浏览器 host 代理；
+  Python 只负责编排状态与硬风控，不在进程内调用 LLM。
+- **启动契约修复**：产品外壳同步提供 `layout` 服务，消除偶发
+  `appShell service missing after settled`；真实 Profile 与浏览器控制台验收零错误。
+- **对话内核零改动**：conversation / tool / skill / subagent / goal / plan / trajectory
+  等 10 个内核 bundle 哈希记录在案（rc.6 原样），外壳仅
+  `renderSlot("conversation", {})`；展示层隐藏残留的 Workspace/访问模式选择器，
+  投资化空白页与输入提示，不改消息、思考过程、流式输出和工具链。
+- **验收**：boot 表与组合配置验证（禁用行 + surfaceContext:false）；无头浏览器 19 项
+  渲染断言全绿（无 DSH 品牌、导航/会话/Dashboard/五个设置页/模型页可用、零页面异常）；
+  wire 协议真实对话（session.create → preset=investment → investment_status 工具 →
+  中文回答）。
+- **测试基线**：Python 147 项 + C# 桌面 20 项 + Node 插件 12 项 + 技能/插件契约检查；
+  真实 investment-web Profile、Dashboard/分析流程/设置导航与浏览器日志验收通过。
+- **发布修复（同日）**：① 桌面发布必须 `--self-contained true`（与
+  `scripts/build-desktop.ps1` 一致）——误用框架依赖发布会与安装目录里上一版的
+  自包含运行时残留混合，导致 apphost「No frameworks were found」启动崩溃；
+  ② 引擎 DSH-home 播种改为强制刷新产品自有树（profiles/presets/skills/plugins），
+  使 2.1 的 profile 组合能到达既有安装（用户自建条目保留、会话/凭据/配置等用户
+  数据不受影响；用户覆盖层为 home 级 cordis.patch.yml，从不播种）。
+
+安装包：`release/InvestmentAuto-Setup-x64.exe`（185.2 MB）
+
+SHA-256：`5A31892E3ECD0F6875AC8A6DE72DAC22FEE5169B965A56F16190B3A458E7F2A4`
+
 ## 2.0.0 — DeepSeek Harness 底座重构（2026-08-22，分支 `dsch/2.0`）
 
 Investment Auto 2.0 以 DeepSeek Harness（DSH）为运行底座全面重建：对话、会话、

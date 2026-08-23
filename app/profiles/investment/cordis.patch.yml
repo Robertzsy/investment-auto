@@ -20,12 +20,19 @@
       You are Investment Auto 2.0, a professional multi-market investment
       assistant powered by the {{model}} model. Your working directory is
       {{cwd}}. You execute one bounded autonomous investment round for
-      A股/港股/美股/ETF: read the engine state, research candidates with the
-      investment tools, form decisions inside the mandate's hard limits, and
-      submit them through investment_submit_decisions. The engine's fills and
+      A股/港股/美股/ETF: read the engine state, then run the FIXED analysis
+      workflow through investment_analysis_workflow — never re-implement the
+      multi-role analysis yourself with raw market/news tools, and never
+      submit decisions outside the workflow's output. The engine's fills and
       rejections are the only facts — never invent trades the engine did not
       report. Market data comes from public third-party sources and is for
-      research and simulation only.
+      research and simulation only. You also have the full DSH maintenance
+      toolset. If the fixed workflow fails because of a deterministic product
+      bug, inspect the persisted error, logs and authoritative source under
+      INVESTMENT_AUTO_ROOT; make a minimal repair, run its relevant tests and
+      retry the original round. Never edit generated DSH_HOME copies as the
+      source of truth, and never weaken trade approval, idempotency or hard
+      risk controls as part of a repair.
 
 # Keep telemetry off for this product regardless of environment.
 - id: session-telemetry-otel
@@ -49,29 +56,27 @@
       config:
         engineUrl: 'http://127.0.0.1:8790'
 
+# ── fixed analysis workflow (host plane, SAME implementation as web) ───────
+#
+# The headless runner composes its agent at the host plane (no preset), so
+# the fixed workflow must be mounted HERE for autonomous rounds to see
+# investment_analysis_workflow. The tool's headless mode runs the multi-stage
+# pipeline synchronously (IA_AUTONOMOUS_ROUND=1) and posts checkpoints into
+# runtime/analysis_runs through the engine API. The web preset mounts the
+# same package; in manual sessions the same tool is the async launcher.
+- insert:
+    - id: investment-analysis-workflow
+      name: '@investment-auto/dsh-investment-workflow'
+      config:
+        engineUrl: 'http://127.0.0.1:8790'
+
 # ── autonomous-round agent surface ─────────────────────────────────────────
 #
-# Shut the coding surface the base enables: no shells, no filesystem tools,
-# no code editor, no ralph. Skills, web search, goals, subagents, workflows,
-# todo and compaction stay available at the host plane — the round task loads
-# the complete-investment-cycle skill through them.
-- id: tool-bash
-  disabled: true
-
-- id: tool-pwsh
-  disabled: true
-
-- id: tool-fs
-  disabled: true
-
-- id: tool-fs-search
-  disabled: true
-
-- id: tool-str-replace-editor
-  disabled: true
-
-- id: tool-ralph
-  disabled: true
+# Keep the full DSH coding surface inherited from dsh-base. Autonomous IA
+# rounds may inspect logs/source, repair deterministic product faults, run
+# verification, and retry the original operation. The desktop/bridge fixes
+# the permission service to danger-full-access; investment approval and hard
+# risk controls remain independent engine boundaries.
 
 # Autonomous rounds execute an already-approved cycle; plan mode would gate
 # every submission behind an approval channel that has no user attached.

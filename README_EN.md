@@ -2,30 +2,24 @@
 
 [简体中文](README.md) | [English](README_EN.md)
 
-An AI multi-agent automated paper-investing system for mainland China A-shares, Hong Kong stocks, U.S. stocks, and exchange-traded ETFs.
+Investment Auto 2.1 is a desktop application for multi-market investment research and paper trading, currently developed on the `dsch/2.0` branch. Its product UI provides a Dashboard, investment assistant, live analysis workflow, and settings. The runtime is deeply rebuilt on DSH, while workspace, mode/preset selection, and runtime branding remain hidden from users.
 
 The system discovers candidates across the market, combines them with existing holdings, and completes staged research, bull/bear debate, portfolio decisions, deterministic risk checks, paper execution, and report delivery. It supports both manually triggered and fully scheduled operation.
 
 > This project supports paper trading only. It does not connect to a live broker and should not be used directly with real capital.
 
-> **Windows Desktop v0.7.0 is now available:** install and launch directly from the desktop, with Python, Node.js, and all runtime dependencies bundled. No browser or PowerShell is required.
->
-> [Download the installer and view release notes](https://github.com/Robertzsy/investment-auto/releases/tag/v0.7.0)
+The autonomous cycle uses a fixed multi-role path: technical/fundamental/news/sentiment research, bull/bear debate, research manager and per-symbol trader, portfolio draft, three-way risk debate, risk manager, and final portfolio decision. Each stage is atomically checkpointed and resumable, while every order remains subject to deterministic Python risk controls and paper execution.
 
-> **The main branch is now v0.9.1:** the Harness validates identity, freshness, and evidence coverage, and adds production supervised repair with minimal patches, installed-runtime probes, fresh-interpreter semantic replay, and automatic rollback. Build the desktop app with `scripts/build-desktop.ps1` before the installer is published.
+## Current 2.1 Capabilities
 
-## Current Mainline: v0.9.1
+- A-shares, Hong Kong, U.S., and ETF market data, screening, portfolios, reports, and separate paper accounts.
+- Fixed multi-role analysis, citation validation, degraded safe-HOLD behavior, and checkpoint resume.
+- Dashboard, session list, unchanged native reasoning/streaming conversation, live workflow telemetry, and product settings.
+- Local DPAPI credential storage, scheduling, hard risk limits, paper execution, and auditable reports.
+- Self-maintaining IA with full filesystem, PowerShell, search, and background-job capabilities for log inspection, source repair, verification/builds, failed-task recovery, and controlled evolution of prompts, skills, and fixed workflows.
+- Windows EXE/installer with bundled Python, Node.js, and the WebView2 desktop shell.
 
-- Management chat now runs as a persistent Agent Harness whose top-level model sees only six high-level capabilities; investment functions are permissioned Skill Actions.
-- Built-in Skills cover security analysis, market overview, screening, portfolio review and optimization, complete investment cycles, scheduled cycles, account management, and system administration.
-- Every Skill has a manifest, deterministic workflow, and completion contract. Security identity, market-data freshness, factual consistency, and evidence coverage determine whether a task is actually complete.
-- Failed trajectories can enter supervised repair. Only one minimal exact patch is permitted, and it must pass installed-runtime verification plus fresh-interpreter semantic replay; every failed check rolls back automatically.
-- The desktop Harness workspace exposes Skills, persistent sessions, execution trajectories, completion validation, schedules, and repair audits.
-- The standalone investment Agent, command bus, paper-trading hard risk controls, evidence store, and resumable work units remain non-bypassable execution boundaries.
-
-See [CHANGELOG.md](CHANGELOG.md) for the complete history and [docs/SKILL_RUNTIME.md](docs/SKILL_RUNTIME.md) for the Harness extension contract.
-
-Current source validation (2026-08-21): `322/322` Python tests, `18/18` Windows desktop tests, and `56/56` Skill-routing evaluations passed.
+See [docs/ENGINE_API.md](docs/ENGINE_API.md), [app/README.md](app/README.md), and [CHANGELOG.md](CHANGELOG.md). The current 2.1 regression baseline is `147/147` Python tests, `20/20` Windows desktop tests, and `12/12` Node plugin tests, plus a real-profile browser acceptance pass.
 
 ## v0.7.0 Desktop Release Notes
 
@@ -109,7 +103,7 @@ python -m src.main research --task bugfix --objective "repair a specified module
 
 Every round starts with a fresh Agent context; durable information crosses rounds only through the controlled workspace. A research conclusion can enter production configuration only through the versioned change manager: generate, hash, back up, test, and automatically roll back on failure.
 
-The research shell uses an executable allowlist, argument/path checks, and a minimized environment. These are heuristic restrictions rather than an operating-system sandbox, so the research loop should run only in a trusted environment.
+Historical 1.x research used an executable allowlist, argument/path checks, and a minimized environment. In 2.1 the DSH-based desktop and headless IA intentionally use the full coding tool surface with `danger-full-access`; paper-only execution, user approval, idempotency, and deterministic engine risk controls remain separate business boundaries.
 
 ### 7. Autonomous Trading Controls
 

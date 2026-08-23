@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-        Title="Investment Auto · Supervised Repair Harness 0.9.1"
+        Title="Investment Auto"
         Width="1420" Height="900"
         MinWidth="960" MinHeight="640"
         WindowStartupLocation="CenterScreen"
@@ -13,7 +13,7 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock x:Name="AgentStatusText" Text="投资 Agent: 启动中…" Margin="0,0,16,0" />
                     <TextBlock x:Name="ChatStatusText" Text="对话服务: 启动中…" Margin="0,0,16,0" />
-                    <TextBlock x:Name="HarnessText" Text="Harness: 启动中…" Margin="0,0,16,0" />
+                    <TextBlock x:Name="HarnessText" Text="风控: 启动中…" Margin="0,0,16,0" />
                     <TextBlock x:Name="ModeText" Text="模式: -" Margin="0,0,16,0" />
                     <TextBlock x:Name="MandateText" Text="策略: -" Margin="0,0,16,0" />
                     <TextBlock x:Name="RoundText" Text="轮次: -" Margin="0,0,16,0" />

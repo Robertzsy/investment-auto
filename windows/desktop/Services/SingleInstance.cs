@@ -14,8 +14,11 @@ internal static class SingleInstance
     internal const string PipeName = "InvestmentAuto.Desktop.Pipe";
 
     public static bool TryAcquire(out Mutex mutex)
+        => TryAcquire(MutexName, out mutex);
+
+    internal static bool TryAcquire(string mutexName, out Mutex mutex)
     {
-        mutex = new Mutex(true, MutexName, out bool createdNew);
+        mutex = new Mutex(true, mutexName, out bool createdNew);
         return createdNew;
     }
 

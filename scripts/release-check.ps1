@@ -57,7 +57,7 @@ if (-not $SkipPythonVenv -and (Test-Path ".venv\Scripts\python.exe")) {
 $node = "node"
 if (Test-Path "build\runtime\node\node.exe") { $node = "build\runtime\node\node.exe" }
 Run-Step "DSH plugin unit tests (node --test)" {
-    & $node --test "app/plugins/dsh-investment-tools/test/*.test.mjs" "app/plugins/dsh-dpapi-credentials/test/*.test.mjs" | Out-Null
+    & $node --test "app/plugins/dsh-investment-tools/test/*.test.mjs" "app/plugins/dsh-investment-workflow/test/*.test.mjs" "app/plugins/dsh-dpapi-credentials/test/*.test.mjs" | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "node --test exit code $LASTEXITCODE" }
 }
 Run-Step "Investment skills structural check" {

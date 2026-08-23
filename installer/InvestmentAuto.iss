@@ -1,8 +1,8 @@
-; Investment Auto 2.0 desktop installer (per-user, no admin, no PowerShell at runtime)
+; Investment Auto 2.1 desktop installer (per-user, no admin, no PowerShell at runtime)
 ; Build: ISCC.exe installer\InvestmentAuto.iss
 
 #define MyAppName "Investment Auto"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.1.3"
 #define MyAppExeName "InvestmentAuto.Desktop.exe"
 #define MyAppPublisher "Investment Auto Contributors"
 
@@ -42,7 +42,7 @@ Source: "..\build\runtime\node\*"; DestDir: "{app}\node"; Flags: ignoreversion r
 ; investment engine (Python)
 Source: "..\engine\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs
 ; DSH application shell (profiles, presets, skills, plugins, pinned node_modules)
-Source: "..\app\*"; DestDir: "{app}\app"; Flags: ignoreversion recursesubdirs
+Source: "..\app\*"; DestDir: "{app}\app"; Excludes: "dev-home\*"; Flags: ignoreversion recursesubdirs
 Source: "..\scripts\*"; DestDir: "{app}\scripts"; Flags: ignoreversion recursesubdirs
 Source: "..\config\config.yaml"; DestDir: "{app}\config"; Flags: ignoreversion
 Source: "..\config\market\*"; DestDir: "{app}\config\market"; Flags: ignoreversion recursesubdirs
@@ -56,6 +56,12 @@ Source: "..\build\runtime-downloads\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{
 Name: "{localappdata}\InvestmentAuto"
 Name: "{localappdata}\InvestmentAuto\runtime"
 Name: "{localappdata}\InvestmentAuto\config"
+
+[InstallDelete]
+; Older 2.1 installers accidentally shipped the developer DSH home. It is
+; never a production data root (production uses {localappdata}\InvestmentAuto)
+; and may contain development sessions/credentials, so upgrades remove it.
+Type: filesandordirs; Name: "{app}\app\dev-home"
 
 [Icons]
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--app-root ""{app}"" --data-root ""{localappdata}\InvestmentAuto"""; IconFilename: "{app}\{#MyAppExeName}"

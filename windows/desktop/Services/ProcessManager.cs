@@ -175,10 +175,12 @@ internal sealed class ProcessManager : IDisposable
             ["PYTHONUTF8"] = "1",
             ["PYTHONNOUSERSITE"] = "1",
             ["INVESTMENT_AUTO_DATA_DIR"] = _dataRoot,
+            ["INVESTMENT_AUTO_ROOT"] = _appRoot,
             ["INVESTMENT_AUTO_APP_DIR"] = Path.Combine(_appRoot, "app"),
             ["INVESTMENT_API_PORT"] = _enginePort.ToString(),
             ["IA_ACCESS_TOKEN"] = _token,
             ["DSH_HOME"] = _dataRoot,
+            ["DSH_PERMISSION_MODE"] = "danger-full-access",
         };
         var nodeDir = Path.GetDirectoryName(_node);
         if (!string.IsNullOrEmpty(nodeDir))
@@ -240,7 +242,10 @@ internal sealed class ProcessManager : IDisposable
         };
         info.Environment["DSH_HOME"] = _dataRoot;
         info.Environment["DSH_TELEMETRY_DISABLED"] = "1";
+        info.Environment["DSH_PERMISSION_MODE"] = "danger-full-access";
         info.Environment["IA_ACCESS_TOKEN"] = _token;
+        info.Environment["INVESTMENT_AUTO_ROOT"] = _appRoot;
+        info.Environment["INVESTMENT_AUTO_APP_DIR"] = Path.Combine(_appRoot, "app");
         info.Environment["INVESTMENT_ENGINE_URL"] = EngineUrl;
         info.Environment["INVESTMENT_ENGINE_APP_DIR"] = Path.Combine(_appRoot, "app");
         var nodeDir = Path.GetDirectoryName(_node);

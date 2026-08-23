@@ -60,7 +60,7 @@ def _latest_optimizer_file(market: str) -> Optional[Dict[str, Any]]:
 
 
 class _Handler(BaseHTTPRequestHandler):
-    server_version = "InvestmentAutoEngine/2.0"
+    server_version = "InvestmentAutoEngine/2.1"
 
     def _send(self, status: int, payload: Any) -> None:
         body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
@@ -233,6 +233,38 @@ class _Handler(BaseHTTPRequestHandler):
 
             self._send(200, {"ok": True, "mandate": get_mandate()})
             return
+        if path == "/api/analysis/latest":
+            from engine.analysis_runs import latest
+
+            market = _query(self).get("market", "").strip().lower()
+            self._send(200, {"ok": True, "analysis": latest(market=market)})
+            return
+        if path == "/api/analysis/runs":
+            from engine.analysis_runs import list_runs
+
+            values = _query(self)
+            market = values.get("market", "").strip().lower()
+            try:
+                limit = int(values.get("limit", "20"))
+            except ValueError:
+                limit = 20
+            self._send(200, {"ok": True, "runs": list_runs(market=market, limit=limit)})
+            return
+        if path == "/api/analysis/run":
+            from engine.analysis_runs import get
+
+            cycle_id = _query(self).get("cycle_id", "").strip()
+            if not cycle_id:
+                self._send(400, {"ok": False, "error": "missing cycle_id"})
+                return
+            run = get(cycle_id)
+            self._send(200 if run is not None else 404, {"ok": run is not None, "analysis": run})
+            return
+        if path == "/api/analysis/rounds/active":
+            from engine import analysis_rounds
+
+            self._send(200, {"ok": True, "rounds": analysis_rounds.active_rounds()})
+            return
         if path == "/api/credentials/resolve":
             ref = _query(self).get("ref", "").strip()
             if not ref:
@@ -268,6 +300,12 @@ class _Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if path == "/api/config":
+            from engine.config import cfg
+            from engine.secret_store import redact_mapping
+
+            self._send(200, {"ok": True, "config": redact_mapping(dict(cfg.raw))})
+            return
         if path == "/api/setup/status":
             from engine.paths import runtime_dir
 
@@ -278,6 +316,58 @@ class _Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         if not self._authorized():
             self._send(403, {"ok": False, "error": "invalid access token"})
+            return
+        path = urlsplit(self.path).path
+        if path == "/api/analysis/rounds/start":
+            payload = _read_json(self)
+            if payload is None:
+                self._send(400, {"ok": False, "error": "invalid JSON body"})
+                return
+            try:
+                from engine import analysis_rounds
+
+                # Web-launched rounds are analysis-only: trading always waits
+                # for the user's later explicit, approved submission.
+                payload = dict(payload)
+                payload["submit"] = False
+                # The two-block boundary is enforced here too: the manual
+                # entry requires an explicit standardized symbol list.
+                symbols = payload.get("symbols")
+                if not isinstance(symbols, list) or len(symbols) == 0:
+                    self._send(400, {"ok": False, "error": "手动分析必须提供 symbols：请先运行选股得到标准化候选列表（或直接传入用户点名的股票）"})
+                    return
+                self._send(200, analysis_rounds.start(payload))
+            except (KeyError, ValueError) as exc:
+                self._send(400, {"ok": False, "error": str(exc)[:800]})
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("analysis round start failed")
+                self._send(500, {"ok": False, "error": str(exc)[:800]})
+            return
+        if path.startswith("/api/analysis/runs/"):
+            payload = _read_json(self)
+            if payload is None:
+                self._send(400, {"ok": False, "error": "invalid JSON body"})
+                return
+            try:
+                from engine import analysis_runs
+
+                if path == "/api/analysis/runs/start":
+                    result = analysis_runs.start_or_resume(payload)
+                elif path == "/api/analysis/runs/update":
+                    result = analysis_runs.update(payload)
+                elif path == "/api/analysis/runs/complete":
+                    result = analysis_runs.finish(payload)
+                elif path == "/api/analysis/runs/fail":
+                    result = analysis_runs.finish(payload, failed=True)
+                else:
+                    self._send(404, {"ok": False, "error": "not found", "path": path})
+                    return
+                self._send(200, {"ok": True, "analysis": result})
+            except (KeyError, ValueError) as exc:
+                self._send(400, {"ok": False, "error": str(exc)[:800]})
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("analysis run update failed")
+                self._send(500, {"ok": False, "error": str(exc)[:800]})
             return
         if self.path == "/api/credentials/set":
             payload = _read_json(self)
@@ -307,6 +397,21 @@ class _Handler(BaseHTTPRequestHandler):
 
             delete_secret(ref)
             self._send(200, {"ok": True, "ref": ref, "configured": False})
+            return
+        if self.path == "/api/config/update":
+            payload = _read_json(self)
+            if payload is None:
+                self._send(400, {"ok": False, "error": "invalid JSON body"})
+                return
+            try:
+                from engine.config_api import apply_config_changes
+
+                changes = payload.get("changes")
+                result = apply_config_changes(changes)
+                self._send(200, {"ok": True, "updated": result})
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("config update failed")
+                self._send(400, {"ok": False, "error": str(exc)[:800]})
             return
         if self.path == "/api/setup/complete":
             payload = _read_json(self) or {}
@@ -345,6 +450,25 @@ class _Handler(BaseHTTPRequestHandler):
 def serve(*, host: str = "127.0.0.1", port: int = 8790) -> None:
     logger.info("Starting engine command API on %s:%s", host, port)
     server = ThreadingHTTPServer((host, port), _Handler)
+
+    # Recovery scan runs only after the socket is bound/listening: resumed
+    # headless rounds must be able to post their checkpoints back to THIS
+    # server. Only the serve process hosts analysis workers, so only it scans.
+    import threading
+
+    def _startup_recovery() -> None:
+        import time as _time
+
+        _time.sleep(1.5)
+        try:
+            from engine import analysis_rounds
+
+            analysis_rounds.recover_on_startup()
+        except Exception:  # noqa: BLE001
+            logger.exception("analysis round startup recovery failed")
+
+    threading.Thread(target=_startup_recovery, name="analysis-rounds-recovery", daemon=True).start()
+
     try:
         server.serve_forever()
     except KeyboardInterrupt:

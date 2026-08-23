@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import threading
 import time
 
 import pytest
@@ -63,3 +65,26 @@ def test_command_without_progress_or_activity_hits_idle_timeout(isolated_bus):
     with pytest.raises(TimeoutError, match="无有效进度或任务心跳"):
         command_bus.InvestmentAgentClient().issue("run_cycle", {"market": "cn"}, timeout=1.0)
     assert time.monotonic() - started < 0.8
+
+
+def test_atomic_json_supports_concurrent_publishers(isolated_bus):
+    target = isolated_bus / "worker.json"
+    failures = []
+
+    def publish(index):
+        try:
+            for sequence in range(20):
+                command_bus._atomic_json(target, {"writer": index, "sequence": sequence})
+        except Exception as exc:  # pragma: no cover - asserted below
+            failures.append(exc)
+
+    threads = [threading.Thread(target=publish, args=(index,)) for index in range(6)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert failures == []
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    assert payload["writer"] in range(6)
+    assert not list(isolated_bus.glob("*.tmp"))
