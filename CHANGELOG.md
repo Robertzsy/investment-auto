@@ -1,6 +1,11 @@
 # 更新日志
 
-## 2.1.3 — IA 全权限自维护引导层（2026-08-23，分支 `dsch/2.0`）
+[简体中文](CHANGELOG.md) | [English](CHANGELOG_EN.md)
+
+2.x 的整体设计、安装和使用方式见 [README.md](README.md)，2.1.3 的 GitHub Release
+正文见 [双语发行说明](docs/RELEASE_NOTES_2.1.3.md)。
+
+## 2.1.3 — IA 全权限自维护与可靠性闭环（2026-08-24，分支 `dsch/2.0`）
 
 - 桌面对话 preset 与 headless profile 恢复 DSH 原生 Shell、文件、搜索、jobs、
   子代理与 Ralph 能力；桌面、开发启动器和无头桥统一使用
@@ -21,6 +26,17 @@
   设为强制门禁。正式用户数据目录不受影响。
 - 系统级完全权限与交易业务权限分离：纸面模式、用户批准、成交幂等、决策指纹
   和 Python 硬风控继续保留。
+- 原失败 AAPL 分析轮次在正式安装版上使用同一 cycle id 复跑，依次完成
+  `base_research`、`research_debate`、`portfolio_draft`、`risk_review` 和
+  `final_decision`，终态为 `ready_for_execution`；本次验证为 `submit=false`，
+  未产生交易。
+- **回归基线**：Python 184 项、Node 插件 22 项、Windows 桌面 20 项；Skills、
+  插件组合、真实 Profile 和覆盖升级数据校验通过。实机覆盖升级前后 76,167 个
+  用户数据文件缺失 0、变化 0、新增 0。
+
+安装包：`InvestmentAuto-Setup-x64.exe`（161,497,160 bytes）
+
+SHA-256：`00522AA80EAEF39BB9B59F1B50B458A2177F909AD807914DDB34367A85B49560`
 
 ## 2.1.2 — 执行安全与轮次可靠性收紧（2026-08-23，分支 `dsch/2.0`）
 
