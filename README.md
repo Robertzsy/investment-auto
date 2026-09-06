@@ -1,8 +1,10 @@
 # Investment Auto
 
+**AI 驱动多市场投资研究与模拟交易自动化系统**
+
 [简体中文](README.md) | [English](README_EN.md)
 
-[![Release](https://img.shields.io/badge/release-v2.1.3-brightgreen)](https://github.com/Robertzsy/investment-auto/releases/tag/v2.1.3)
+[![Release](https://img.shields.io/badge/release-v2.1.3-brightgreen)](https://github.com/Robertzsy/ai-trading-automation/releases/tag/v2.1.3)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-lightgrey)]()
 
@@ -35,7 +37,7 @@ Investment Auto 2.1.3 是一款面向 A 股、港股、美股和场内 ETF 的�
 
 ## 安装
 
-- 下载 [v2.1.3 Release](https://github.com/Robertzsy/investment-auto/releases/tag/v2.1.3) 中的 `InvestmentAuto-Setup-x64.exe`
+- 下载 [v2.1.3 Release](https://github.com/Robertzsy/ai-trading-automation/releases/tag/v2.1.3) 中的 `InvestmentAuto-Setup-x64.exe`
 - 支持 Windows 10/11 x64；安装包内置 Python、Node.js、.NET 桌面运行时与 WebView2 兜底安装程序
 
 SHA-256：

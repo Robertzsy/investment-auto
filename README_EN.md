@@ -1,8 +1,10 @@
 # Investment Auto
 
+**AI-Driven Global Portfolio Optimization & Multi-Agent Trading Automation System**
+
 [简体中文](README.md) | [English](README_EN.md)
 
-[![Release](https://img.shields.io/badge/release-v2.1.3-brightgreen)](https://github.com/Robertzsy/investment-auto/releases/tag/v2.1.3)
+[![Release](https://img.shields.io/badge/release-v2.1.3-brightgreen)](https://github.com/Robertzsy/ai-trading-automation/releases/tag/v2.1.3)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-lightgrey)]()
 
@@ -35,7 +37,7 @@ Investment Auto 2.1.3 is a desktop application for investment research and **pap
 
 ## Installation
 
-- Download `InvestmentAuto-Setup-x64.exe` from the [v2.1.3 release](https://github.com/Robertzsy/investment-auto/releases/tag/v2.1.3)
+- Download `InvestmentAuto-Setup-x64.exe` from the [v2.1.3 release](https://github.com/Robertzsy/ai-trading-automation/releases/tag/v2.1.3)
 - Windows 10/11 x64. The installer bundles Python, Node.js, the .NET desktop runtime, and a WebView2 fallback installer.
 
 SHA-256:
