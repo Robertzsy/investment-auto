@@ -1,6 +1,6 @@
-# Investment Auto
+# AI 驱动多市场投资研究与模拟交易自动化系统
 
-**AI 驱动多市场投资研究与模拟交易自动化系统**
+**investment-auto**
 
 [简体中文](README.md) | [English](README_EN.md)
 

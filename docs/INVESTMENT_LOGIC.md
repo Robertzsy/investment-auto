@@ -1,6 +1,6 @@
-# Investment Auto 投资逻辑详解
+# AI 驱动多市场投资研究与模拟交易自动化系统 · 投资逻辑详解
 
-> **AI 驱动多市场投资研究与模拟交易自动化系统** / AI-Driven Global Portfolio Optimization & Multi-Agent Trading Automation System
+> **investment-auto**
 
 本文详细说明 Investment Auto 2.1.3 的核心投资智能：**选股逻辑**、**多角色分析流程**、**决策与风控**，以及它们的**商业价值评估**。
 

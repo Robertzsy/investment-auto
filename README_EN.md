@@ -1,6 +1,6 @@
-# Investment Auto
+# AI-Driven Global Portfolio Optimization & Multi-Agent Trading Automation System
 
-**AI-Driven Global Portfolio Optimization & Multi-Agent Trading Automation System**
+**investment-auto**
 
 [简体中文](README.md) | [English](README_EN.md)
 
