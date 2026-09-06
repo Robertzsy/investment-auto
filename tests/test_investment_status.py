@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from src.investment import status
+from engine.investment import status
 
 
 def test_cycle_evidence_distinguishes_trigger_from_execution_failure(monkeypatch, tmp_path):

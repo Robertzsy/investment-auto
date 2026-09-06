@@ -11,13 +11,13 @@ sys.path.insert(0, ".")
 
 
 def test_config_loads():
-    from src.config import cfg
+    from engine.config import cfg
     assert len(cfg.enabled_markets) >= 1
     assert cfg.llm_primary_provider in ("deepseek", "openai", "glm", "kimi", "")
 
 
 def test_optimizer_max_sharpe():
-    from src.optimizer.engine import max_sharpe, _cov_matrix
+    from engine.optimizer.engine import max_sharpe, _cov_matrix
     random.seed(1)
     n = 3
     aligned = [[random.gauss(0.0005, 0.015) for _ in range(80)] for _ in range(n)]
@@ -30,7 +30,7 @@ def test_optimizer_max_sharpe():
 
 
 def test_optimizer_risk_parity():
-    from src.optimizer.engine import risk_parity, _cov_matrix
+    from engine.optimizer.engine import risk_parity, _cov_matrix
     random.seed(2)
     n = 4
     aligned = [[random.gauss(0.0003, 0.02) for _ in range(60)] for _ in range(n)]
@@ -44,7 +44,7 @@ def test_optimizer_risk_parity():
 
 
 def test_stress_test():
-    from src.optimizer.engine import stress_test, _cov_matrix, max_sharpe
+    from engine.optimizer.engine import stress_test, _cov_matrix, max_sharpe
     random.seed(3)
     n = 5
     aligned = [[random.gauss(0.0002, 0.018) for _ in range(70)] for _ in range(n)]
@@ -58,7 +58,7 @@ def test_stress_test():
 
 
 def test_account_init():
-    from src.portfolio import account
+    from engine.portfolio import account
     # use in-memory style test
     acct = account.load()
     assert acct["version"] == 2
@@ -66,7 +66,7 @@ def test_account_init():
 
 
 def test_market_config():
-    from src.config import cfg
+    from engine.config import cfg
     cfg_cn = cfg.market_config("cn")
     assert cfg_cn["market"] == "cn"
     assert "risk" in cfg_cn

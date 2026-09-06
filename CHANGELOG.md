@@ -1,0 +1,585 @@
+# 更新日志
+
+[简体中文](CHANGELOG.md) | [English](CHANGELOG_EN.md)
+
+2.x 的整体设计、安装和使用方式见 [README.md](README.md)，2.1.3 的 GitHub Release
+正文见 [双语发行说明](docs/RELEASE_NOTES_2.1.3.md)。
+
+## 2.1.3 — IA 全权限自维护与可靠性闭环（2026-08-24，分支 `dsch/2.0`）
+
+- 桌面对话 preset 与 headless profile 恢复 DSH 原生 Shell、文件、搜索、jobs、
+  子代理与 Ralph 能力；桌面、开发启动器和无头桥统一使用
+  `danger-full-access`，并向 IA 暴露权威 `INVESTMENT_AUTO_ROOT`。
+- 新增 `self-maintenance` Skill：从真实日志与持久状态定位故障，修改权威源码、
+  测试、构建、重试原任务，并支持提示词、Skills 和固定工作流持续改进；禁止把
+  DSH_HOME 播种副本当成源码，更新安装前保留可恢复备份。
+- 修复全部工作流 `agent()` schema：属性级 `required:true` 改为对象根级数组；
+  schema 提升为共享常量，并在插件组合时使用 DSH 公共
+  `assertObjectJsonSchema()` 快速预检。
+- 修复失败轮次重试竞态：只有先取得跨进程 cycle lease 的 orchestrator 才能
+  将 failed 重开为 running；工作流内部重复 start 不再清除具体错误，通用
+  headless 失败也不再覆盖原始 WorkflowError。
+- 修复 command bus 多写入者共用固定 `.tmp` 导致的 Windows WinError 5：使用
+  每次写入唯一临时文件，并对短暂文件占用指数退避重试。
+- 修复安装器会递归打包 `app/dev-home` 的缺陷，明确排除开发会话、开发凭据与
+  重复 profile 依赖；升级时清理旧版误装的该目录，并在发行 manifest 检查中
+  设为强制门禁。正式用户数据目录不受影响。
+- 系统级完全权限与交易业务权限分离：纸面模式、用户批准、成交幂等、决策指纹
+  和 Python 硬风控继续保留。
+- 原失败 AAPL 分析轮次在正式安装版上使用同一 cycle id 复跑，依次完成
+  `base_research`、`research_debate`、`portfolio_draft`、`risk_review` 和
+  `final_decision`，终态为 `ready_for_execution`；本次验证为 `submit=false`，
+  未产生交易。
+- **回归基线**：Python 184 项、Node 插件 22 项、Windows 桌面 20 项；Skills、
+  插件组合、真实 Profile 和覆盖升级数据校验通过。实机覆盖升级前后 76,167 个
+  用户数据文件缺失 0、变化 0、新增 0。
+
+安装包：`InvestmentAuto-Setup-x64.exe`（161,497,160 bytes）
+
+SHA-256：`00522AA80EAEF39BB9B59F1B50B458A2177F909AD807914DDB34367A85B49560`
+
+## 2.1.2 — 执行安全与轮次可靠性收紧（2026-08-23，分支 `dsch/2.0`）
+
+针对评审指出的四项缺陷与两个会话栏缺陷的系统性修复。
+
+- **成交幂等以账户文件为唯一事实**：`execute_orders` 接收 `idempotency_key` +
+  决策指纹，成交结果与**执行回执**在账户锁内同一次原子替换写入
+  `portfolio.json`（回执含指纹/成交/拒绝/时间戳，上限 200 条滚动淘汰）。
+  崩溃于「已成交、未写簿记」之间时，重试从账户内回执重放，绝不再成交；
+  同键不同指纹直接拒绝。审计文件降级为外部记录（写失败不再导致提交失败）。
+- **幂等键必填 + 内容绑定**：`submit_decisions` 无键直接拒绝；认领时写入
+  **归一化决策指纹**（市场 + 排序后的 symbol/action/weight/confidence），
+  重放/复用必须指纹一致。四类 in_progress 处理：参数格式错误与确定性内容
+  拒绝→终态 rejected 记录并重放；确定性硬风控拒绝→保存并重放；进入撮合前
+  的暂时性故障（行情缺失/紧急停止）→释放认领允许重试；已进入撮合→绝不删除，
+  由 broker 回执恢复。
+- **`ready_for_execution` 状态机**：固定流程先把最终决策持久化为
+  `execution_ready`（引擎计算并保存决策指纹），随后才允许提交——自主轮次
+  （submit=true）与手动批准都走同一条指纹校验；执行结束后由引擎把绑定轮次
+  置为 completed。分析页展示该阶段。
+- **用户指定标的贯通执行**：以 cycle_id 提交时，引擎校验轮次处于
+  `ready_for_execution` 且提交内容与轮次记录的决策指纹完全一致，其已分析
+  目标进入允许池；独立提交（无绑定轮次）仍限于持仓∪选股∪默认池。
+- **轮次身份基于平台请求身份**：cycle_id = 会话 ID + 最新直接用户消息 ID
+  （`user/message` + source.kind=user），同一轮次重试复用、新用户消息即使
+  内容相同也生成新 ID；短 TTL 内容指纹仅作无会话上下文时的传输兜底。
+- **跨进程租约与启动恢复**：每个 cycle 持 `runtime/analysis_runs/<id>.lease`
+  （O_EXCL + stale）——此前只有线程锁，现在两个引擎进程也不可能双跑；
+  serve 进程在 API 监听后扫描并续跑被重启孤儿的 running 轮次（检查点续跑，
+  不重复提交）；failed 轮次允许同键安全重试。
+- **会话隔离与两个会话栏缺陷**：headless 轮次改用独立内部 DSH home
+  （`<home>/agent-home`，播种产品树 + 继承 settings storages + 开发模式镜像
+  .credentials.yaml，会话文件不复制）；会话栏过滤 archivedSessionIds 与
+  origin=subagent；会话搜索按 `{items:[{sessionId,snippet}]}` 正确映射；
+  新增 `cleanup-internal-sessions.mjs` 把历史上泄漏的 headless 会话组
+  （cwd=安装目录）备份归档，绝不删除。
+- **流程边界代码化**：手动分析入口（工具 + 引擎端点双重）拒绝空 symbols，
+  必须先选股；自主调度保留内部选股。轮次任务文本的股票列表改用严格 JSON
+  编码（`symbols=["688981"]`），不再依赖模型自纠。
+- **测试**：Python 182 项（新增 broker 回执 5 项、崩溃恢复/内容绑定/四类
+  claim/用户标的批准执行 8 项、ready 状态与指纹 3 项、恢复扫描/失败重试/
+  ready 重放 5 项、内部 home 与 JSON 任务 3 项）+ Node 21 项 + 技能/插件
+  契约检查 + 无头浏览器 29 项断言（含会话搜索映射）+ 真实 wire 对话全绿。
+
+## 2.1.1 — 分析流程路由与执行修复（2026-08-22，分支 `dsch/2.0`）
+
+修复分析流程的路由与执行问题：固定工作流成为唯一可信的完整分析入口，窗口 AI
+只做意图识别、证券身份确认、symbols 提取、调用与总结；选股与股票分析明确分块。
+
+- **两块路由**：用户点名证券 → 跳过选股，`investment_analysis_workflow(symbols=…,
+  symbols_source="user")`；用户要求选股 → `investment_run_screening` /
+  `investment_screening` 输出标准化列表，再把结果以 `symbols_source="screening"`
+  传入同一分析模块。用户指定标的绝不混入选股池；持仓只作上下文。
+- **统一实现**：`investment-analysis-workflow` 行在 headless `investment` profile 的
+  host 平面注册（此前无头会话没有该工具 → "unknown tool" → 通用 workflow 临时拼装）。
+  Web 会话与 headless 自主轮次执行同一套阶段脚本；`investment_analysis_workflow`
+  手动会话为异步启动器、headless 环境为同步执行器；新增
+  `investment_analysis_status` 轮询工具（阶段/检查点/Agent 进度/终态决策）。
+- **旧入口退役**：`investment_run_cycle` 从模型可见工具中移除（引擎内部命令保留给
+  调度器），消除双入口歧义；persona、preset 与 3 个核心 Skill 同步改写，明确
+  「单股分析/完整分析必须走固定流程」。
+- **异步轮次 + 幂等**：新增 `POST /api/analysis/rounds/start`（`engine/analysis_rounds.py`）：
+  同一 `cycle_id` 至多一个轮次（活跃→返回现状、终态→重放、孤儿→按检查点续跑），
+  由引擎 worker 线程拉起 headless 轮次，检查点写回 `runtime/analysis_runs`。
+  `submit_decisions` 增加 `idempotency_key`（分析轮次用 cycle_id）：先认领
+  （in_progress 10 分钟租约）再执行，完成后重放原结果——超时、重复调用、并发重试
+  都不可能重复成交。
+- **5 分钟 fetch-failed 根因与硬化**：长轮次期间浏览器/工具 HTTP 长连接被 Node
+  `requestTimeout`（默认 300s）掐断，后端继续跑、窗口 AI 重复调用（实测一次请求
+  启动 4 个轮次、产生 4 笔重复成交）。修复：轮次全部改为「秒级启动 + 轮询」的异步
+  形态，产品外壳并把 web server 的 `requestTimeout` 归零——超时与重试不再重复启动
+  流程或重复成交。
+- **测试**：Python 160 项（新增 `test_analysis_rounds.py` 6 项、幂等提交 2 项、桥
+  分析任务/环境 3 项、HTTP 强制分析模式 1 项）+ Node 插件 17 项 + 技能/插件契约
+  检查 + 两个 profile 组合验证 + 无头浏览器 27 项断言 + 真实 wire 对话验证全绿。
+
+## 2.1.0 — 产品化外壳：Investment Auto（2026-08-22，分支 `dsch/2.0`）
+
+把 2.0 从「DSH 界面 + 投资 preset」改造成独立投资产品：DSH 仅作为不可见的内部运行时。
+
+- **品牌去 DSH 化**：页面 `<title>` / manifest name·short_name / favicon（鱼形 logo→IA
+  标记）全部改为 Investment Auto（`app/scripts/brand-dist.mjs`）；桌面窗口标题与状态栏
+  文案去 Harness；首次向导文案去 DeepSeek Harness；web-runtime 行 `surfaceContext:false`
+  （移除模型可见的 harness-source / app:web-surface 提示段）。JS bundle 未改——内核中
+  无用户可见品牌串（仅有小写 module id 与 CSS token 名）。
+- **移除 Workspace 与模式/preset 选择**：禁用 11 个客户端行（ui-layout / ui-sidebar /
+  ui-workspace / ui-settings-general / ui-settings-plugin-inventory / ui-settings-plugins /
+  ui-agent-preset / ui-permission / ui-cordis / ui-model-selection / ui-workflow-run）；
+  agent-presets 机制保留且 default 恒为 investment；新建会话自动 investment。
+- **产品外壳 `@investment-auto/dsh-product-shell`**：接管 `root` 槽——左侧产品导航
+  （Dashboard / 投资助手 / 分析流程 / 设置；不设账户入口）、扁平会话列表
+  （新建/切换/重命名/搜索/归档）、可收起投资上下文，
+  固定 Investment Auto 工作区（node 半启动时经 workspaceRegistry 创建）；theme 投影
+  随 ui-layout 退役而由外壳接管。
+- **Dashboard、分析流程与设置页**：Dashboard 聚合引擎状态/风控/四市场资产/最近轮次/
+  宏观日报；分析流程页显示真实轮次、当前阶段、Agent 成功/失败计数、证据数与检查点；
+  设置 = 模型与 API Key（复用原 models 页）+ 投资策略与风控 + 自动轮次与调度 +
+  市场与选股 + 通知 + 应用设置；所有数据经 host 代理 `/api/investment/*` 读写引擎，
+  引擎 URL 与令牌不进浏览器 JS；Webhook 地址 DPAPI 加密存储、永不回显。
+- **引擎 API 扩展（不绕过 DPAPI）**：`GET /api/config`（脱敏全量）+
+  `POST /api/config/update`（产品设置字段逐项类型/范围校验 + 原子更新 + reload 回滚，
+  `trading.mode` / `llm` 禁止修改）。
+- **完整多角色分析恢复**：新增会话层固定工作流插件；每只标的并行技术面、基本面、
+  新闻、情绪研究，随后进入多空辩论、研究经理、个股交易员、组合草案、激进/保守/
+  中立风险辩论、风险经理与最终组合经理。自主轮次只调用该固定入口，不再依赖单 Agent
+  自由解释文字清单；证据引用不足按阈值失败，失败候选剔除、失败持仓安全 HOLD。
+- **检查点与进度真值**：`runtime/analysis_runs/` 原子保存阶段输出；同一 cycle id 中断后
+  跳过已完成阶段继续执行。新增 `/api/analysis/*` 查询/更新接口及浏览器 host 代理；
+  Python 只负责编排状态与硬风控，不在进程内调用 LLM。
+- **启动契约修复**：产品外壳同步提供 `layout` 服务，消除偶发
+  `appShell service missing after settled`；真实 Profile 与浏览器控制台验收零错误。
+- **对话内核零改动**：conversation / tool / skill / subagent / goal / plan / trajectory
+  等 10 个内核 bundle 哈希记录在案（rc.6 原样），外壳仅
+  `renderSlot("conversation", {})`；展示层隐藏残留的 Workspace/访问模式选择器，
+  投资化空白页与输入提示，不改消息、思考过程、流式输出和工具链。
+- **验收**：boot 表与组合配置验证（禁用行 + surfaceContext:false）；无头浏览器 19 项
+  渲染断言全绿（无 DSH 品牌、导航/会话/Dashboard/五个设置页/模型页可用、零页面异常）；
+  wire 协议真实对话（session.create → preset=investment → investment_status 工具 →
+  中文回答）。
+- **测试基线**：Python 147 项 + C# 桌面 20 项 + Node 插件 12 项 + 技能/插件契约检查；
+  真实 investment-web Profile、Dashboard/分析流程/设置导航与浏览器日志验收通过。
+- **发布修复（同日）**：① 桌面发布必须 `--self-contained true`（与
+  `scripts/build-desktop.ps1` 一致）——误用框架依赖发布会与安装目录里上一版的
+  自包含运行时残留混合，导致 apphost「No frameworks were found」启动崩溃；
+  ② 引擎 DSH-home 播种改为强制刷新产品自有树（profiles/presets/skills/plugins），
+  使 2.1 的 profile 组合能到达既有安装（用户自建条目保留、会话/凭据/配置等用户
+  数据不受影响；用户覆盖层为 home 级 cordis.patch.yml，从不播种）。
+
+安装包：`release/InvestmentAuto-Setup-x64.exe`（185.2 MB）
+
+SHA-256：`5A31892E3ECD0F6875AC8A6DE72DAC22FEE5169B965A56F16190B3A458E7F2A4`
+
+## 2.0.0 — DeepSeek Harness 底座重构（2026-08-22，分支 `dsch/2.0`）
+
+Investment Auto 2.0 以 DeepSeek Harness（DSH）为运行底座全面重建：对话、会话、
+模型调用、工具、Skills、plan/goal/子代理/工作流全部来自 DSH；1.x 的业务能力收敛为
+独立 Python 引擎（`engine/`），通过回环 HTTP 命令 API 与 DSH 工具桥连接。
+
+- **P0 骨架**：`engine/` 业务引擎（1.x 复用部分重排，旧 Agent/Manager/UI/LLM 层删除）；
+  `app/` 锁定 `@deepseek-ai/dsh@0.1.0-rc.6` 依赖树（防 npm 混装 rc.8）；
+  自定义 `investment-web` / `investment` profile + `investment` agent preset
+  （无 Shell/文件/编码工具）；HTTP 命令 API 骨架。
+- **P1 对话+桥**：引擎只读 API（状态/行情/选股/组合/报告/宏观/授权书）+ 17 个
+  `investment_*` 工具（`ctx.tools.register` 原生插件）+ 投资 persona。
+- **P2 投资 Skills**：`submit_decisions` 执行链（引擎自行取价 → 授权书硬边界 →
+  `build_orders` 风控 → 纸面撮合 → 审计/报告/反思）+ 7 个 DSH `SKILL.md` +
+  技能-工具一致性校验。
+- **P3 自主轮次**：`engine/dsh_bridge.py` 在调度时刻 spawn DSH headless 会话
+  （同一套工具与 Skills；shell/文件/编辑/ralph/plan 模式关闭），runner 以引擎审计
+  为事实回填决策与成交；fail-safe 由幂等设计保证（崩溃丢轮不重复成交）。
+- **P4 桌面发行**：WPF 壳 2.0 进程模型（引擎 serve/run + DSH web 双进程、动态端口、
+  `--patch` overlay、就绪解析、Job Object）；DPAPI 凭据 provider（密钥不落明文）；
+  `/setup` 首次向导（导入旧数据 + 初始化 + 完成前不启动自动投资）；引擎启动自动播种
+  DSH home（安装版零 PowerShell）；Node 22 运行时与安装器脚本。
+- **P5 UI 扩展与发布**：客户端投资工具卡片（`tool.call.toolview` 键控视图：
+  status/portfolio/mandate）；发行门禁覆盖 Python/C#/插件/技能/插件契约 +
+  捆绑运行时全量测试；自主轮次真实模型 E2E（真实行情研究 → 决策 → 纸面成交 →
+  审计/报告/反思）；真实 1.x 数据迁移实测（15 项数据 + 4 密钥 DPAPI 无损导入）；
+  web 对话面自动化验证（浏览器 wire 协议驱动，preset 挂载 + 工具调用）。
+- **安装版实测（本机全流程）**：静默安装 → 首次向导 → DPAPI 密钥 → 完成初始化 →
+  自动启动投资引擎 → 安装版对话 PASS → 静默升级 63 个数据文件字节级一致。
+- **实测修复**：工具 render 契约（内容块而非裸字符串）、桥进程环境、runner 注册
+  范围、DSH patch 不可改行 `name`（凭据 overlay 改为禁用+insert）、
+  PowerShell 脚本 BOM（5.1 兼容）、Node 运行时版本选择。
+- **测试基线**：Python 121 项（含捆绑运行时）+ C# 桌面 20 项 + Node 插件 6 项 +
+  技能/插件契约检查，发行门禁全绿。
+
+安装包：`release/InvestmentAuto-Setup-x64.exe`（184.8 MB）
+SHA-256：`EE1C2A53266F0C41C07F346434B880E931DF4179DE15341A1F843BB6FF452451`
+
+详细架构见 `docs/ARCHITECTURE_2.0.md`、`docs/ENGINE_API.md`；1.x 保留在 `master`。
+
+## 0.9.1 — Supervised Repair Closure（2026-08-20）
+
+- 安装版内置 `repair_verifier`，自修复不再依赖未随安装包发布的 pytest 测试目录；
+- 现有文件只允许带 SHA256 并发保护的单次精确片段替换，拒绝整文件覆盖和超过 200 行的补丁；
+- 补丁后的原始请求改由全新 Python 解释器回放，确保验证进程真正加载新模块；
+- 测试器启动、超时、结果解析和语义回放异常全部触发备份恢复，并清除对应重启请求；
+- 新增持久化 incident repair 审计及桌面 Harness“修复审计”视图。
+
+## 0.9.0 — Failure-Aware Harness（2026-08-20）
+
+- 新增 `market-overview` Skill，广义 A 股问题固定覆盖上证、深证、创业板、沪深 300 与市场宽度样本；
+- 引入带交易所、资产类型和供应商代码的证券身份，阻止 `sh000002` 被降级成 `sz000002/万科A`；
+- 完成契约新增身份、时效、事实一致性和覆盖率质量门禁，并区分 `completed`、`degraded`、`incomplete`；
+- 新增有界恢复轨迹和 `incident-repair`，只有目标测试与原始请求语义回放均通过才确认修复，否则自动回滚；
+- system_admin 获得独立的 8 次模型请求、6 次工具调用、单次代码变更预算，内层工具事件会同步显示在桌面对话中；
+- 桌面 Harness 工作台增加降级状态展示，版本统一为 0.9.0。
+
+## 0.8.0 — Agent Harness 桌面控制面（2026-08-20）
+
+### Agent Harness / Skill Runtime 核心重构
+
+- 顶层 Manager 从二十余个扁平业务工具一次性切换为六个 Harness 级能力；行情、研究、
+  选股、组合和交易函数全部降为 Skill 内部受控 Action；
+- 新增研究、组合、执行、系统管理四个持久会话，以及完整 Skill Manifest、Workflow、
+  完成契约、权限验证和逐步 execution trajectory；
+- 内置证券分析、选股、组合检查、组合优化、完整投资周期、结构化定时轮次、账户管理和
+  系统管理 Skills；聊天按钮、HTTP 控制面和配置内定时轮次统一进入 Skill Runtime；
+- 新增 `create_skill` 编译—测试—注册—当轮 fulfill 闭环；缺少的只读 Action 继续复用原子
+  工具工厂，但不再作为顶层模型可见工具；
+- 新增持久化 Skill Scheduler，固定 Skill 版本、Cron、时区和结构化输入，触发时不再解释
+  自然语言；成功判定改为完成契约，调用过工具不再等价于已验证；
+- 新增 50 条自然语言路由验收与完整 Skill Runtime 回归测试。
+
+### 桌面应用同步
+
+- 新增 Agent Harness 工作台，可查看 Skill 目录、四类持久会话、完成验证和逐步执行轨迹；
+- 新增结构化定时 Skill 的创建、启停、立即运行和删除界面；系统管理 Skill 保持禁止后台执行；
+- 对话页增加 Skill Runtime 实时摘要和最近执行状态，工具事件改为明确展示 Skill Runtime 入口；
+- WPF 状态栏增加 Harness 健康状态与 Skill 数量，桌面壳、Python 包和安装器版本统一为 0.8.0；
+- 新定时任务跨进程最多 15 秒热加载，开发模式 HTTP 服务可以干净退出。
+
+## 0.7.0 — 桌面应用（2026-08-15）
+
+投资系统现在可以安装为真正的 Windows 桌面应用：安装后双击桌面图标，在独立桌面窗口
+内使用全部功能，不需要浏览器、CMD、PowerShell、Python 或 Node.js。
+
+### 2026-08-17 密钥链路与 Agent 防循环热修复
+
+- 设置页的 LLM API Key 改为与首次向导相同的 Windows DPAPI 加密存储；聊天适配器与
+  独立投资 Agent 统一使用“环境变量优先、DPAPI 回退”的解析链路；
+- 管理窗口新增 `configure_llm_api_key` 原生工具，可替用户配置已有供应商，工具事件、
+  最终回答、错误和对话历史统一脱敏，旧历史中的密钥形态在读取时自动清理；
+- 重复工具检测从事后事件观察层移到 Pydantic AI 工具执行中间件，相同工具与参数第二次
+  调用会在副作用发生前拦截；连续 10 次只读搜索/检查也会提前停止；
+- 修复 DSH/Ralph 与 Pydantic AI 2.27 的启动兼容（`output_type`/`result.output`、全局
+  `RunContext`），增加受控分页源码读取、只读 `rg`、可恢复命令拒绝和可配置请求上限；
+  DSH 工具角色固定使用兼容 function calling 的 `deepseek-chat`，不影响投资角色模型。
+
+### 2026-08-17 新供应商配置与对话续接热修复
+
+- 管理窗口新增 `configure_openai_compatible_provider` 原子工具：一次调用完成 OpenAI 兼容
+  供应商校验、配置深合并、DPAPI 密钥保存、运行时刷新与可选连通测试；配置写入失败时
+  自动恢复原密钥，工具事件、结果和错误保持脱敏；
+- 默认加入 DeepInfra（`https://api.deepinfra.com/v1/openai`）及
+  `deepseek-ai/DeepSeek-V4-Flash-0731` 模型，设置页同步展示；除非用户明确要求，新增供应商
+  不会擅自替换当前主供应商；
+- 当前消息现在被明确标记为本轮唯一任务。上一轮操作失败后，普通寒暄或要求先回应不会再
+  自动续跑旧任务并触发连续只读工具保护；只有用户明确要求继续或重试才恢复旧操作；
+- 新增真实 Agent 两轮工具链、工具参数脱敏、配置/密钥回滚和失败对话续接回归测试。
+
+### 2026-08-17 长轮次活动检测与报告恢复热修复
+
+- 完整投资轮次不再使用写死的 480 秒等待：命令进程每 10 秒写活动心跳，并按标的完成数、
+  组合草案、风险辩论和最终组合决策发送有效进度；300 秒无活动才判定失联，同时保留
+  1800 秒硬上限防止无限运行；
+- 桌面每 5 秒的自治状态刷新改为直接读取轻量共享快照，不再把 `status` 命令塞入单线程
+  投资队列；最新审计只返回摘要，避免数百 KB 响应和大量重复命令文件；
+- 按钮/对话触发的轮次完成后先进入报告收件箱，在线客户端成功收到结果后确认删除；若
+  页面断开或达到硬上限，报告仍会在下一次历史刷新时自动送达；
+- 修复历史消息忽略原始时间、全部显示为页面加载时刻的问题，并将按钮与 Agent 触发报告
+  正确标记为“手动整轮”。
+
+### 核心交付
+
+- **桌面窗口**：.NET 8 WPF + WebView2 承载现有全部页面（仪表盘/对话/报告/持仓/设置），
+  底部状态栏实时显示 Agent/服务状态、模式、策略与轮次；单实例、最小化到托盘、登录自启动；
+- **安装包**：Inno Setup 每用户安装（%LocalAppData%），捆绑可迁移 Python 3.11 + 全部离线
+  依赖 + 便携 Node 20 + WebView2 兜底；桌面与开始菜单快捷方式；卸载保留数据；
+- **数据分离**：代码在安装目录（只读），用户数据在 %LocalAppData%\InvestmentAuto；
+  升级覆盖程序、保留账户/报告/记忆/自建工具；开发模式零改动；
+- **安全**：每次启动动态回环端口 + 随机访问令牌（无凭证 401）；API Key 经 Windows
+  DPAPI 加密存储，不落明文文件与日志；WebView2 拦截注入令牌，前端无感知；
+- **首次向导**：10 步窗口内向导（旧 D 盘数据导入、密钥、模型、策略、模式、市场、风控、
+  通知、初始化、完成）；旧数据只复制不删除、覆盖前备份、密钥转 DPAPI；
+- **进程管理**：后台 pythonw 隐藏运行，Job Object 保证退出无孤儿进程；
+- **桌面体验**：关闭窗口三选一（最小化到托盘 / 停止并退出 / 取消）；托盘菜单新增
+  「开机自启」勾选开关（HKCU Run 键，无需管理员）；修复自启注册表路径丢失反斜杠的问题。
+
+### 验证
+
+- 迁移加固（2026-08-17）：旧 .env 迁移时清除机器相关变量（CONFIG_PATH 等，防止桌面
+  应用被指回旧机器）、URI/口令类密钥一并转入 DPAPI；本机网页版 → 桌面版全量数据迁移
+  实测通过（config/.env/账户/报告/记忆/选股/优化器/宏观/自建工具/交易审计/证据/指令
+  历史/对话历史共 19 项复制、4 个密钥进 DPAPI、0 跳过、自动备份）；
+- 修复捆绑 Python 非自包含的 P0 问题（2026-08-17）：构建时 `PYTHONNOUSERSITE=1` +
+  `-s` + `--ignore-installed` 隔离 user-site，依赖真正装入捆绑目录（site-packages
+  106 个包、`pip check` 无缺失、关键模块 `-s` 导入全过）；桌面后台进程统一
+  `pythonw -s -m src.main`，运行时永不借用用户包；发行门禁新增捆绑自包含检查
+  （pip check + import smoke + `python -s -m pytest`，此前失败项现已全绿）；
+  另修：令牌注入收窄为本次启动的服务源（ready.Url + "/*"）、静默卸载不弹窗默认保留
+  数据、verify-upgrade 排除易变 WebView2 缓存并接受幂等重装；
+- 修复验收阻断项（2026-08-17）：①向导局部保存改为深合并，不再清空 llm/调度/风控/
+  自主交易配置；②模型设置完整接线（服务商下拉数据、快速/深度模型写入、角色映射、
+  "保存并测试"真实调用服务商）；③旧 D 盘迁移路径修复（D:\investment-auto）+ 向导
+  记住检测到的源目录；④初始化模拟账户按文件存在性判断，portfolio.json 实际创建；
+  ⑤首次向导期间只启动对话服务，投资 Agent 在向导完成后 5 秒内自动启动；
+  另修：令牌注入仅限回环域名且不再进日志、Job Object 幂等复用、卸载"不保留"真正删除
+  数据目录、release-check 失败退出码（已实测为 1）、build-desktop 补齐 publish、
+  .sha256 与安装包同步；新增向导端到端测试 9 项（`tests/test_setup_flow.py`）；
+- 修复主窗口"一直启动中"的三个根因（2026-08-16）：①ready 文件 URL 用 localhost，
+  WebView2 解析为 IPv6 ::1 后对纯 IPv4 监听挂死 SYN_SENT——统一改 127.0.0.1；
+  ②WebView2 运行时仅注册在 32 位注册表视图，x64 应用默认发现失败——新增
+  WebView2Locator 双视图显式解析；③窗口在 StartAsync 之后才 Show，隐藏窗口上
+  初始化 WebView2 永不完成——改为先显示窗口、托盘静默模式延迟到恢复窗口时初始化；
+  另加孤儿浏览器进程清理、45 秒初始化超时与启动异常落盘；
+- 捆绑运行时跑通全量 252 项 Python 测试（本次改动后 .venv 复跑同样 252 通过）；
+- 桌面外壳新增 xUnit 自动化测试 16 项：单实例互斥、ready 文件解析（含小写键/畸形
+  JSON/零端口）、pythonw 定位优先级、开机自启注册表往返、进程管理构造与首次运行标记
+  （`dotnet test windows\desktop\InvestmentAuto.Desktop.Tests`）；
+- 升级保数据自动化校验：`scripts\verify-upgrade.ps1` 快照数据目录 → 静默覆盖安装 →
+  逐文件 SHA-256 比对（实测 16/16 文件字节一致、程序文件已替换）；
+- 一键发行候选门禁：`scripts\release-check.ps1` 自动执行 C# 测试 + .venv/捆绑运行时
+  252 项 pytest + 升级保数据 + 输出安装包 SHA-256，任一失败退出码非 0；
+- 安装器界面中英双语（ChineseSimplified.isl，Inno 官方翻译）；
+- 本机实测：静默安装、快捷方式、安装目录启动、动态端口、ready 文件、令牌 401/200；
+- 待办：干净 Windows 10/11 虚拟机全流程验收（清单见 docs/DESKTOP_USAGE.md）。
+
+---
+
+## 0.6.0 — 管理 Agent 一键自建工具闭环（2026-08-15）
+
+管理 Agent 现在可以**完全自动地为自己添加缺失的工具**：说出「给自己增加一个查询 ××
+的工具」，它调用一次 create_manager_tool 即可完成全部流程：
+
+```text
+校验输入 → 写入独立工具模块 → 导入并核对函数签名与参数 Schema
+→ 编译/测试（白名单命令）→ 注册工具清单 → 试调用验证
+→ 任一步失败：代码文件与工具清单一并回滚
+```
+
+- 单一原子调用替代原来的「改文件 → 手动测试 → 手动注册」多步流程，不再消耗大量
+  工具/请求额度（此前常触发 20/40 上限并搜索文件绕圈）；
+- 新工具从**下一条消息**自动可用（对话运行时每轮重建工具集）；试调用在工具内部
+  完成，无需模型同轮再次调用；
+- 同名/内置名冲突、Schema 非法、签名与 Schema 不符、测试失败均在写盘前或回滚时
+  拦截；uninstall_manager_tool 支持完整卸载；
+- 工具模块由文件路径直接加载（不受包路径缓存影响）；运行时安装的工具不入库；
+- 工具代码禁止导入交易/账户/命令执行模块（AST 检查在写盘前拦截），管理 Agent 的
+  无实盘权限边界不因自建工具而放宽；
+- 并发会话创建同名工具由进程内锁串行化；
+- **单轮闭环**：创建时携带用户当前需求的调用参数（fulfill_args），工具内部创建
+  成功后立即执行并返回结果，无需用户再发第二条消息。
+
+### 其它
+
+- 管理 Agent 上限默认放宽为 32 次模型请求 / 64 次工具调用，并可在设置页调整；
+- 双模型（快速/深度）设置移至设置页顶部「投资者控制中心」；
+- 新增 reset_paper_account 工具：原子化重置指定模拟市场账户（自动加锁、备份、
+  仅模拟盘可用）；
+- 收盘补跑默认不交易（trade_on_catch_up: false）；修复 Windows checkpoint
+  瞬时文件占用。
+
+全量测试 **225 项通过**。
+
+### 真实 API 实测（DeepSeek，2026-08-15）
+
+- 请求「帮我对比贵州茅台和宁德时代过去 30 个交易日的价格走势相关性」：模型自主判断缺能力，
+  **恰好一次**调用 create_manager_tool，创建 compare_price_correlation，用真实历史数据算出
+  收盘价相关性 0.8051 / 日收益率相关性 0.0296，nonce 同时出现在工具返回与最终答案 → **PASS**；
+- 请求「持仓行业分布」：模型正确判断现有工具足够，直接回答（create_tool_calls=0），不为创建而创建；
+- 评估创建的工具在 finally 中自动卸载，注册表与源码目录验证干净；
+- 创建流程实测 token 消耗约 22.5 万，eval 预算默认提高到 60 万（--total-tokens 可调）。
+
+### 复核修复（第二轮）
+
+- 试调用成为强制步骤：未提供 test_args 时以空参数执行；试调用失败（含返回值不可
+  JSON 序列化）整体回滚，坏工具不会留在注册表；
+- fulfill 失败时状态明确为 created_fulfill_failed（工具保留、闭环状态如实标记）；
+- 回滚后核验源码与清单确实消失；核验失败返回 rollback_failed 并禁用清单；
+- uninstall_manager_tool 完整卸载：清单 + 源码 + import 缓存，同名工具可重建；
+- 按工具名线程锁 + 跨进程文件锁（含陈旧锁回收）；async 工具函数被拒绝；
+- 新增 Agent 级执行链测试：scripted 假模型驱动真实 MANAGER_AGENT 运行循环，验证
+  「一次 create_manager_tool 调用 → fulfill_result 同轮回传模型」（该测试证明执行链，
+  不证明模型自主判断；自主判断由 scripts/eval-manager-tooling.py 可选真实 API 评估覆盖）；
+- 管理指令强化：现有工具无法完成的可复用需求必须自建工具，不得直接回答做不到。
+
+### 复核修复（第三、四轮）
+
+- 试调用/fulfill 契约：只有 fulfill_args 时一次执行兼任试调用与 fulfill；test 与
+  fulfill 参数相同只执行一次；两者都没有且存在必填参数时写盘前报明确参数错误；
+- 并发锁改为**操作系统级文件锁**（msvcrt.locking / fcntl.flock）：内核原子、进程
+  退出自动释放，彻底消除陈旧锁检查-删除的 TOCTOU 窗口；创建与卸载共用同一套锁；
+- 跨进程锁互斥测试（multiprocessing + 同步屏障验证临界区不重叠）；创建/卸载竞争
+  测试补断言（无异常、双方至少各成功一次）；
+- 写盘前必填参数检测覆盖关键字参数（def run(*, market: str)）；
+- 签名校验补全：schema 属性必须全部是函数参数、无默认值参数必须列入 required、
+  拒绝 *args/**kwargs 与仅位置参数；
+- def 匹配改为多行行首锚定，首行即 def 的合法模块不再误判；
+- eval 脚本强化：nonce 校验码要求同时出现在工具返回与最终答案，事件流捕获
+  create_manager_tool 调用，pass/fail 与退出码，finally 自动卸载测试工具（--keep 保留）。
+
+---
+
+## 0.5.1 — 下单 fail-safe 修复（2026-08-14）
+
+复核发现 0.5.0 的下单 fail-safe 存在三处真实漏洞，全部修复：
+
+### 1. 显式执行状态机（修复核心漏洞）
+
+旧实现中研究工作流提前把 checkpoint 标记为 completed，导致「进入执行但成交未确认」的
+checkpoint 对恢复扫描不可见，崩溃重启后可能重放订单。现改为显式状态机：
+
+```text
+running → research_completed → execution_pending → completed（终态）
+```
+
+- 研究工作流只能标记 research_completed，执行状态完全由调度器持有；
+- 标记 execution_pending 会翻转状态，恢复扫描必然发现；
+- 任何 execution_pending 的 checkpoint 都会让**下一整轮冻结**（broker 不被调用），
+  随后丢弃该 checkpoint 并写入审计原因；
+- **fail-closed 写入**：pending 标记写失败 → 拒绝下单；恢复检查异常 → 冻结；
+  completed 标记失败 → 告警并让下一轮安全冻结。
+
+### 2. 冻结闸门无时效限制
+
+冻结扫描曾复用 90 分钟恢复窗口，超过 90 分钟的 pending 会被漏掉（相邻轮次间隔
+本身就可能超过 90 分钟）。现在 list_execution_pending 扫描**任何年龄**的未确认
+pending；普通 running/research_completed 恢复仍保留 90 分钟时效窗口。
+
+### 3. 输入指纹补全
+
+checkpoint 恢复前的输入指纹现在覆盖：账户现金与持仓、完整授权书、市场交易规则、
+交易配置（佣金/滑点/整手/T+1）与全部风控限制。现金或持仓变化即作废旧研究决策。
+
+### 其它修复
+
+- 工具模式专属 system prompt（不再与「输出纯 JSON、不调用工具」冲突）；
+- tool 模式剥离 response_format、回传工具参数用 JSON 字符串（OpenAI 兼容线格式）；
+- 证据库路径统一正斜杠，Linux/Docker 下可加载；
+- architecture.research.*（enabled/shell/workspace/max_rounds/timeout）全面接线，
+  管理面研究工具同样受其约束；shell 超时由配置封顶；
+- bugfix 任务提示改用带引号的正斜杠 pytest 路径（shlex 不吞路径）；
+- cycle_evidence 返回真实证据 ID；证据归档失败升级为 warning 并写入审计；
+- checkpoint 索引并发锁、阶段元数据剥离、最新优先选择；
+- 新增 citation_attach_upstream 开关；sandbox 边界文档如实表述（启发式约束，
+  非 OS 沙箱，仅限可信环境）；
+- 未配置 architecture: 段时所有新行为默认关闭，旧配置零风险升级。
+
+全量测试 **194 项通过**，其中 fail-safe 相关测试覆盖全部崩溃窗口：
+正常路径状态演进、pending 冻结（broker 不被调用）、研究完成恢复、
+以及 91 分钟与 7 天超龄 pending 冻结。
+
+---
+
+## 0.5.0 — 架构升级（2026-08-14）
+
+
+采用 DSH 式分层架构对交易工作流与离线研发能力做了一次系统性升级。全部新功能由
+`config/config.yaml` 的 `architecture:` 段控制；**未配置该段时行为与旧版完全一致**，
+可随时整体回退。全量测试 185 项通过。
+
+### 新增功能
+
+**1. 工具中介交互（Agent 决策节点）**
+
+关键决策角色（研究经理、逐标的交易员、风险经理、投资组合经理）不再"一次性生成 JSON
+然后校验失败就整次重试"，改为原生 function calling：
+
+- `list_evidence_ids`：先查询合法证据目录再引用，杜绝编造 ID；
+- `submit_analysis`：提交时当场校验引用，错误信息原路返回，模型原地修正。
+
+**2. 引用自动修复**
+
+此前记录的 Agent 失败中约 84% 是引用格式问题（漏轮次后缀、写裸角色名、漏引必须上游）。
+现在对可判定的错误自动修复并在审计中记录 `citation_repairs` 痕迹，只有真正无法修复
+的输出才会重试——直接消除大部分重复 LLM 调用。
+
+**3. 摘要跨界 + 证据库**
+
+- 完整证据图（各角色报告、多空辩论、风险讨论）每轮归档到
+  `runtime/trading/evidence/`，审计文件体积从一个数量级回到 ~50KB；
+- 下游提示词只携带压缩摘要（`evidence_text_max_chars`，默认 16000 字符），降低每轮
+  token 成本与延迟；
+- 管理对话可经 `evidence_ref` 回溯任意决策的原始证据。
+
+**4. 可续工作单元（Checkpoint）**
+
+- 每个研究阶段原子落盘 `runtime/trading/checkpoints/`，超时、崩溃或进程重启后**只续跑
+  未完成的阶段**，不再整轮重来；
+- 下单执行采用 fail-safe 原则：恢复轮次若上一次成交未确认，**绝不重放下单**，由下一轮
+  自然补上（重复成交比漏单更危险）。
+
+**5. 离线研究循环（Ralph 模式）**
+
+全新的研究平面，让项目可以离线自我验证与进步：
+
+```bash
+# 规则回测
+python -m src.main research --task backtest --market cn \
+  --objective "验证 5 日动量规则在 A 股的有效性" --max-rounds 6
+
+# 策略参数实验
+python -m src.main research --task strategy_experiment \
+  --objective "寻找低波动因子权重组合" --max-rounds 6
+
+# 自动修 Bug（复现 → 修改 → 全量测试 → 失败自动回滚）
+python -m src.main research --task bugfix \
+  --objective "修复 XX 模块的 YY 缺陷" --max-rounds 6
+```
+
+- 每轮启动**全新 Agent（无对话记忆）**，工作区 `runtime/research/workspace/` 是唯一
+  长期记忆，轮间只传递有界结构化报告；
+- **受限 shell**：可执行文件白名单 + argv 直执行（免疫 shell 元字符注入）+ 路径参数
+  边界校验 + 最小化环境（不含生产密钥）。注意：这是启发式约束而非 OS 级沙箱，python -c
+  代码字符串中的路径不受约束，研究 Agent 理论上可读取项目外文件；请仅在可信环境手动运行。
+  交易执行路径与管理对话 Agent 永远没有 shell；
+- 研究结论要进入生产配置，必须经 `apply_experiment_to_config`（SHA-256 记录、版本
+  备份、全量测试、失败自动回滚）。
+
+**6. 管理能力扩展**
+
+研究工具（回测、实验、结果查询、配置应用）可通过能力注册表安装给管理 Agent，管理
+Agent 工具目录新增 6 项管理面工具（项目搜索、能力目录、周期证据、技能安装等）。
+
+### 修复与优化
+
+- 修复 2 个过时测试（自主交易流程测试与管理工具目录测试）；
+- 版本号单点化：`src/version.py` 为唯一版本来源；
+- `.env.example` 中过时的调度器注释已修正；
+- 未入库的管理面重构工作已作为 checkpoint 提交。
+
+### 配置说明
+
+新增 `architecture:` 配置段（默认值即当前推荐）：
+
+```yaml
+architecture:
+  citation_auto_repair: true
+  tool_mediated: true
+  tool_mediated_roles: [research_manager, trader, risk_manager, portfolio_manager]
+  tool_retries: 2
+  evidence_store: true
+  evidence_text_max_chars: 16000
+  checkpoint_cycles: true
+  resume_stale_minutes: 90
+  research:
+    enabled: true
+    max_rounds: 6
+    shell: restricted   # restricted | none
+    workspace: runtime/research
+```
+
+### 兼容性
+
+- 旧配置文件（无 `architecture:` 段）行为与 0.4.0 完全一致，升级零风险；
+- 新增运行时目录（`runtime/trading/evidence/`、`runtime/trading/checkpoints/`、
+  `runtime/research/`）均已加入 .gitignore；
+- 新功能在投资 Agent 进程重启后生效。
+
+---
+
+## 0.4.0 及更早
+
+（未维护更新日志，历史见 git 提交记录。）

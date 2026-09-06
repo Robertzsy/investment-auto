@@ -3,27 +3,33 @@ name: 美股
 currency: USD
 trading:
   settlement: T+0
-  session: [{start: "21:30", end: "04:00", note: "Beijing time, US daylight saving"}]
+  session:
+  - start: '21:30'
+    end: 04:00
+    note: Beijing time, US daylight saving
   lot_size: 1
   min_shares: 1
   price_limit_pct: null
-  circuit_breaker: [7, 13, 20]
+  circuit_breaker:
+  - 7
+  - 13
+  - 20
   commission_rate: 0.0
   stamp_tax: 0.0
   stamp_tax_side: none
   slippage: 0.001
   price_decimals: 2
 risk:
-  single_stock_max_pct: 8
+  single_stock_max_pct: 8.0
   single_sector_max_pct: 30
-  min_cash_reserve_pct: 5
-  hard_stop_pct: -10
-  trailing_stop_pct: -7
-  take_profit_1_pct: 20
+  min_cash_reserve_pct: 5.0
+  hard_stop_pct: -10.0
+  trailing_stop_pct: -7.0
+  take_profit_1_pct: 20.0
   take_profit_1_sell_ratio: 0.4
-  take_profit_2_pct: 35
+  take_profit_2_pct: 35.0
   take_profit_2_sell_ratio: 0.5
-  max_drawdown_pct: -25
+  max_drawdown_pct: -25.0
   min_position_count: 5
   max_position_count: 10
   target_total_exposure: 70

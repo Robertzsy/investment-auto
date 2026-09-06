@@ -1,384 +1,149 @@
-# Investment Auto
+# AI-Driven Global Portfolio Optimization & Multi-Agent Trading Automation System
+
+**investment-auto**
 
 [简体中文](README.md) | [English](README_EN.md)
 
-An AI multi-agent automated paper-investing system for mainland China A-shares, Hong Kong stocks, U.S. stocks, and exchange-traded ETFs.
+[![Release](https://img.shields.io/badge/release-v2.1.3-brightgreen)](https://github.com/Robertzsy/ai-trading-automation/releases/tag/v2.1.3)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-lightgrey)]()
 
-The system discovers candidates across the market, combines them with existing holdings, and completes staged research, bull/bear debate, portfolio decisions, deterministic risk checks, paper execution, and report delivery. It supports both manually triggered and fully scheduled operation.
+Investment Auto 2.1.3 is a desktop application for investment research and **paper trading** across China A-shares, Hong Kong stocks, U.S. equities, and exchange-traded funds, with deterministic screening, a 13-role multi-agent analysis pipeline, and hard risk-controlled execution. Version 2.x is deeply rebuilt on DeepSeek Harness (DSH), but presents a standalone product: no workspace selector, runtime-mode selector, or platform branding—only the Dashboard, Investment Assistant, Analysis Workflow, and Settings.
 
-> This project supports paper trading only. It does not connect to a live broker and should not be used directly with real capital.
+> This project supports research and paper trading only. It does not connect to a live broker and should not be used directly with real capital.
 
-[Download Windows v0.4.0](https://github.com/Robertzsy/investment-auto/releases/tag/v0.4.0)
+## Table of Contents
 
-## Highlights
+- [Features](#features)
+- [Installation](#installation)
+- [Run from Source](#run-from-source)
+- [Core Investment Logic](#core-investment-logic)
+- [Architecture](#architecture)
+- [Version History](#version-history)
+- [Safety Boundaries](#safety-boundaries)
+- [Tests and Release Gate](#tests-and-release-gate)
+- [Documentation](#documentation)
+- [Branches and Compatibility](#branches-and-compatibility)
+- [License](#license)
 
-- Supports A-shares, Hong Kong stocks, U.S. stocks, and exchange-traded ETFs
-- Discovers candidates from the broad market instead of relying on a fixed watchlist
-- Analyzes both new candidates and existing holdings
-- Produces `BUY`, `HOLD`, and `SELL` decisions automatically
-- Executes paper fills and updates cash, positions, and trade history
-- Includes conservative, neutral, and aggressive investment mandates
-- Supports manual and fully automatic modes
-- Supports scheduled runs, startup catch-up, and closing summaries
-- Generates a complete investment report after each cycle
-- Delivers reports to the AI management chat and optionally to an external webhook
-- Uses MongoDB to accelerate screening, research, and memory queries
-- Falls back to local JSON automatically when MongoDB is unavailable
-- Separates the investment Agent from the management chat Agent
-- Supports reflection, outcome-based memory, and dynamic project Skills and Tools
-- Includes a Windows EXE launcher and per-user startup registration
+## Features
 
-## End-to-End Investment Cycle
+- **Four markets in one app**: unified market data, screening, analysis, and paper accounts for A-shares, Hong Kong stocks, U.S. equities, and ETFs; T+1/T+0, lot sizes, price limits, commission, stamp tax, and slippage rules are built in per market.
+- **Deterministic screening**: hard filters plus a six-factor weighted score (momentum / trend / liquidity / valuation / volume / low volatility); every selected stock carries Chinese-language evidence, and weights and thresholds are configurable.
+- **13-role committee-style analysis**: four base-research tracks → bull-bear debate → research manager and per-symbol trader → portfolio draft → three-way risk debate → final decision; conclusions must cite evidence, and live stages and checkpoints are visible.
+- **Risk controls the AI cannot bypass**: three-tier strategy mandate, position capping, drawdown circuit breaker, and built-in stop-loss/take-profit; every AI decision must pass the deterministic Python risk layer and paper broker.
+- **Productized desktop app**: Dashboard, Investment Assistant, Analysis Workflow, and Settings; one-click install, single instance, tray icon, autostart, and in-place upgrades that preserve data.
+- **Conversational AI assistant**: retains DSH-native reasoning, streaming, tools, Skills, plans, and subagents; IA can also inspect logs, edit source, and run tests to maintain itself.
 
-```mermaid
-flowchart LR
-    A["Broad-market security list"] --> B["Deterministic filters"]
-    B --> C["Multi-factor scoring"]
-    C --> D["Qualified candidate pool"]
-    P["Existing holdings"] --> E["Per-symbol research"]
-    D --> E
-    E --> F["Bull/bear debate and research verdict"]
-    F --> G["Portfolio draft"]
-    G --> H["Aggressive/neutral/conservative risk debate"]
-    H --> I["Risk manager verdict"]
-    I --> J["Final portfolio decision"]
-    J --> K["Code-enforced risk controls"]
-    K --> L["Paper execution"]
-    L --> M["Account and position update"]
-    M --> N["Report generation and delivery"]
-    N --> O["T+1/T+5/T+20 outcome reflection"]
+## Installation
+
+- Download `InvestmentAuto-Setup-x64.exe` from the [v2.1.3 release](https://github.com/Robertzsy/ai-trading-automation/releases/tag/v2.1.3)
+- Windows 10/11 x64. The installer bundles Python, Node.js, the .NET desktop runtime, and a WebView2 fallback installer.
+
+SHA-256:
+
+```text
+00522AA80EAEF39BB9B59F1B50B458A2177F909AD807914DDB34367A85B49560
 ```
 
-Each complete cycle automatically:
+The program is installed under `%LocalAppData%\Programs\InvestmentAuto`, while user data lives under `%LocalAppData%\InvestmentAuto`. In-place upgrades preserve accounts, holdings, reports, configuration, credentials, and sessions. The 2.1.3 on-machine upgrade check preserved all 76,167 user-data files with zero missing or changed files.
 
-1. Retrieves the security universe for the selected market.
-2. Excludes ST/delisting names, low-liquidity securities, abnormal moves, and securities outside price or market-cap limits.
-3. Scores momentum, trend, liquidity, valuation, volume, and volatility factors.
-4. Selects qualified candidates and merges them with current holdings.
-5. Runs technical, sentiment, news-event, and fundamental research for every symbol.
-6. Runs bull, bear, and research-manager debate.
-7. Produces a buy, hold/watch, or sell recommendation for each symbol.
-8. Lets the portfolio manager consolidate all recommendations.
-9. Runs aggressive, neutral, and conservative risk reviewers followed by the risk manager.
-10. Reapplies deterministic position, cash, turnover, stop-loss, and drawdown constraints in code.
-11. Executes paper orders and updates the account.
-12. Generates a complete report and delivers it to chat or a webhook.
-13. Evaluates decisions after T+1, T+5, and T+20 market data becomes available and stores reusable outcomes.
+## Run from Source
 
-## Agent Workflow
+Python 3.10+, Node.js 22+, and the .NET 8 SDK are required; .NET is needed only when building the desktop shell.
 
-The system contains 13 role types across 14 execution nodes:
-
-- Market technical analyst
-- Market sentiment analyst
-- News and events analyst
-- Fundamentals analyst
-- Bull researcher
-- Bear researcher
-- Research manager
-- Per-symbol trader
-- Portfolio manager
-- Aggressive risk analyst
-- Neutral risk analyst
-- Conservative risk analyst
-- Risk manager
-
-The portfolio manager runs twice—once to create the pre-risk draft and once to produce the post-risk final portfolio—so the graph has 14 execution nodes.
-
-Every factual conclusion must cite evidence IDs produced by the system. Missing citations, fabricated references, or invalid structured output cause a retry or close the subjective trading path for that cycle. The model cannot bypass validation and submit an order directly.
-
-Hard stops, trailing stops, staged take-profit rules, and maximum-drawdown liquidation are enforced independently in code and do not depend on a successful model response.
-
-## Windows Quick Start
-
-### Requirements
-
-- Windows 10 or Windows 11
-- Python 3.10+
-- Node.js 18+
-- At least one configured LLM API key
-
-### First Run
-
-1. Download `InvestmentAuto-Windows-v0.4.0.zip` from [GitHub Releases](https://github.com/Robertzsy/investment-auto/releases).
-2. Extract it to a stable directory, for example `D:\investment-auto`.
-3. Run `Setup-Windows.cmd` once.
-4. Enter an LLM API key in `.env` or on the Settings page.
-5. Double-click `InvestmentAuto.exe`.
-
-The setup script creates a Python virtual environment, installs locked dependencies, creates the local `.env`, and initializes the paper account.
-
-The launcher can:
-
-- Start the investment Agent, scheduler, and management chat
-- Open the management UI automatically
-- Display service health
-- Stop project services
-- Enable or disable startup after Windows sign-in
-- Avoid starting duplicate services
-
-The launcher does not embed API keys, holdings, reports, or trade history in the EXE.
-
-> The current EXE is a project launcher, not a fully self-contained binary. Python and Node.js are still required, and first-time users must run `Setup-Windows.cmd`.
-
-## Install from Source
-
-```bash
-git clone https://github.com/Robertzsy/investment-auto.git
-cd investment-auto
-
+```powershell
+# Install Python dependencies
 python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e .
 
-# Windows
-.venv\Scripts\python -m pip install -r requirements-lock.txt
+# Terminal 1: start the investment engine
+.\.venv\Scripts\python.exe -m engine.main serve
 
-# Linux/macOS
-.venv/bin/python -m pip install -r requirements-lock.txt
-
-cp .env.example .env
-python -m src.main init
+# Terminal 2: start the Investment Auto web product shell
+.\app\scripts\dev.ps1 -Port 4567
 ```
 
-Start the standalone investment Agent:
+Open `http://127.0.0.1:4567`, then configure the model and API key in Settings.
 
-```bash
-python -m src.main run
+## Core Investment Logic
+
+Investment Auto's investment intelligence is built from three deterministic blocks: **exclude, score, and explain screening**, a **13-role committee-style analysis**, and **risk discipline the AI cannot bypass**.
+
+- **Screening**: hard filters first (symbol normalization, minimum price / turnover / market cap, PE/PB caps, excluding ST/delisting/warrants), then a six-factor weighted ranking with Chinese-language evidence per pick;
+- **Multi-role analysis**: five stages and 13 roles (technical/fundamental/news/sentiment → bull-bear debate → research manager and trader → portfolio draft → three-way risk debate → risk manager → portfolio manager); conclusions must cite evidence, and under-researched holdings are forced to HOLD;
+- **Decision and risk control**: a three-tier strategy mandate defines hard boundaries; position = min(market per-stock cap, strategy per-stock cap); a drawdown circuit breaker force-liquidates; stop-loss/take-profit outrank AI suggestions; trading is limited to the allowed pool and prices are fetched live by the engine.
+
+See [Investment Logic](docs/INVESTMENT_LOGIC_EN.md) for the full details: factor formulas, role responsibilities, risk parameters, and a business-value assessment.
+
+## Architecture
+
+```text
+Windows WPF + WebView2
+          │
+Investment Auto product shell
+          │
+DSH conversation / tools / Skills / subagents / workflows
+          │  token-protected loopback HTTP API
+Python investment engine
+          │
+market data, screening, portfolio, risk, paper broker, audit, scheduler
 ```
 
-Start the management chat in a second terminal:
+- `app/`: DSH profiles, preset, Skills, investment tools bridge, fixed workflow, and product UI.
+- `engine/`: investment facts, configuration, cycle state, hard risk controls, paper broker, and scheduler.
+- `windows/desktop/`: WPF/WebView2 shell and process lifecycle.
+- `installer/`: self-contained Windows installer.
+- `tests/`: engine, recovery, idempotency, configuration, and desktop regressions.
 
-```bash
-python -m src.main chat
-```
+## Version History
 
-Open <http://127.0.0.1:8080>.
-
-The management chat and investment Agent run as separate processes. Closing or restarting the chat UI does not interrupt the investment scheduler.
-
-## Docker
-
-```bash
-docker compose up -d --build
-docker compose ps
-docker compose logs -f scheduler chat
-```
-
-Open <http://127.0.0.1:8080>.
-
-Docker Compose starts the investment Agent and scheduler, management chat, and MongoDB. The UI port binds to `127.0.0.1` by default and is not exposed directly to the public network.
-
-## Operating Modes
-
-### Manual Mode
-
-A cycle runs only when the user clicks the complete-cycle button or requests a cycle through chat. One trigger completes screening, research, decisions, risk checks, paper execution, and reporting without step-by-step approval.
-
-### Automatic Mode
-
-The system runs the same complete investment cycle at the configured schedule for each market. After every run it saves a local report, delivers the report to the AI chat, optionally posts to a webhook, and stores audit and reflection records.
-
-Both modes use the same end-to-end pipeline; automatic mode does not stop after screening.
-
-## Investment Mandates
-
-The system offers three versioned investment mandates.
-
-| Mandate | Objective | Typical constraints |
-|---|---|---|
-| Conservative | Limit drawdown and retain more cash | Higher confidence threshold and lower total/single-position limits |
-| Neutral | Balance growth and drawdown | Moderate exposure, confidence, and turnover limits |
-| Aggressive | Accept more volatility in pursuit of growth | More exposure and turnover capacity, still bounded by hard risk controls |
-
-These are not prompt-only profiles. Each mandate combines an objective prompt with deterministic limits for minimum confidence, total exposure, single-position exposure, order value, cash reserve, cycle turnover, order count, daily trades, and maximum drawdown.
-
-An immutable mandate snapshot is created at the start of every cycle and written to the audit trail and report.
-
-## Broad-Market Screening
-
-The default discovery sources are:
-
-- A-shares, Hong Kong stocks, and ETFs: Sina market endpoints
-- U.S. stocks: NASDAQ Screener
-
-The pipeline performs broad-market discovery, deterministic filtering, quote prefetching, multi-factor scoring, and candidate selection before merging candidates with existing holdings for multi-agent research.
-
-MongoDB can persist and index:
-
-- `securities`
-- `market_snapshots`
-- `screening_factors`
-- `screening_runs`
-
-If MongoDB is not configured or becomes unavailable, the system automatically falls back to JSON under `runtime/screener/` without blocking the investment cycle.
-
-## Paper Execution and Hard Risk Controls
-
-The system currently allows only:
-
-```yaml
-trading:
-  mode: paper
-```
-
-Code-enforced controls include:
-
-- Per-cycle allowed symbol pool
-- Minimum investment confidence
-- Total and single-position exposure limits
-- Maximum order value and cycle turnover
-- Minimum cash reserve
-- Per-cycle order count and daily trade count
-- Maximum account drawdown
-- Hard stop, trailing stop, and two-stage take-profit rules
-- A-share board-lot and T+1 constraints
-- Commission, slippage, and stamp duty
-- Emergency kill switch
-
-Models can submit recommendations only. They cannot bypass deterministic controls or modify the account directly.
-
-## Management Chat Agent
-
-The AI chat is the management plane; the investment Agent is the execution plane.
-
-The management chat can:
-
-- Inspect Agent and scheduler status
-- Trigger a complete investment cycle
-- Switch manual and automatic modes
-- Change the investment mandate
-- Pause, resume, or emergency-stop the system
-- Inspect reports, logs, and execution evidence
-- Modify project code and configuration
-- Run tests and roll back failed changes
-- Install project-local Skills
-- Register project-local Tools
-- Build management reflections from past errors
-
-The chat uses native model tool calls rather than keyword-based business routing.
-
-## Reflection and Memory
-
-The project maintains two isolated memory systems.
-
-### Investment Agent Memory
-
-Investment decisions and subsequent outcomes are recorded separately. A current-cycle conclusion starts as pending and becomes reusable experience only after real T+1, T+5, or T+20 follow-up market data is available.
-
-### Management Chat Memory
-
-The manager records long-term user goals, tool paths, change outcomes, historical errors, external verification status, and reusable repair experience. Unvalidated self-reflection does not become investment experience.
-
-## Reports and Notifications
-
-Every cycle report is saved under `runtime/reports/`, and scheduled reports are delivered to the AI management chat.
-
-For external delivery, configure:
-
-```env
-NOTIFY_WEBHOOK_URL=https://your-server.example.com/webhook
-```
-
-Then enable:
-
-```yaml
-notify:
-  enabled: true
-  channels:
-    - webhook
-```
-
-The webhook receives JSON in this shape:
-
-```json
-{
-  "title": "U.S. complete investment-cycle report",
-  "text": "Report body",
-  "content": "Report body",
-  "report_file": "20260813-us-1300.md",
-  "metadata": {
-    "market": "us",
-    "label": "1300"
-  }
-}
-```
-
-A delivery failure does not roll back completed paper trades.
-
-## Common Commands
-
-```bash
-# Version and status
-python -m src.main version
-python -m src.main status
-
-# Refresh screening only; do not trade
-python -m src.main screen --market cn
-
-# Run one complete cycle
-python -m src.main once --market us
-
-# Autonomous dry-run / paper execution
-python -m src.main autonomous --market us --dry-run
-python -m src.main autonomous --market us
-
-# Catch up missed runs / generate market-environment report
-python -m src.main catchup --market cn
-python -m src.main macro
-
-# Pause, resume, and emergency stop
-python -m src.main pause --reason "manual inspection"
-python -m src.main resume
-python -m src.main kill --reason "abnormal market conditions"
-python -m src.main reset-kill
-```
-
-| Market | Argument |
+| Version | Core changes |
 |---|---|
-| Mainland China A-shares | `cn` |
-| Hong Kong stocks | `hk` |
-| U.S. stocks | `us` |
-| Exchange-traded ETFs | `etf` |
+| 2.0.0 | Replaced the 1.x custom Agent/window split with DSH-native conversations, tools, Skills, subagents, and workflows. Investment business logic moved into an independent Python engine, with a Windows desktop release, DPAPI credentials, and 1.x data migration. |
+| 2.1.0 | Turned “DSH plus an investment preset” into the standalone Investment Auto product. The UI gained a Dashboard, live Analysis Workflow, and Settings while removing workspace/mode selection and runtime branding. Native DSH conversation, reasoning, streaming, and tool rendering remained unchanged. |
+| 2.1.1 | Separated stock screening from security analysis. User-specified symbols now enter the fixed full workflow directly. Added asynchronous cycles, status polling, and first-generation execution idempotency to eliminate ad-hoc window analysis, long-request timeouts, and duplicate starts. |
+| 2.1.2 | Added durable broker receipts, decision fingerprints, cross-process leases, restart recovery, and strong binding between user-requested symbols and completed analysis. Internal headless and role sessions moved to an isolated DSH Home and no longer pollute the user session list. |
+| 2.1.3 | Enabled IA filesystem, PowerShell, search, background-job, and Ralph self-maintenance capabilities. Added the self-maintenance Skill and fixed workflow-schema compatibility, failed-cycle retry races, Windows atomic writes, and accidental packaging of development data. |
 
-## Configuration and Data
+See the [Chinese changelog](CHANGELOG.md), [English changelog](CHANGELOG_EN.md), and [bilingual v2.1.3 release notes](docs/RELEASE_NOTES_2.1.3.md) for the complete record.
 
-| Path | Purpose |
-|---|---|
-| `config/config.yaml` | Main configuration, models, markets, schedules, screening, and autonomous trading |
-| `config/market/*.yaml` | Per-market trading rules and risk limits |
-| `.env` | Local secrets such as API keys, MongoDB URI, and webhook URL |
-| `runtime/data/` | Paper accounts and local data |
-| `runtime/reports/` | Complete investment reports |
-| `runtime/trading/audit/` | Decision, risk, and paper-fill audit trail |
-| `runtime/screener/` | Broad-market screening cache and results |
-| `runtime/memory/` | Investment and management Agent memories |
-| `runtime/logs/` | System logs |
+## Safety Boundaries
 
-`.env`, positions, reports, logs, and other runtime data are not committed to Git.
+IA runs with the DSH `danger-full-access` preset. Within the current Windows user's authority, it can inspect logs, modify project source, run PowerShell, execute tests and builds. System permissions and trading authority remain separate:
 
-## Tests
+- Paper accounts and the paper broker are mandatory.
+- Manual submissions still require user approval.
+- Every decision must pass the Python mandate and deterministic risk checks.
+- Cycle IDs, decision fingerprints, and account-embedded execution receipts prevent duplicate fills.
+- API keys and webhooks are stored through Windows DPAPI and never written to ordinary configuration or logs.
+- Headless and role subagent sessions live in an isolated internal DSH Home and do not enter the user session list.
 
-```bash
-python -m pytest -q
+## Tests and Release Gate
+
+Investment Auto 2.1.3 passed:
+
+- 184 Python tests.
+- 22 Node plugin tests.
+- 20 Windows desktop tests.
+- Skills and plugin composition checks, real-profile validation, in-place upgrade verification, and a live recovery of the complete AAPL workflow.
+
+Run the complete release gate with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\release-check.ps1
 ```
 
-Current release result: `157 passed`.
+## Documentation
 
-Run a read-only smoke test of the complete Agent graph:
+- [Investment Logic (EN)](docs/INVESTMENT_LOGIC_EN.md) · [投资逻辑详解](docs/INVESTMENT_LOGIC.md)
+- [2.0 architecture](docs/ARCHITECTURE_2.0.md) · [Engine API](docs/ENGINE_API.md) · [Product shell](docs/PRODUCT_SHELL.md) · [App runtime guide](app/README.md)
 
-```bash
-python scripts/smoke-agent-workflow.py --market us --symbol NVDA
-```
+## Branches and Compatibility
 
-## Safety Notice
-
-- Paper trading only; no live-broker integration
-- Never commit `.env`
-- Never publish LLM API keys, MongoDB URIs, or webhook URLs
-- Run a dry-run before enabling fully automatic operation for the first time
-- Review market schedules, trading rules, and risk limits before use
-- Quotes and news rely on public third-party data and may be delayed, incomplete, or incorrect
-- AI output may contain factual, analytical, or formatting errors
-- Nothing in this project constitutes investment advice
+- `dsch/2.0`: current 2.x development and release branch.
+- `master`: retained 1.x (v0.9.1) history and fallback.
+- 1.x user data can be migrated to 2.x; migration and in-place upgrades never delete the source data.
 
 ## License
 

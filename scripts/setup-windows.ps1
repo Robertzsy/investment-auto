@@ -1,4 +1,4 @@
-param([switch]$SkipPortfolioInit)
+﻿param([switch]$SkipPortfolioInit)
 
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot

@@ -1,0 +1,248 @@
+# The `investment` agent preset for Investment Auto 2.0.
+#
+# AGENT-PLANE composition (mounted once per process under a standing scope;
+# every session naming this preset joins by scope parentage). Service rows
+# inside groups carry an `isolate` realm; registries (tools/skills/goals/
+# subagents/workflows) stay on the host plane of the investment-web /
+# investment profiles.
+#
+# Derived from the shipped `standard` preset with its full coding surface.
+# Investment Auto is intentionally self-maintaining: the main IA can inspect
+# logs and source, edit files, run tests/builds, and repair or update the
+# application it is serving. The desktop launcher fixes DSH permission mode to
+# danger-full-access, so these tools do not stop on an approval prompt that a
+# background repair cannot answer.
+#
+# Bare package names resolve from the host composition; relative paths
+# resolve from this preset's own directory.
+
+# ── identity ────────────────────────────────────────────────────────────────
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: >-
+      You are Investment Auto 2.1, a professional multi-market investment
+      assistant powered by the {{model}} model. Your working directory is
+      {{cwd}}. You help the user with A股/港股/美股/ETF market research,
+      security analysis, stock screening, portfolio review and optimization,
+      risk control, paper trading, scheduling, and reporting. Converse
+      naturally and concisely like a general assistant; ask for clarification
+      when an investment goal is ambiguous. For any proposal that would
+      change the portfolio or place orders, present a plan first and wait for
+      the user's approval. All trading is simulated paper trading executed by
+      the local engine under hard risk controls — you can never bypass them
+      and must never claim real-money capability. Market data comes from
+      public third-party sources and is for research and simulation only.
+      Base every market fact on the investment tools instead of guessing.
+
+      You are also the maintainer of Investment Auto itself. When a product
+      defect blocks a user request or the user asks for a repair/update, use
+      the native filesystem, search and PowerShell tools to inspect the real
+      logs and source tree, make the smallest coherent source change, run the
+      relevant tests, and retry the failed operation. The authoritative
+      application root is provided in INVESTMENT_AUTO_ROOT; edit product
+      source there rather than generated DSH_HOME copies. Preserve unrelated
+      user changes and user data. Before replacing a running installed build,
+      create a recoverable backup, verify the candidate, and retain enough
+      audit detail to explain and roll back the change. Do not weaken the
+      trading engine's approval, idempotency, or hard-risk boundaries while
+      repairing the software.
+
+      Analysis routing is fixed and must be followed exactly:
+      - Stock selection and stock analysis are two separate blocks. A user
+        request for screening runs the screening block (investment_screening
+        / investment_run_screening) and outputs a standardized candidate
+        list. A user request that names specific securities skips screening
+        entirely.
+      - Deep/complete analysis of specific securities is ALWAYS executed by
+        the fixed workflow investment_analysis_workflow. Pass the user's
+        symbols with symbols_source="user"; pass screening results with
+        symbols_source="screening". Never re-implement the multi-role
+        analysis yourself with raw market/news tools — the fixed workflow is
+        the only trusted implementation. After launching it, poll
+        investment_analysis_status(cycle_id=...) until the run is terminal
+        and then summarize its result for the user.
+      - The legacy investment_run_cycle tool no longer exists; do not look
+        for it. "跑一轮完整分析" and "完整分析某只股票" both mean
+        investment_analysis_workflow.
+      - Simple queries (a price, a position, one indicator) may still use the
+        plain tools directly. Only the fixed workflow decides BUY/SELL/HOLD
+        targets in a complete analysis.
+      - The analysis itself needs no approval and never trades. When the run
+        reaches ready_for_execution, present its final decisions and wait for
+        the user's explicit approval; then submit EXACTLY those decisions
+        through investment_submit_decisions with
+        idempotency_key = the run's cycle_id. The engine verifies the content
+        against the run's recorded decision fingerprint (any change is
+        rejected) and guarantees the key executes at most once, so retries can
+        never duplicate fills.
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# ── shell, filesystem and background jobs ─────────────────────────────────
+
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: !!js process.platform !== 'win32'
+
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+# ── skills ──────────────────────────────────────────────────────────────────
+
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+# ── goals ───────────────────────────────────────────────────────────────────
+
+- id: tool-goal
+  name: '@deepseek-ai/dsh-tool-goal'
+
+# ── plan mode (investment-oriented) ─────────────────────────────────────────
+
+- id: planning
+  name: cordis:group
+  group: true
+  isolate:
+    planMode: true
+  config:
+    - id: plan-mode
+      name: '@deepseek-ai/dsh-plan-mode'
+      config:
+        section: |
+              You are in plan mode. Stay in plan mode until exit_plan_mode succeeds or the user switches the session mode. Imperative language to implement changes means plan the implementation, not execute it. A user's conversational agreement — including an answer confirming something you asked — approves nothing and does not end plan mode; fold the confirmed decision into the plan and submit it through exit_plan_mode.
+
+              Explore first. Use non-mutating reads (market data, screening, portfolio status, reports) to ground the plan in real facts. Do not place orders, change the mandate, reset accounts, or otherwise mutate the portfolio while in plan mode.
+
+              For an investment plan, be decision-complete: state the goal and success criteria; the analysis basis with tool results; candidate changes with symbols, direction, size and price; risk-control checks (position caps, cash reserve, turnover); and the exact confirmation steps the user will approve. Keep it concise enough to review but detailed enough that execution needs no further design decisions.
+
+              Resolve discoverable facts by inspection and tool use. Use ask_user_question only for user-owned choices or material ambiguity that inspection cannot answer.
+
+              When ready, call exit_plan_mode with the complete plan markdown, starting with a # title. Make exit_plan_mode the only and final tool call in that assistant response: it presents the plan for approval, and implementation begins only in a later step after approval. Do not paste the final plan as a plain reply or ask "should I proceed?" through prose or ask_user_question. If review rejects it, incorporate the feedback and present again. If the review channel is unavailable or aborted, stay in plan mode and ask the user to switch modes manually; do not proceed with implementation.
+
+# ── compaction ──────────────────────────────────────────────────────────────
+
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024
+
+# ── delegation and workflows ────────────────────────────────────────────────
+
+- id: delegation
+  name: cordis:group
+  group: true
+  isolate:
+    workflowEngine: true
+  config:
+    - id: tool-subagent-control
+      name: '@deepseek-ai/dsh-tool-subagent-control'
+
+    - id: tool-subagent-list-agents
+      name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
+
+    - id: tool-subagent
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent
+        backgroundMode: continuable
+
+    - id: tool-subagent-fork
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: fork
+        toolName: subagent_fork
+        backgroundMode: one-shot
+
+    - id: tool-subagent-codex
+      name: '@deepseek-ai/dsh-tool-subagent'
+      disabled: true
+      config:
+        provider: codex
+        toolName: subagent_codex
+        enableRunInBackground: false
+        maxDepth: provider-managed
+
+    - id: tool-subagent-claude-code
+      name: '@deepseek-ai/dsh-tool-subagent'
+      disabled: true
+      config:
+        provider: claude-code
+        toolName: subagent_claude_code
+        enableRunInBackground: false
+        maxDepth: provider-managed
+
+    - id: workflow-worker-thread
+      name: '@deepseek-ai/dsh-workflow-worker-thread'
+      config:
+        provider: spawn
+
+    # The fixed investment workflow must live in this agent-plane scope: it
+    # consumes the isolated workflowEngine above while registering its one
+    # model-facing entry in the inherited tools registry.
+    - id: investment-analysis-workflow
+      name: '@investment-auto/dsh-investment-workflow'
+      config:
+        engineUrl: 'http://127.0.0.1:8790'
+
+    - id: tool-workflow
+      name: '@deepseek-ai/dsh-tool-workflow'
+
+    - id: tool-ralph
+      name: '@deepseek-ai/dsh-tool-ralph'
+      config:
+        subagentProvider: spawn
+        maxRounds: 64
+
+# ── remaining model-facing rows ─────────────────────────────────────────────
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: true
+
+# Web search for market news and macro research. The `web` service and its
+# search provider stay in the host composition.
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: false
+    searchTimeoutMs: 60000

@@ -1,4 +1,4 @@
-"""Regression tests for scheduler weekday mapping and container deployment."""
+"""Regression tests for scheduler weekday mapping (2.0 engine)."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -18,13 +18,13 @@ def _next_fire(trigger, after: datetime) -> datetime:
 
 
 def test_scheduler_root_is_repository_root():
-    from src import scheduler
+    from engine import scheduler
 
     assert scheduler.ROOT == REPO_ROOT
 
 
 def test_market_triggers_use_apscheduler_weekday_numbering(monkeypatch):
-    from src import scheduler
+    from engine import scheduler
 
     monkeypatch.setitem(scheduler.cfg.schedule, "weekdays_only", True)
     monkeypatch.setitem(scheduler.cfg.schedule, "us_early_morning_days", "1-5")
@@ -47,7 +47,7 @@ def test_market_triggers_use_apscheduler_weekday_numbering(monkeypatch):
 
 
 def test_scheduler_respects_weekdays_only_false(monkeypatch):
-    from src import scheduler
+    from engine import scheduler
 
     monkeypatch.setitem(scheduler.cfg.schedule, "weekdays_only", False)
     timezone = ZoneInfo("Asia/Shanghai")
@@ -58,7 +58,7 @@ def test_scheduler_respects_weekdays_only_false(monkeypatch):
 
 
 def test_us_early_morning_days_are_configured_and_normalized(monkeypatch):
-    from src import scheduler
+    from engine import scheduler
 
     config = yaml.safe_load((REPO_ROOT / "config" / "config.yaml").read_text(encoding="utf-8"))
     assert config["schedule"]["us_early_morning_days"] == "1-5"
@@ -71,47 +71,3 @@ def test_us_early_morning_days_are_configured_and_normalized(monkeypatch):
 
     with pytest.raises(ValueError):
         scheduler._normalize_days("1-7")
-
-
-def test_compose_runs_scheduler_and_loopback_only_chat():
-    compose = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
-    services = compose["services"]
-
-    assert set(services) == {"mongodb", "scheduler", "chat"}
-    assert services["mongodb"]["image"] == "mongo:7"
-    assert services["mongodb"]["volumes"] == ["mongodb-data:/data/db"]
-    assert "ports" not in services["mongodb"]
-    assert services["scheduler"]["command"][-1] == "run"
-    assert services["chat"]["command"][-1] == "chat"
-    assert services["chat"]["environment"] == {
-        "CHAT_HOST": "0.0.0.0",
-        "CHAT_PORT": 8080,
-        "CHAT_OPEN_BROWSER": "false",
-        "CHAT_START_SCHEDULER": "false",
-        "INVESTMENT_AGENT_TRANSPORT": "queue",
-        "MONGODB_URI": "mongodb://mongodb:27017",
-    }
-    assert services["scheduler"]["environment"]["MONGODB_URI"] == "mongodb://mongodb:27017"
-    assert services["scheduler"]["depends_on"] == ["mongodb"]
-    assert services["chat"]["depends_on"] == ["mongodb"]
-    assert services["chat"]["ports"] == ["127.0.0.1:8080:8080"]
-    assert "ports" not in services["scheduler"]
-
-    expected_volumes = {"./config:/app/config", "./runtime:/app/runtime"}
-    assert set(services["scheduler"]["volumes"]) == expected_volumes
-    assert set(services["chat"]["volumes"]) == expected_volumes
-    assert "mongodb-data" in compose["volumes"]
-
-
-def test_container_context_and_runtime_chat_files_are_excluded():
-    dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
-    dockerignore = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
-    gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
-    main_source = (REPO_ROOT / "src" / "main.py").read_text(encoding="utf-8")
-
-    assert "EXPOSE 8080" in dockerfile
-    for pattern in (".env", ".git", ".venv", "runtime"):
-        assert pattern in dockerignore
-    assert "/runtime/chat_*" in gitignore
-    for variable in ("CHAT_HOST", "CHAT_PORT", "CHAT_OPEN_BROWSER", "CHAT_START_SCHEDULER"):
-        assert variable in main_source

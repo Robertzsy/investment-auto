@@ -1,0 +1,12 @@
+{
+  "name": "@investment-auto/dsh-investment-tools",
+  "version": "2.0.0-p2",
+  "description": "Investment Auto 2.0 engine bridge and checkpointed multi-role analysis workflow",
+  "type": "module",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "0.1.0-rc.6"
+  }
+}

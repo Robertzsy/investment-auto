@@ -1,0 +1,124 @@
+# Investment Auto 2.0 — web profile patch layer.
+#
+# Applied over the bundle layers (dsh-base then dsh-web-app), before the
+# home-level $DSH_HOME/cordis.patch.yml and any --patch overlays.
+# A patch replaces the targeted row's whole `config` — restate fields you keep.
+# This file is seeded into $DSH_HOME/profiles/investment-web/ by
+# app/scripts/seed.ps1 (dev) and by the desktop installer (production).
+
+# Deployment persona for preset-less agents. The investment agent preset
+# carries its own persona and shadows this one per session.
+- id: system-prompt
+  config:
+    persona: >-
+      You are Investment Auto 2.1, a professional multi-market investment
+      assistant powered by the {{model}} model. Your working directory is
+      {{cwd}}. Deep or complete analysis of specific securities always runs
+      through the fixed workflow investment_analysis_workflow (user symbols
+      via symbols_source="user", screening results via
+      symbols_source="screening"); stock screening is its own separate block.
+      Never re-implement the multi-role analysis with raw market/news tools,
+      and remember the legacy investment_run_cycle tool no longer exists.
+
+# The investment preset is the default for new sessions. roots is owned by
+# the boot overlay (shipped system presets only); the harness-home user root
+# ($DSH_HOME/.agent-presets) is appended by the package and carries our
+# seeded `investment` preset.
+- id: agent-presets
+  config:
+    default: investment
+    includeUserRoot: true
+
+# Keep telemetry off for this product regardless of environment.
+- id: session-telemetry-otel
+  config:
+    mode: DISABLED
+    shutdownTimeoutMillis: 3000
+    exporter:
+      url: !!js process.env.DSH_TELEMETRY_OTLP_URL ?? 'https://harness-telemetry.deepseeksvc.com/v1/logs'
+      compression: gzip
+      timeoutMillis: 1000
+    processor:
+      scheduledDelayMillis: 10000
+      maxQueueSize: 2048
+      maxExportBatchSize: 2048
+      exportTimeoutMillis: 1500
+
+# ── investment engine bridge (host plane) ──────────────────────────────────
+#
+# The bridge tools register into the host `tools` registry, so every agent
+# preset mounted in this profile (the investment preset) sees them. The
+# plugin package itself is seeded into this profile's node_modules by
+# app/scripts/seed.ps1. engineUrl can be overridden per machine via the
+# INVESTMENT_ENGINE_URL environment variable.
+- insert:
+    - id: investment-tools
+      name: '@investment-auto/dsh-investment-tools'
+      config:
+        engineUrl: 'http://127.0.0.1:8790'
+
+# ── browser roster: investment tool cards ──────────────────────────────────
+#
+# Client plugin registering keyed tool views (tool.call.toolview) for
+# investment_status / investment_portfolio / investment_mandate. The modules
+# node half scans this row into window.__DSH_BOOT__ and serves its client.js.
+- insert:
+    - id: investment-ui
+      name: '@investment-auto/dsh-investment-ui'
+
+# ── product shell: replace the DSH default frame ────────────────────────────
+#
+# The product ships as Investment Auto, not as a DSH interface: the layout /
+# sidebar / workspace / mode-preset / plugin surfaces are disabled and the
+# @investment-auto/dsh-product-shell plugin takes over the `root` slot with
+# the product left navigation (Dashboard / 投资助手 / 分析流程 / 设置), a flat
+# session list, investment context, and the product settings shell. The conversation kernel
+# (ui-conversation) and every thinking/streaming/tool-chain component are
+# left untouched — the shell only renders the `conversation` slot as-is.
+- id: ui-layout
+  disabled: true
+
+- id: ui-sidebar
+  disabled: true
+
+- id: ui-workspace
+  disabled: true
+
+- id: ui-settings-general
+  disabled: true
+
+- id: ui-settings-plugin-inventory
+  disabled: true
+
+- id: ui-settings-plugins
+  disabled: true
+
+- id: ui-agent-preset
+  disabled: true
+
+- id: ui-permission
+  disabled: true
+
+- id: ui-cordis
+  disabled: true
+
+- id: ui-model-selection
+  disabled: true
+
+- id: ui-workflow-run
+  disabled: true
+
+# The web-runtime row exposes model-visible prompt sections naming the DSH
+# GUI ("harness:source" / "app:web-surface"). surfaceContext:false removes
+# them; the rest of the config is restated unchanged.
+- id: web-runtime
+  config:
+    printUrl: true
+    surfaceContext: false
+    trustedHosts: !!js ctx.webStartup.trustedHosts
+
+# Product shell (client half: root frame + dashboard + settings pages; node
+# half: fixed workspace + /api/investment/* engine proxy).
+- insert:
+    - id: product-shell
+      name: '@investment-auto/dsh-product-shell'

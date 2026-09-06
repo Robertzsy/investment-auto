@@ -5,9 +5,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from src.optimizer import runner
-from src.ui import chat_server
-from src.ui.server import _optimizer_files
+from engine.optimizer import runner
 
 
 def _history(symbol: str, **_: object) -> dict:
@@ -96,40 +94,3 @@ def test_optimizer_lock_rejects_parallel_run(monkeypatch, tmp_path):
     monkeypatch.setattr(runner.fetcher, "history", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("must not fetch")))
     with pytest.raises(RuntimeError, match="已有任务正在运行"):
         runner.run_optimizer(market="cn", output_dir=tmp_path)
-
-
-def test_dashboard_optimizer_files_are_filtered_by_market(tmp_path):
-    (tmp_path / "20260811-120000-cn.json").write_text("{}", encoding="utf-8")
-    (tmp_path / "20260811-130000-us.json").write_text("{}", encoding="utf-8")
-    assert [path.name for path in _optimizer_files(tmp_path, "cn")] == ["20260811-120000-cn.json"]
-    assert [path.name for path in _optimizer_files(tmp_path, "us")] == ["20260811-130000-us.json"]
-    assert len(_optimizer_files(tmp_path, "all")) == 2
-
-
-def test_chat_optimizer_request_uses_manager_tool(monkeypatch):
-    result = {
-        "market": "cn",
-        "symbols": ["600519", "000858"],
-        "observations": 120,
-        "recommended_scheme": "risk_parity",
-        "output_file": "runtime/optimizer/test.json",
-        "schemes": {
-            "risk_parity": {
-                "weights": {"600519": 0.5, "000858": 0.5},
-                "metrics": {"annual_return": 0.1, "annual_volatility": 0.2, "sharpe": 0.4},
-                "stress": {"var95": -0.02, "max_drawdown": -0.08},
-            }
-        },
-        "dropped_symbols": {},
-    }
-    monkeypatch.setattr("src.ui.agent_runtime.run_agent_events", lambda *args, **kwargs: iter([
-        {"type": "tool", "name": "consult_portfolio_agent", "params": {}},
-        {"type": "result", "content": "组合优化已由管理 Agent 执行"},
-    ]))
-    events = list(chat_server.handle_chat_stream("运行一次优化器分析", request_id="optimizer-fast-path"))
-
-    assert events[1]["type"] == "tool"
-    assert events[1]["name"] == "consult_portfolio_agent"
-    assert events[-1]["type"] == "final"
-    assert "组合优化已由管理 Agent 执行" in events[-1]["content"]
-    assert "工具调用轮次" not in events[-1]["content"]

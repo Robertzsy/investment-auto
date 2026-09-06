@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from src.data import research
+from engine.data import research
 
 
 def test_research_packet_records_missing_provider_without_fabricating(monkeypatch, tmp_path):

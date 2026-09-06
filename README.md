@@ -1,384 +1,149 @@
-# Investment Auto
+# AI 驱动多市场投资研究与模拟交易自动化系统
+
+**investment-auto**
 
 [简体中文](README.md) | [English](README_EN.md)
 
-面向 A 股、港股、美股和场内 ETF 的 AI 多 Agent 自动化模拟投资系统。
+[![Release](https://img.shields.io/badge/release-v2.1.3-brightgreen)](https://github.com/Robertzsy/ai-trading-automation/releases/tag/v2.1.3)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-lightgrey)]()
 
-系统可以从全市场筛选候选股票，结合现有持仓完成多阶段研究、投资辩论、组合决策、硬风控、模拟成交和报告生成。支持人工触发和全自动调度两种运行模式。
+Investment Auto 2.1.3 是一款面向 A 股、港股、美股和场内 ETF 的投资研究与**模拟交易**桌面应用，内置确定性选股、13 角色多智能体分析和硬风控撮合。2.x 基于 DeepSeek Harness（DSH）深度改造，对用户呈现为独立产品：只有 Dashboard、投资助手、分析流程和设置。
 
-> 本项目仅支持模拟交易，不连接真实券商，不应直接用于真实资金交易。
+> 本项目只支持研究与模拟交易，不连接真实券商，也不应直接用于真实资金决策。
 
-[下载 Windows v0.4.0](https://github.com/Robertzsy/investment-auto/releases/tag/v0.4.0)
+## 目录
 
-## 核心能力
+- [特性](#特性)
+- [安装](#安装)
+- [从源码运行](#从源码运行)
+- [核心投资逻辑](#核心投资逻辑)
+- [架构](#架构)
+- [版本历史](#版本历史)
+- [安全边界](#安全边界)
+- [测试与发行](#测试与发行)
+- [文档](#文档)
+- [分支与兼容性](#分支与兼容性)
+- [许可证](#许可证)
 
-- 支持 A 股、港股、美股、场内 ETF 四个市场
-- 从全市场发现候选标的，不依赖固定股票列表
-- 自动分析新候选和已有持仓
-- 自动输出 `BUY`、`HOLD`、`SELL` 决策
-- 自动执行模拟撮合并更新现金、持仓和交易记录
-- 支持保守、中立、激进三种投资策略
-- 支持手动模式与全自动模式
-- 支持定时执行、启动补跑和收盘总结
-- 自动生成完整投资报告
-- 报告自动进入 AI 对话窗口，也可通过 Webhook 外部推送
-- MongoDB 加速选股、研究记录和记忆查询
-- MongoDB 不可用时自动回退到本地 JSON
-- 独立的投资 Agent 与管理对话 Agent
-- 支持 Agent 反思、结果型记忆、动态 Skill 和 Tool
-- Windows EXE 一键启动和开机自动启动
+## 特性
 
-## 完整投资流程
+- **四市场一站式**：A 股 / 港股 / 美股 / 场内 ETF 统一行情、选股、分析与模拟账户；T+1/T+0、整手、涨跌停、佣金、印花税、滑点等市场规则内建。
+- **确定性选股**：硬筛选 + 六因子加权评分（动量 / 趋势 / 流动性 / 估值 / 量能 / 低波动），每只入选股附中文证据，权重与阈值可配置。
+- **13 角色委员会式分析**：四路基础研究 → 多空辩论 → 研究经理与逐标的交易员 → 组合草案 → 三方风险辩论 → 最终决策；结论强制引用证据，进度与检查点真实可见。
+- **不可绕过的风控**：三档策略授权书、仓位封顶、回撤熔断、止损止盈内置；AI 决策必经 Python 硬风控与纸面撮合。
+- **产品化桌面应用**：Dashboard / 投资助手 / 分析流程 / 设置四个页面；一键安装、单实例、托盘、开机自启、覆盖升级保留数据。
+- **对话式 AI 助手**：保留 DSH 原生思考、流式输出、工具、Skills、计划与子代理能力；IA 还能读日志、改源码、跑测试，具备自我维护能力。
 
-```mermaid
-flowchart LR
-    A["全市场证券列表"] --> B["硬条件初筛"]
-    B --> C["多因子评分"]
-    C --> D["优质候选池"]
-    P["当前持仓"] --> E["逐标的研究"]
-    D --> E
-    E --> F["多空研究与经理裁决"]
-    F --> G["组合经理生成组合草案"]
-    G --> H["激进/中立/保守风险辩论"]
-    H --> I["风险经理裁决"]
-    I --> J["组合经理最终决策"]
-    J --> K["代码硬风控"]
-    K --> L["模拟撮合"]
-    L --> M["更新账户与持仓"]
-    M --> N["生成并推送报告"]
-    N --> O["T+1/T+5/T+20 结果反思"]
+## 安装
+
+- 下载 [v2.1.3 Release](https://github.com/Robertzsy/ai-trading-automation/releases/tag/v2.1.3) 中的 `InvestmentAuto-Setup-x64.exe`
+- 支持 Windows 10/11 x64；安装包内置 Python、Node.js、.NET 桌面运行时与 WebView2 兜底安装程序
+
+SHA-256：
+
+```text
+00522AA80EAEF39BB9B59F1B50B458A2177F909AD807914DDB34367A85B49560
 ```
 
-每次完整轮次会自动完成：
+程序默认安装到 `%LocalAppData%\Programs\InvestmentAuto`，用户数据保存在 `%LocalAppData%\InvestmentAuto`。覆盖升级不改动账户、持仓、报告、配置、凭据和会话；2.1.3 升级实测 76,167 个用户数据文件零丢失。
 
-1. 获取对应市场的证券列表。
-2. 排除 ST、退市、低流动性、异常涨跌、价格或市值不符合要求的标的。
-3. 根据动量、趋势、流动性、估值、成交量和波动率进行综合评分。
-4. 选出优质候选，并合并当前持仓。
-5. 对每只股票进行技术面、市场情绪、新闻事件和基本面分析。
-6. 进行多头、空头和研究经理辩论。
-7. 逐只形成买入、持有、观望或卖出建议。
-8. 由组合经理汇总投资组合。
-9. 经过激进、中立、保守风险角色及风险经理复核。
-10. 使用代码重新执行仓位、现金、交易次数、止损和回撤等硬约束。
-11. 完成模拟撮合并更新账户。
-12. 生成完整报告并发送到对话窗口或 Webhook。
-13. 在后续取得 T+1、T+5、T+20 行情后评估决策效果，形成可复用记忆。
+## 从源码运行
 
-## Agent 工作流
+需要 Python 3.10+、Node.js 22+ 和 .NET 8 SDK（仅构建桌面壳时需要）。
 
-系统包含 13 类角色和 14 个执行节点：
-
-- 市场技术分析师
-- 市场情绪分析师
-- 新闻事件分析师
-- 基本面分析师
-- 多头研究员
-- 空头研究员
-- 研究经理
-- 逐标的交易员
-- 投资组合经理
-- 激进风险分析师
-- 中立风险分析师
-- 保守风险分析师
-- 风险经理
-
-投资组合经理会分别执行风险审查前草案和风险审查后终稿，因此总执行节点为 14 个。
-
-所有事实判断必须引用系统生成的证据 ID。缺少引用、伪造引用或 JSON 输出校验失败时，系统会重试或关闭本轮主观交易决策，不会绕过验证直接下单。
-
-硬止损、移动止损、分阶段止盈和最大回撤清仓由代码独立执行，不依赖模型是否正常响应。
-
-## Windows 一键启动
-
-### 环境要求
-
-- Windows 10 或 Windows 11
-- Python 3.10+
-- Node.js 18+
-- 至少配置一个可用的大模型 API Key
-
-### 首次使用
-
-1. 从 [GitHub Releases](https://github.com/Robertzsy/investment-auto/releases) 下载 `InvestmentAuto-Windows-v0.4.0.zip`。
-2. 解压到固定目录，例如 `D:\investment-auto`。
-3. 运行一次 `Setup-Windows.cmd`。
-4. 在 `.env` 或系统设置页面中填写模型 API Key。
-5. 双击 `InvestmentAuto.exe`。
-
-首次安装脚本会创建 Python 虚拟环境、安装锁定版本的依赖、创建本地 `.env` 并初始化模拟账户。
-
-启动器支持：
-
-- 启动投资 Agent、调度器和管理对话
-- 自动打开管理页面
-- 查看服务运行状态
-- 停止项目服务
-- 启用或关闭 Windows 登录后自动启动
-- 防止重复启动相同服务
-
-启动器不会将 API Key、持仓、报告或交易记录写入 EXE。
-
-> 当前 EXE 是项目启动器，不是完全脱离 Python 和 Node.js 的单文件运行环境。首次使用仍需运行 `Setup-Windows.cmd`。
-
-## 从源码安装
-
-```bash
-git clone https://github.com/Robertzsy/investment-auto.git
-cd investment-auto
-
+```powershell
+# 安装 Python 依赖
 python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e .
 
-# Windows
-.venv\Scripts\python -m pip install -r requirements-lock.txt
+# 终端 1：启动投资引擎
+.\.venv\Scripts\python.exe -m engine.main serve
 
-# Linux/macOS
-.venv/bin/python -m pip install -r requirements-lock.txt
-
-cp .env.example .env
-python -m src.main init
+# 终端 2：启动 Investment Auto Web 产品壳
+.\app\scripts\dev.ps1 -Port 4567
 ```
 
-启动独立投资 Agent：
+然后访问 `http://127.0.0.1:4567`，在设置页配置模型与 API Key。
 
-```bash
-python -m src.main run
+## 核心投资逻辑
+
+Investment Auto 的投资智能由三段确定性逻辑构成：**先排除、再打分、后解释的选股**，**13 角色委员会式分析**，以及**不可绕过的风控纪律**。
+
+- **选股**：先硬筛选（代码归一化、最低价 / 成交额 / 市值、PE/PB 上限、排除 ST/退市/权证），再按六因子加权评分排序，每只入选股附中文证据；
+- **多角色分析**：五阶段 13 角色（技术面/基本面/新闻/情绪 → 多空辩论 → 研究经理与交易员 → 组合草案 → 三方风险辩论 → 风险经理 → 组合经理），结论强制引用证据，研究不足的持仓强制 HOLD；
+- **决策与风控**：三档策略授权书定义硬边界；仓位 = min(市场单票上限, 策略单票上限)；回撤熔断强制清仓；止损止盈优先于 AI 建议；标的限于允许池、价格由引擎实时抓取。
+
+因子计算方式、角色分工、风控参数与商业价值评估的完整说明见 [投资逻辑详解](docs/INVESTMENT_LOGIC.md)。
+
+## 架构
+
+```text
+Windows WPF + WebView2
+          │
+Investment Auto 产品外壳
+          │
+DSH 对话 / 工具 / Skills / 子代理 / 工作流
+          │  本机令牌保护的回环 HTTP API
+Python 投资引擎
+          │
+行情、选股、组合、风控、模拟撮合、审计与调度
 ```
 
-在另一个终端启动管理对话：
+- `app/`：DSH profiles、preset、Skills、投资工具桥、固定工作流和产品 UI；
+- `engine/`：投资事实、配置、分析轮次状态、硬风控、纸面经纪与调度；
+- `windows/desktop/`：WPF/WebView2 桌面壳与进程生命周期；
+- `installer/`：自包含 Windows 安装器；
+- `tests/`：引擎、恢复、幂等、配置和桌面回归测试。
 
-```bash
-python -m src.main chat
-```
+## 版本历史
 
-管理页面位于 <http://127.0.0.1:8080>。
-
-管理对话与投资 Agent 是两个独立进程。关闭或重启对话页面，不会中断自动投资调度。
-
-## Docker 部署
-
-```bash
-docker compose up -d --build
-docker compose ps
-docker compose logs -f scheduler chat
-```
-
-管理页面位于 <http://127.0.0.1:8080>。
-
-Docker Compose 会同时启动投资 Agent 与调度器、AI 管理对话服务和 MongoDB。端口默认只绑定到 `127.0.0.1`，不会直接暴露到公网。
-
-## 运行模式
-
-### 手动模式
-
-只在用户点击“一键完整投资轮次”或通过对话发起操作时运行。一次触发会自动完成选股、研究、决策、风控、模拟成交和报告，不需要用户逐步确认。
-
-### 全自动模式
-
-系统按照设置中的市场计划时间自动执行完整投资轮次。每次完成后会保存本地报告、将报告放入 AI 对话窗口、根据配置发送 Webhook，并保存审计和反思记录。
-
-两种模式运行的是同一条完整投资链，不存在只执行选股、不继续分析的问题。
-
-## 投资策略
-
-系统提供三种投资策略授权书。
-
-| 策略 | 目标 | 典型约束 |
-|---|---|---|
-| 保守 | 控制回撤、保持较高现金比例 | 更高置信度、更低总仓位和单股仓位 |
-| 中立 | 平衡增长与回撤 | 中等仓位、置信度和换手限制 |
-| 激进 | 接受较大波动以追求增长 | 较高仓位和换手空间，但仍受硬风控约束 |
-
-策略并非单纯提示词。每种策略同时包含目标提示、最低置信度、总仓位与单股仓位上限、单笔金额、现金储备、换手、订单数量、每日交易次数和最大回撤等硬边界。
-
-策略授权书会在每轮开始时形成不可变快照，并写入审计记录和投资报告。
-
-## 全市场选股
-
-系统默认从全市场获取证券列表：
-
-- A 股、港股、ETF：新浪市场接口
-- 美股：NASDAQ Screener
-
-选股依次完成全市场发现、硬条件过滤、行情预取、多因子评分、候选池生成，并将候选与现有持仓一起交给多 Agent 研究。
-
-MongoDB 可保存和索引：
-
-- `securities`
-- `market_snapshots`
-- `screening_factors`
-- `screening_runs`
-
-未配置 MongoDB 或连接失败时，系统会自动使用 `runtime/screener/` 下的 JSON 数据，不阻断投资轮次。
-
-## 模拟交易与硬风控
-
-当前系统只允许：
-
-```yaml
-trading:
-  mode: paper
-```
-
-代码层硬风控包括：
-
-- 限定本轮允许交易的股票池
-- 最低投资置信度
-- 总仓位和单股仓位上限
-- 单笔订单金额和单轮换手上限
-- 最低现金储备
-- 单轮订单数量和每日交易次数
-- 最大账户回撤
-- 硬止损、移动止损和两阶段止盈
-- A 股整手限制和 T+1
-- 佣金、滑点和印花税
-- 紧急停止开关
-
-模型只能提交投资建议，不能绕过代码风控直接修改账户。
-
-## 管理对话 Agent
-
-AI 对话窗口是管理平面，投资 Agent 是执行平面。
-
-管理对话可以：
-
-- 查询 Agent 和调度器状态
-- 触发完整投资轮次
-- 切换手动或全自动模式
-- 切换投资策略
-- 暂停、恢复或紧急停止系统
-- 查看报告、日志和执行证据
-- 修改项目代码与配置
-- 执行测试并在失败时回滚
-- 安装项目内 Skill
-- 注册项目内 Tool
-- 根据历史错误形成管理反思
-
-对话功能采用模型原生工具调用，不依赖中文关键词匹配业务流程。
-
-## 反思与记忆
-
-系统包含两套隔离的记忆。
-
-### 投资 Agent 记忆
-
-记录投资决策及其后续表现。本轮结论首先进入待评估状态，只有获得真实的 T+1、T+5 或 T+20 后续行情后，才会形成可供后续 Agent 使用的经验。
-
-### 管理对话记忆
-
-记录用户长期目标、工具调用路径、修改结果、历史错误、是否完成外部验证和可复用的修复经验。未经结果验证的自我总结不会直接成为投资经验。
-
-## 报告与通知
-
-每轮报告保存在 `runtime/reports/`，自动调度报告会进入 AI 对话窗口。
-
-如需推送到外部系统，可配置：
-
-```env
-NOTIFY_WEBHOOK_URL=https://your-server.example.com/webhook
-```
-
-并启用：
-
-```yaml
-notify:
-  enabled: true
-  channels:
-    - webhook
-```
-
-Webhook 接收的 JSON 包含：
-
-```json
-{
-  "title": "美股完整投资轮次报告",
-  "text": "报告正文",
-  "content": "报告正文",
-  "report_file": "20260813-us-1300.md",
-  "metadata": {
-    "market": "us",
-    "label": "1300"
-  }
-}
-```
-
-推送失败不会回滚已经完成的模拟交易。
-
-## 常用命令
-
-```bash
-# 查看版本和状态
-python -m src.main version
-python -m src.main status
-
-# 只刷新选股，不交易
-python -m src.main screen --market cn
-
-# 完整运行一轮
-python -m src.main once --market us
-
-# 自主决策 dry-run / 模拟交易
-python -m src.main autonomous --market us --dry-run
-python -m src.main autonomous --market us
-
-# 补跑遗漏轮次 / 生成市场环境报告
-python -m src.main catchup --market cn
-python -m src.main macro
-
-# 暂停、恢复和紧急停止
-python -m src.main pause --reason "人工检查"
-python -m src.main resume
-python -m src.main kill --reason "异常行情"
-python -m src.main reset-kill
-```
-
-| 市场 | 参数 |
+| 版本 | 核心变化 |
 |---|---|
-| A 股 | `cn` |
-| 港股 | `hk` |
-| 美股 | `us` |
-| 场内 ETF | `etf` |
+| 2.0.0 | 从 1.x 的自研 Agent/窗口双层架构切换为 DSH 原生对话、工具、Skills、子代理与工作流；原投资业务收敛为独立 Python 引擎，并完成 Windows 桌面发行、DPAPI 密钥和 1.x 数据迁移。 |
+| 2.1.0 | 把“DSH + 投资 preset”产品化为 Investment Auto：重做 UI，加入 Dashboard、分析流程和设置，删除工作区/模式选择与底座标识，同时保持 DSH 原生对话、思考、流式输出和工具展示不变。 |
+| 2.1.1 | 把“选股”和“分析股票”拆成明确入口；用户指定股票直接接入固定完整分析流程。引入异步轮次、轮询状态和初版交易幂等，解决窗口 AI 自行分析、长请求超时和重复启动问题。 |
+| 2.1.2 | 强化成交回执、决策指纹、跨进程租约、失败/重启恢复和用户标的绑定；内部 headless 与角色会话迁入独立 DSH Home，不再污染用户会话栏。 |
+| 2.1.3 | 开放 IA 的文件、PowerShell、搜索、后台任务与 Ralph 自维护能力；加入自维护 Skill，修复工作流 schema 兼容、失败轮次重试竞态、Windows 原子写入和安装器误打包开发数据等问题。 |
 
-## 配置与数据
+完整记录见 [中文更新日志](CHANGELOG.md)、[English changelog](CHANGELOG_EN.md) 和 [v2.1.3 双语发行说明](docs/RELEASE_NOTES_2.1.3.md)。
 
-| 路径 | 用途 |
-|---|---|
-| `config/config.yaml` | 总配置、模型、市场、调度、选股和自动交易 |
-| `config/market/*.yaml` | 各市场交易规则和风险参数 |
-| `.env` | API Key、MongoDB、Webhook 等本地机密配置 |
-| `runtime/data/` | 模拟账户和本地数据 |
-| `runtime/reports/` | 完整投资报告 |
-| `runtime/trading/audit/` | 决策、风控和模拟成交审计 |
-| `runtime/screener/` | 全市场选股缓存和结果 |
-| `runtime/memory/` | 投资 Agent 与管理 Agent 记忆 |
-| `runtime/logs/` | 系统日志 |
+## 安全边界
 
-`.env`、持仓、报告、日志和其他运行数据不会提交到 Git。
+IA 以 DSH `danger-full-access` 运行，在当前 Windows 用户权限范围内可以读取日志、修改项目源码、运行 PowerShell、测试和构建。系统级权限与交易权限彼此独立：
 
-## 测试
+- 始终只使用模拟账户和纸面经纪；
+- 手动提交仍需要用户批准；
+- 所有决策必须通过 Python 授权书和硬风控；
+- cycle id、决策指纹和账户内执行回执阻止重复成交；
+- API Key 和 Webhook 使用 Windows DPAPI 保存，不写入普通配置或日志；
+- headless 与角色子会话保存在独立内部 DSH Home，不进入用户会话栏。
 
-```bash
-python -m pytest -q
+## 测试与发行
+
+2.1.3 已通过：
+
+- Python：184 项；
+- Node 插件：22 项；
+- Windows 桌面：20 项；
+- Skills、插件组合、真实 Profile、安装升级和 AAPL 完整分析恢复实测。
+
+完整发行门禁：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\release-check.ps1
 ```
 
-当前版本测试结果：`157 passed`。
+## 文档
 
-只读验证完整 Agent 工作流：
+- [投资逻辑详解](docs/INVESTMENT_LOGIC.md) · [Investment Logic (EN)](docs/INVESTMENT_LOGIC_EN.md)
+- [2.0 架构](docs/ARCHITECTURE_2.0.md) · [引擎 API](docs/ENGINE_API.md) · [产品外壳](docs/PRODUCT_SHELL.md) · [应用侧说明](app/README.md)
 
-```bash
-python scripts/smoke-agent-workflow.py --market us --symbol NVDA
-```
+## 分支与兼容性
 
-## 安全说明
-
-- 只支持模拟交易，不连接真实券商
-- 不要将 `.env` 提交到 Git
-- 不要公开模型 API Key、MongoDB 地址或 Webhook 地址
-- 首次启用全自动模式前建议先运行 dry-run
-- 建议先检查市场时间、交易规则和风险参数
-- 行情和新闻依赖第三方公开数据，可能存在延迟、缺失或错误
-- AI 输出可能出现事实错误、判断错误或格式错误
-- 本项目不构成投资建议
+- `dsch/2.0`：当前 2.x 开发与发布分支；
+- `master`：保留 1.x（v0.9.1）作为历史与回退版本；
+- 1.x 用户数据可以迁移到 2.x，迁移与覆盖升级都不会删除源数据。
 
 ## 许可证
 

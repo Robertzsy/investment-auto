@@ -1,4 +1,9 @@
-"""Macro storage and startup catch-up regressions."""
+"""Macro storage, scheduler triggers and cycle-report regressions (2.0 engine).
+
+The AI decision layer moved to the DSH app; these tests cover the engine-side
+scheduler lifecycle with a fake cycle runner registered through
+``scheduler.set_cycle_runner``.
+"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -8,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src import macro, scheduler
+from engine import macro, scheduler
 
 
 def test_macro_report_syncs_into_standalone_runtime(monkeypatch, tmp_path):
@@ -88,54 +93,6 @@ def test_startup_catch_up_finds_missed_cn_rounds(monkeypatch, tmp_path):
     assert [item["label"] for item in planned] == ["1030", "1300"]
 
 
-def test_scheduler_report_completion_disables_deepseek_thinking():
-    calls = []
-
-    class FakeLLM:
-        provider_name = "deepseek"
-
-        def chat(self, messages, **kwargs):
-            calls.append(kwargs)
-            return "完整报告"
-
-    assert scheduler._complete_report(FakeLLM(), [{"role": "user", "content": "x"}]) == "完整报告"
-    assert calls == [{
-        "temperature": 0.2,
-        "max_tokens": 4096,
-        "extra_body": {"thinking": {"type": "disabled"}},
-    }]
-
-
-def test_autonomous_report_compaction_keeps_portfolio_risk_and_execution():
-    verbose = "x" * 20000
-    autonomous = {
-        "status": "executed",
-        "chair": {"decisions": [{"symbol": "AAPL", "action": "BUY"}]},
-        "risk": {"orders": [{"symbol": "AAPL", "shares": 2}]},
-        "execution": {"fills": [{"code": "AAPL", "shares": 2}]},
-        "agent_workflow": {
-            "workflow": "tradingagents_staged_v1",
-            "portfolio_manager": {
-                "thesis": "portfolio",
-                "decisions": [{"symbol": "AAPL", "action": "BUY", "evidence_ids": ["MARKET:AAPL"]}],
-                "citations": ["MARKET:AAPL"],
-            },
-            "risk_manager": {"summary": "risk", "findings": [{"claim": verbose}]},
-            "base_reports": {"news_analyst": {"summary": verbose}},
-            "research_debate": [{"reports": {"bull_researcher": {"summary": verbose}}}],
-        },
-    }
-
-    compact = scheduler._compact_autonomous_for_report(autonomous)
-    prompt_slice = __import__("json").dumps(compact, ensure_ascii=False)[:12000]
-
-    assert '"status": "executed"' in prompt_slice
-    assert '"fills": [{"code": "AAPL", "shares": 2}]' in prompt_slice
-    assert '"thesis": "portfolio"' in prompt_slice
-    assert '"summary": "risk"' in prompt_slice
-    assert "research_debate" not in compact["agent_workflow"]
-
-
 def test_decision_report_covers_candidates_holdings_and_fills():
     content = scheduler._decision_section({
         "screening": {"selected_symbols": ["NVDA", "MSFT"]},
@@ -177,21 +134,10 @@ def test_run_investment_cycle_uses_unique_complete_round_label(monkeypatch):
     assert captured == {"market": "us", "label": "chat-220102"}
 
 
-def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, tmp_path):
-    monkeypatch.setattr(scheduler, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(scheduler, "_latest_macro_excerpt", lambda: "macro")
-    monkeypatch.setattr(scheduler, "_account_context", lambda market: {"account": {}, "holding_snapshots": []})
-
-    class FakeLLM:
-        provider_name = "test"
-
-        def chat(self, messages, **kwargs):
-            return "本轮摘要"
-
-    monkeypatch.setattr(scheduler, "resolve_llm", lambda **kwargs: FakeLLM())
-    monkeypatch.setattr(scheduler, "_deliver_completed_report", lambda *args: {"status": "delivered"})
-    monkeypatch.setattr("src.trading.controller.run_autonomous_cycle", lambda *args, **kwargs: {
-        "status": "executed",
+def _fake_cycle_result() -> dict:
+    return {
+        "status": "generated",
+        "report_text": "本轮摘要",
         "screening": {"selected_symbols": ["NVDA", "MSFT"]},
         "account_before": {"holdings": [{"code": "AAPL"}]},
         "chair": {"decisions": [
@@ -200,31 +146,84 @@ def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, 
             {"symbol": "AAPL", "action": "SELL", "confidence": 0.9, "reason": "risk"},
         ]},
         "execution": {"fills": [{"code": "NVDA", "action": "BUY", "shares": 2, "price": 100}]},
-    })
+    }
+
+
+@pytest.fixture(autouse=True)
+def _clear_cycle_runner():
+    yield
+    scheduler.set_cycle_runner(None)
+
+
+def test_complete_round_orchestrates_cycle_report_and_notification(monkeypatch, tmp_path):
+    monkeypatch.setattr(scheduler, "REPORT_DIR", tmp_path)
+    monkeypatch.setattr(scheduler, "_latest_macro_excerpt", lambda: "macro")
+    monkeypatch.setattr(scheduler, "_account_context", lambda market: {"account": {}, "holding_snapshots": []})
+    monkeypatch.setattr(scheduler, "_deliver_completed_report", lambda *args: {"status": "delivered"})
+    monkeypatch.setattr(
+        "engine.investment.reflection.InvestmentReflectionService.evaluate_pending",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        "engine.investment.reflection.InvestmentReflectionService.reflect_cycle",
+        lambda *args, **kwargs: {"status": "recorded"},
+    )
+    calls = []
+    scheduler.set_cycle_runner(lambda market, cycle_type, context: calls.append((market, cycle_type, context)) or _fake_cycle_result())
     current = datetime(2026, 8, 12, 22, 1, tzinfo=ZoneInfo("Asia/Shanghai"))
 
-    result = scheduler._run_intraday_job("us", "22:01", "chat-220100", now=current, scheduled_at=current)
+    result = scheduler._run_intraday_job("us", "22:01", "button-220100", now=current, scheduled_at=current)
     content = Path(result["report"]).read_text(encoding="utf-8")
 
     assert result["status"] == "generated"
     assert result["notification"]["status"] == "delivered"
     assert "模式：手动整轮" in content
+    assert "本轮摘要" in content
     assert "NVDA" in content and "买入/加仓" in content
     assert "MSFT" in content and "观望/继续持有" in content
     assert "AAPL" in content and "卖出/减仓" in content
     assert "已成交" in content
+    assert len(calls) == 1
+    assert calls[0][0] == "us" and calls[0][1] == "intraday"
+    assert calls[0][2]["label"] == "button-220100"
+    assert calls[0][2]["macro_excerpt"] == "macro"
+
+
+def test_cycle_without_runner_writes_skipped_report(monkeypatch, tmp_path):
+    monkeypatch.setattr(scheduler, "REPORT_DIR", tmp_path)
+    monkeypatch.setattr(scheduler, "_account_context", lambda market: {"account": {}, "holding_snapshots": []})
+    monkeypatch.setattr(scheduler, "_deliver_completed_report", lambda *args: {"status": "delivered"})
+    monkeypatch.setattr(
+        "engine.investment.reflection.InvestmentReflectionService.evaluate_pending",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        "engine.investment.reflection.InvestmentReflectionService.reflect_cycle",
+        lambda *args, **kwargs: {"status": "recorded"},
+    )
+    current = datetime(2026, 8, 12, 22, 1, tzinfo=ZoneInfo("Asia/Shanghai"))
+
+    result = scheduler._run_intraday_job("us", "22:01", "2135", now=current, scheduled_at=current)
+    content = Path(result["report"]).read_text(encoding="utf-8")
+
+    assert result["status"] == "generated"
+    assert result["autonomous"]["status"] == "skipped"
+    assert "cycle_runner_unavailable" in content
 
 
 def test_us_evening_misfire_keeps_original_schedule_date(monkeypatch, tmp_path):
     monkeypatch.setattr(scheduler, "REPORT_DIR", tmp_path)
     monkeypatch.setattr(scheduler, "_account_context", lambda market: {"account": {}, "holding_snapshots": []})
     monkeypatch.setattr(scheduler, "_latest_macro_excerpt", lambda: "")
-
-    class FakeLLM:
-        def chat(self, messages, **kwargs):
-            return "report"
-
-    monkeypatch.setattr(scheduler, "resolve_llm", lambda **kwargs: FakeLLM())
+    monkeypatch.setattr(
+        "engine.investment.reflection.InvestmentReflectionService.evaluate_pending",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        "engine.investment.reflection.InvestmentReflectionService.reflect_cycle",
+        lambda *args, **kwargs: {"status": "recorded"},
+    )
+    scheduler.set_cycle_runner(lambda market, cycle_type, context: {"status": "no_trade", "execution": {"fills": []}})
     actual = datetime(2026, 8, 11, 1, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
     scheduled = scheduler._scheduled_reference(actual, "21:35")
     assert scheduled == datetime(2026, 8, 10, 21, 35, tzinfo=ZoneInfo("Asia/Shanghai"))
@@ -241,7 +240,7 @@ def test_report_claim_prevents_duplicate_job_execution(monkeypatch, tmp_path):
     report = scheduler._round_report_path("cn", "1030", now)
     report.parent.mkdir(parents=True, exist_ok=True)
     report.with_suffix(report.suffix + ".lock").write_text("busy", encoding="utf-8")
-    monkeypatch.setattr(scheduler, "resolve_llm", lambda **kwargs: (_ for _ in ()).throw(AssertionError("must not run")))
+    scheduler.set_cycle_runner(lambda market, cycle_type, context: (_ for _ in ()).throw(AssertionError("must not run")))
 
     result = scheduler._run_intraday_job("cn", "10:30", "1030", now=now, scheduled_at=now.replace(minute=30))
     assert result["status"] == "in_progress"
@@ -275,6 +274,8 @@ def test_scheduler_registers_macro_job(monkeypatch, tmp_path):
     monkeypatch.setattr(scheduler, "run_catch_up", lambda: [])
     instance = scheduler.start(catch_up=False)
     try:
-        assert "macro-daily" in {job.id for job in instance.get_jobs()}
+        job_ids = {job.id for job in instance.get_jobs()}
+        assert "macro-daily" in job_ids
+        assert "cn-0930" in job_ids
     finally:
         instance.shutdown(wait=False)
